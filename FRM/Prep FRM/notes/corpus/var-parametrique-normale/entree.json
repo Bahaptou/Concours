@@ -1,0 +1,12 @@
+{
+  "type": "formule",
+  "titre": "VaR paramétrique (normale)",
+  "auteurs": {
+    "baptiste": {
+      "nom": "Baptiste Durand",
+      "initiales": "BD",
+      "updatedAt": 1790857611355,
+      "valide": true
+    }
+  }
+}

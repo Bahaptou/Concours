@@ -1,0 +1,4 @@
+# Environnement uv (aussi couvert par le .gitignore racine, utile si le dossier est copié seul)
+.venv/
+# Outil de maintenance CodeMirror
+tools/vendor_codemirror/node_modules/

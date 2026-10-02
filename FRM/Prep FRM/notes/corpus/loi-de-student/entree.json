@@ -1,0 +1,12 @@
+{
+  "type": "formule",
+  "titre": "Loi de Student",
+  "auteurs": {
+    "claude": {
+      "nom": "Claude",
+      "initiales": "CL",
+      "updatedAt": 1790874059931,
+      "valide": true
+    }
+  }
+}

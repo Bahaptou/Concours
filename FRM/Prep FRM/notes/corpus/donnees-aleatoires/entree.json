@@ -1,0 +1,12 @@
+{
+  "type": "brique",
+  "titre": "Données aléatoires",
+  "auteurs": {
+    "claude": {
+      "nom": "Claude",
+      "initiales": "CL",
+      "updatedAt": 1790874060014,
+      "valide": true
+    }
+  }
+}

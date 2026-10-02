@@ -1,0 +1,12 @@
+{
+  "type": "formule",
+  "titre": "Loi normale",
+  "auteurs": {
+    "claude": {
+      "nom": "Claude",
+      "initiales": "CL",
+      "updatedAt": 1790874059820,
+      "valide": true
+    }
+  }
+}

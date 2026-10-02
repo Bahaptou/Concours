@@ -1,0 +1,12 @@
+{
+  "type": "formule",
+  "titre": "CAPM",
+  "auteurs": {
+    "baptiste": {
+      "nom": "Baptiste Durand",
+      "initiales": "BD",
+      "updatedAt": 1790857610917,
+      "valide": true
+    }
+  }
+}

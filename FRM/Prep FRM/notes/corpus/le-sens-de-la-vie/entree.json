@@ -1,0 +1,12 @@
+{
+  "type": "definition",
+  "titre": "Le Sens de la Vie",
+  "auteurs": {
+    "baptiste": {
+      "nom": "Baptiste Durand",
+      "initiales": "BD",
+      "updatedAt": 1790869028858,
+      "valide": true
+    }
+  }
+}

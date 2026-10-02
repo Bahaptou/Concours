@@ -1,0 +1,12 @@
+{
+  "type": "brique",
+  "titre": "Estimation Monte-Carlo",
+  "auteurs": {
+    "claude": {
+      "nom": "Claude",
+      "initiales": "CL",
+      "updatedAt": 1790873913867,
+      "valide": true
+    }
+  }
+}

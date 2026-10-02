@@ -1,0 +1,12 @@
+{
+  "type": "brique",
+  "titre": "Histogramme avec quantile",
+  "auteurs": {
+    "claude": {
+      "nom": "Claude",
+      "initiales": "CL",
+      "updatedAt": 1790873884704,
+      "valide": true
+    }
+  }
+}

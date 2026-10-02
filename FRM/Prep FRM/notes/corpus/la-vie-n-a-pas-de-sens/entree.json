@@ -1,0 +1,12 @@
+{
+  "type": "propriete",
+  "titre": "La Vie n'a pas de sens",
+  "auteurs": {
+    "baptiste": {
+      "nom": "Baptiste Durand",
+      "initiales": "BD",
+      "updatedAt": 1790867835993,
+      "valide": true
+    }
+  }
+}

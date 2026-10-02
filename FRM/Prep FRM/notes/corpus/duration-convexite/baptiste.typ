@@ -1,0 +1,1 @@
+$ (Delta P) / P approx -D^* Delta y + 1/2 C (Delta y)^2 $

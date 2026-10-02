@@ -1,0 +1,1 @@
+$ "VaR"_alpha = z_alpha sigma - mu $

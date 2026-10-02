@@ -1,0 +1,12 @@
+{
+  "type": "brique",
+  "titre": "Trajectoires de prix (mouvement brownien géométrique)",
+  "auteurs": {
+    "claude": {
+      "nom": "Claude",
+      "initiales": "CL",
+      "updatedAt": 1790873914301,
+      "valide": true
+    }
+  }
+}
