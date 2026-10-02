@@ -59,6 +59,18 @@ def test_une_parenthese_non_fermee_est_localisee_par_decoupage(compiler):
     assert raised.value.line == 3
 
 
+def test_on_peut_renoncer_a_chercher_la_ligne(compiler):
+    # La recherche de la ligne coûte une dizaine de compilations. Un appelant qui ne s'en servira
+    # pas (la version d'une formule avec ses hypothèses : la ligne n'aurait aucun sens) la saute.
+    source = "= Titre\n\nUne ligne\n$ sigmaa $\nfin"
+    with pytest.raises(TypstCompileError) as raised:
+        compiler.svg_pages(source, locate=False)
+    # Le message et l'explication sont toujours là ; seule la ligne manque.
+    assert raised.value.message == "unknown variable: sigmaa"
+    assert raised.value.explanation.startswith("Nom inconnu")
+    assert raised.value.line is None
+
+
 def test_une_erreur_de_compilation_n_est_pas_marquee_enregistree(compiler):
     # Seul le service des fiches, après avoir écrit le texte sur disque, met saved à True.
     with pytest.raises(TypstCompileError) as raised:

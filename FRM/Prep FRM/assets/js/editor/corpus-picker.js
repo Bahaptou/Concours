@@ -55,6 +55,7 @@ function keepCursorBelowImports(view) {
 /**
  * Builds the menu: a toolbar button and its floating panel.
  *
+ * view: the editor the actions write into, or a function returning it (editors with several fields);
  * load: async () => entries ({ id, type, titre }), called at each opening so that an entry
  *       created in another tab shows up;
  * actions: [{ label, title, run(view, entry) }], one button per action on each entry;
@@ -70,6 +71,7 @@ export function corpusPicker(view, { load, actions, exclude = () => null, label 
   <ul class="picker-list"></ul>
   <div class="picker-foot"><span data-picker-status></span><a href="entree.html" target="_blank" rel="noopener">+ Nouvelle entrée ↗</a></div>
 </div>`;
+  const target = typeof view === "function" ? view : () => view;
   const button = root.querySelector("button");
   const panel = root.querySelector(".picker-panel");
   const search = root.querySelector("input");
@@ -116,7 +118,7 @@ export function corpusPicker(view, { load, actions, exclude = () => null, label 
   function run(index, id) {
     const entry = entries.find((e) => e.id === id);
     close();
-    if (entry) actions[index].run(view, entry);
+    if (entry) actions[index].run(target(), entry);
   }
 
   button.addEventListener("click", () => (panel.hidden ? open() : close()));
@@ -124,7 +126,7 @@ export function corpusPicker(view, { load, actions, exclude = () => null, label 
   search.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       close();
-      view.focus();
+      target().focus();
     }
     if (event.key === "Enter") {
       // Enter runs the first action on the first result: fast path for the keyboard.

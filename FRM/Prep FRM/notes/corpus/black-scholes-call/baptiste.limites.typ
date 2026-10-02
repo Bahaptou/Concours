@@ -1,0 +1,6 @@
+  - $sigma$ n'est pas constante : la volatilité implicite varie selon le strike et la maturité (smile / skew)
+  - les mouvements extrêmes sont plus fréquents que ne le dit la loi normale (queues épaisses, sauts)
+  - ne valorise pas l'exercice anticipé, ce qui compte pour un put américain ou un call américain sur actif à dividendes
+  - dividendes à intégrer par l'extension de Merton
+  - $sigma$ n'est pas observable : estimée sur l'historique ou déduite d'un prix de marché, donc risque de modèle
+  - couverture continue et sans coût irréaliste en pratique

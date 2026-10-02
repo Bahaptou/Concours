@@ -743,6 +743,13 @@ select.search{min-width:0;}
 .code-pane{margin-top:12px;}
 .code-pane h3{font-size:14px; margin-bottom:6px;}
 .cm-host.code{height:280px; min-height:0;}
+/* Hypotheses and limits of a formula: two short fields under the text, which gets shorter to leave room. */
+.section-pane{margin-top:12px;}
+.section-pane h3{font-size:14px; margin-bottom:2px;}
+.section-pane p{margin:0 0 6px;}
+.section-pane[hidden]{display:none;}
+.cm-host.section{height:150px; min-height:0;}
+.cm-host.compact{height:220px; min-height:0;}
 .rebuild-report{margin-top:10px; font-size:12.5px; color:var(--ink-soft);}
 .rebuild-report ul{margin:4px 0; padding-left:18px;}
 

@@ -1,11 +1,11 @@
 {
-  "type": "formule",
-  "titre": "Black-Scholes : call européen",
+  "type": "definition",
+  "titre": "Option call",
   "auteurs": {
     "baptiste": {
       "nom": "Baptiste Durand",
       "initiales": "BD",
-      "updatedAt": 1790930216280,
+      "updatedAt": 1790927549061,
       "valide": true
     }
   }

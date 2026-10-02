@@ -166,16 +166,18 @@ def update_entry(request: ApiRequest, services: Services) -> ApiResponse:
 
 def get_version(request: ApiRequest, services: Services) -> ApiResponse:
     entry_id, author = parse_entry_id(request.params["id"]), parse_author(request.params["author"])
-    source, code = services.corpus.load_version(entry_id, author)
+    files = services.corpus.load_version(entry_id, author)
     entry = services.corpus.get(entry_id)
-    ctx = VersionContext(entry_id, entry.meta.type, author, source, code)
+    ctx = VersionContext(entry_id, entry.meta.type, author, files.source, files.code, files.hypotheses, files.limites)
     return ApiResponse(HTTPStatus.OK, VersionPresenter().present(ctx))
 
 
 def save_version(request: ApiRequest, services: Services) -> ApiResponse:
     entry_id, author = parse_entry_id(request.params["id"]), parse_author(request.params["author"])
     payload = parse_version_payload(request.body)
-    entry, report = services.corpus.save_version(entry_id, author, payload.name, payload.initials, payload.source, payload.code)
+    entry, report = services.corpus.save_version(
+        entry_id, author, payload.name, payload.initials, payload.source, payload.code, payload.hypotheses, payload.limites
+    )
     return entry_response(HTTPStatus.OK, entry, services, report)
 
 
@@ -187,7 +189,7 @@ def run_code(request: ApiRequest, services: Services) -> ApiResponse:
 
 def preview_entry(request: ApiRequest, services: Services) -> ApiResponse:
     payload = parse_entry_preview(request.body)
-    pages = services.corpus.preview(payload.type, payload.titre, payload.initials, payload.source)
+    pages = services.corpus.preview(payload.type, payload.titre, payload.initials, payload.source, payload.hypotheses, payload.limites)
     return ApiResponse(HTTPStatus.OK, EntryPreviewPresenter().present(EntryPreviewContext(pages)))
 
 

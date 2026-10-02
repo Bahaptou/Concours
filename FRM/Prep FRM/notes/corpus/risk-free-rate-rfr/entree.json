@@ -1,11 +1,11 @@
 {
-  "type": "formule",
-  "titre": "Black-Scholes : call européen",
+  "type": "definition",
+  "titre": "Risk Free Rate (rfr)",
   "auteurs": {
     "baptiste": {
       "nom": "Baptiste Durand",
       "initiales": "BD",
-      "updatedAt": 1790930216280,
+      "updatedAt": 1790925894788,
       "valide": true
     }
   }

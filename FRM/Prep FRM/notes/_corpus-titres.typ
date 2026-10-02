@@ -5,6 +5,7 @@
 #let corpus-titres = (
   "bayes": (type: "formule", titre: "Règle de Bayes"),
   "black-scholes-call": (type: "formule", titre: "Black-Scholes : call européen"),
+  "black-scholes-call-europeen": (type: "brique", titre: "Black-Scholes : call européen"),
   "capm": (type: "formule", titre: "CAPM"),
   "donnees-aleatoires": (type: "brique", titre: "Données aléatoires"),
   "duration-convexite": (type: "formule", titre: "Variation de prix : duration et convexité"),
@@ -15,7 +16,10 @@
   "loi-de-student": (type: "formule", titre: "Loi de Student"),
   "loi-normale": (type: "formule", titre: "Loi normale"),
   "monte-carlo": (type: "brique", titre: "Estimation Monte-Carlo"),
+  "option": (type: "definition", titre: "Option call"),
   "rendements-portefeuille": (type: "brique", titre: "Rendement et volatilité d'un portefeuille"),
+  "risk-free-rate-rfr": (type: "definition", titre: "Risk Free Rate (rfr)"),
+  "time-value-of-money": (type: "definition", titre: "Time Value of Money"),
   "trajectoires-prix": (type: "brique", titre: "Trajectoires de prix (mouvement brownien géométrique)"),
   "var-parametrique-normale": (type: "formule", titre: "VaR paramétrique (normale)"),
   "variance-portefeuille-2-actifs": (type: "formule", titre: "Variance d'un portefeuille à deux actifs"),

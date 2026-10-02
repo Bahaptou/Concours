@@ -115,6 +115,9 @@ class TypstCompileError(AppError):
         self.saved = saved  # True when the source was written to disk before compiling
         # Corpus only: what happened to the notes depending on the failed version (RebuildReport.to_dict()).
         self.rebuild: dict | None = None
+        # Corpus only: which text of a version holds the error ("source", "hypotheses" or "limites");
+        # ``line`` counts inside that text. None when the failing text is not told apart.
+        self.part: str | None = None
 
     def __str__(self) -> str:
         return self.message
@@ -123,6 +126,8 @@ class TypstCompileError(AppError):
         members = {"hints": self.hints, "explanation": self.explanation, "line": self.line, "saved": self.saved}
         if self.rebuild is not None:
             members["rebuild"] = self.rebuild
+        if self.part is not None:
+            members["part"] = self.part
         return members
 
 

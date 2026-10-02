@@ -71,8 +71,25 @@
   brique: (nom: "Brique de code", couleur: rgb("#c98500")),
 )
 
+// Small block under the text of an entry (formulas: assumptions and limits). White card, border in
+// the entry's colour; the dash style (not the colour) tells the two apart.
+#let section-entree(titre, couleur, trait, body) = block(
+  width: 100%,
+  inset: (x: 8pt, y: 6pt),
+  radius: 2pt,
+  fill: white,
+  stroke: (paint: couleur.lighten(45%), thickness: 0.8pt, dash: trait),
+  above: 0.7em,
+  below: 0pt,
+)[
+  #text(size: 7.5pt, weight: "bold", fill: couleurs.doux, tracking: 0.06em)[#upper(titre)]
+  #v(0.15em)
+  #text(size: 0.92em)[#body]
+]
+
 // Box of one version of an entry: type and title, author's initials as a badge.
-#let bloc-entree(type, titre, initiales, body) = {
+// hypotheses / limites: optional content, shown as blocks under the body.
+#let bloc-entree(type, titre, initiales, body, hypotheses: none, limites: none) = {
   let style = types-entree.at(type)
   block(
     width: 100%,
@@ -90,6 +107,8 @@
     #box(fill: style.couleur, inset: (x: 4pt, y: 2pt), radius: 2pt)[#text(size: 7.5pt, weight: "bold", fill: white)[#initiales]]
     #v(0.2em)
     #body
+    #if hypotheses != none { section-entree("Hypothèses", style.couleur, "solid", hypotheses) }
+    #if limites != none { section-entree("Limites", style.couleur, "dashed", limites) }
   ]
 }
 

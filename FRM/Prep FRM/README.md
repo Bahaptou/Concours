@@ -57,6 +57,9 @@ des corrigés, repris tels quels dans la carte « Things to Remember » de chaqu
 Chaque personne écrit sa propre fiche par reading, en **Typst**, dans l'éditeur du site :
 
 - à gauche le texte, à droite l'aperçu, mis à jour pendant la frappe ;
+- **Taille** (menu à côté de Italique, aussi dans l'éditeur d'entrée) entoure la sélection de
+  `#text(size: …)[…]` : Petit, Grand, Très grand (en `em`, relatifs au texte de la fiche) ou Autre… pour
+  taper sa valeur (`14pt`, `1.1em`). Sans effet sur les titres, dont la taille est fixée par le gabarit ;
 - **∑ Maths** (Ctrl+M) entoure la sélection de `$…$` ; dès que le curseur est dans une formule, une
   barre « Mode maths » propose fraction, racine, exposant, indice, somme, lettres grecques… ;
 - **📚 Corpus** cherche une entrée du corpus et la **cite** (`#voir("bayes")` : son titre, en couleur)
@@ -96,9 +99,14 @@ formules y sont, signées BD).
   le signale (son dernier rendu reste affiché).
 - **Simulations et briques** : en plus de leur texte, elles ont une section de code Python à part (voir
   « Python » ci-dessous).
+- **Hypothèses et limites des formules** : une formule a deux champs de plus sous son texte, écrits en
+  Typst comme le reste, propres à chaque version. Ils s'affichent en deux petits blocs sous la formule,
+  dans son encadré (hypothèses en cadre plein, limites en tirets), sur la page du corpus et dans les
+  fiches qui insèrent la formule. Un champ vide n'affiche rien. Les autres types n'en ont pas.
 
 Fichiers : `notes/corpus/<id>/entree.json` (type, titre, auteurs), `<prénom>.typ` (la version),
-`<prénom>.py` (le code d'une simulation ou d'une brique), `<prénom>-<page>.svg` (le rendu). Le serveur génère
+`<prénom>.hypotheses.typ` et `<prénom>.limites.typ` (une formule), `<prénom>.py` (le code d'une simulation
+ou d'une brique), `<prénom>-<page>.svg` (le rendu). Le serveur génère
 `notes/_corpus-titres.typ` (titres, pour `#voir`), `notes/_corpus.typ` (versions valides, pour
 `#entree`) et `notes/corpus/index.js` (le corpus pour les pages ouvertes sans serveur) : ne pas les
 modifier à la main.

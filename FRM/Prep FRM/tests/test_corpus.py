@@ -7,6 +7,7 @@ Ce qu'on protège ici, dans l'ordre d'importance :
 4. plusieurs auteurs peuvent écrire leur version d'une même entrée.
 """
 import json
+import re
 
 import pytest
 
@@ -247,6 +248,226 @@ def test_une_version_d_une_entree_inconnue_est_refusee(services):
         version(services.corpus, "inconnue", "Texte")
 
 
+# ---------------------------------------------------------------- hypothèses et limites d'une formule
+#
+# Une formule porte deux textes en plus de sa formule : ses hypothèses et ses limites. Ils
+# s'écrivent à part (comme le code d'une brique), mais s'affichent en deux petits blocs sous la
+# formule, dans l'encadré de l'entrée : sur la page du corpus ET dans les fiches qui l'insèrent.
+
+FORMULE = "$ c = S_0 N(d_1) - K e^(-r T) N(d_2) $"
+HYPOTHESES = "- rendements log-normaux, $sigma$ constante\n- taux sans risque $r$ constant\n"
+LIMITES = "- sous-estime les queues épaisses\n"
+
+
+def avec_sections(corpus, entry_id, hypotheses=None, limites=None, source=FORMULE, who=BAPTISTE):
+    """Raccourci : enregistre une version de formule avec ses deux sections."""
+    return corpus.save_version(entry_id, who["author"], who["name"], who["initials"], source, None, hypotheses, limites)
+
+
+def hauteur(svg):
+    """Hauteur d'une page SVG. Le texte y est converti en tracés : on ne peut pas y chercher un
+    mot, mais un bloc de plus rend la page plus haute."""
+    return float(re.search(r'<svg[^>]*\sheight="([\d.]+)', svg).group(1))
+
+
+def test_une_formule_garde_ses_hypotheses_et_ses_limites(services, site):
+    corpus = services.corpus
+    creer(corpus, "black-scholes", titre="Black-Scholes")
+    avec_sections(corpus, "black-scholes", HYPOTHESES, LIMITES)
+
+    dossier = site / "notes" / "corpus" / "black-scholes"
+    # Chaque section est un fichier à part, à côté de la formule, au nom de l'auteur.
+    assert (dossier / "baptiste.hypotheses.typ").read_text(encoding="utf-8") == HYPOTHESES
+    assert (dossier / "baptiste.limites.typ").read_text(encoding="utf-8") == LIMITES
+    assert (dossier / "baptiste.typ").read_text(encoding="utf-8") == FORMULE
+    # L'éditeur les relit par load_version.
+    fichiers = corpus.load_version("black-scholes", "baptiste")
+    assert (fichiers.source, fichiers.hypotheses, fichiers.limites) == (FORMULE, HYPOTHESES, LIMITES)
+    # Une fiche qui insère l'entrée y trouvera les trois textes, chacun derrière sa fonction.
+    generated = (site / "notes" / "_corpus.typ").read_text(encoding="utf-8")
+    assert 'hypotheses: () => include "corpus/black-scholes/baptiste.hypotheses.typ"' in generated
+    assert 'limites: () => include "corpus/black-scholes/baptiste.limites.typ"' in generated
+
+
+def test_les_blocs_agrandissent_l_encadre_sur_la_page_du_corpus(services, site):
+    corpus = services.corpus
+    creer(corpus, "black-scholes")
+    avec_sections(corpus, "black-scholes", source=FORMULE, who=MARIE)  # sans section
+    avec_sections(corpus, "black-scholes", HYPOTHESES, LIMITES, who=BAPTISTE)
+    dossier = site / "notes" / "corpus" / "black-scholes"
+    sans = hauteur((dossier / "marie-1.svg").read_text(encoding="utf-8"))
+    avec = hauteur((dossier / "baptiste-1.svg").read_text(encoding="utf-8"))
+    # Deux blocs de plus : la page est nettement plus haute (de l'ordre de 100 pt).
+    assert avec > sans + 50
+
+
+def test_une_fiche_qui_insere_la_formule_montre_aussi_les_blocs(services):
+    corpus = services.corpus
+    creer(corpus, "sans-blocs")
+    creer(corpus, "avec-blocs")
+    avec_sections(corpus, "sans-blocs")
+    avec_sections(corpus, "avec-blocs", HYPOTHESES, LIMITES)
+    # Une vraie fiche a une page de hauteur libre (le gabarit) ; ici on la reproduit, sinon la page
+    # est un A4 de hauteur fixe et rien ne se mesure.
+    page = FICHE + "#set page(height: auto)\n"
+    sans = hauteur(services.compiler.svg_pages(page + '#entree("sans-blocs")')[0])
+    avec = hauteur(services.compiler.svg_pages(page + '#entree("avec-blocs")')[0])
+    # La fiche passe par _corpus.typ (include des trois fichiers), pas par le rendu de la page
+    # du corpus testé juste au-dessus : ce sont deux chemins, on vérifie les deux.
+    assert avec > sans + 50
+
+
+def test_une_section_vide_retire_son_fichier_et_son_bloc(services, site):
+    corpus = services.corpus
+    creer(corpus, "black-scholes")
+    avec_sections(corpus, "black-scholes", HYPOTHESES, LIMITES)
+    fichier = site / "notes" / "corpus" / "black-scholes" / "baptiste.limites.typ"
+    avec = hauteur((site / "notes" / "corpus" / "black-scholes" / "baptiste-1.svg").read_text(encoding="utf-8"))
+    assert fichier.exists()
+
+    # Des espaces seuls comptent pour « vide » : le bloc disparaît, le fichier aussi.
+    avec_sections(corpus, "black-scholes", HYPOTHESES, "  \n")
+    assert not fichier.exists()
+    assert hauteur((site / "notes" / "corpus" / "black-scholes" / "baptiste-1.svg").read_text(encoding="utf-8")) < avec
+    assert 'limites: none' in (site / "notes" / "_corpus.typ").read_text(encoding="utf-8")
+    assert 'hypotheses: () => include' in (site / "notes" / "_corpus.typ").read_text(encoding="utf-8")
+
+
+def test_ne_pas_envoyer_une_section_la_laisse_telle_quelle(services, site):
+    # Un client qui n'envoie pas « limites » (None) ne l'efface pas : seul un texte vide le fait.
+    corpus = services.corpus
+    creer(corpus, "black-scholes")
+    avec_sections(corpus, "black-scholes", HYPOTHESES, LIMITES)
+    avec_sections(corpus, "black-scholes", "- une seule hypothèse\n", None)
+    dossier = site / "notes" / "corpus" / "black-scholes"
+    assert (dossier / "baptiste.hypotheses.typ").read_text(encoding="utf-8") == "- une seule hypothèse\n"
+    assert (dossier / "baptiste.limites.typ").read_text(encoding="utf-8") == LIMITES
+
+
+def test_chaque_auteur_a_ses_propres_sections(services, site):
+    corpus = services.corpus
+    creer(corpus, "black-scholes")
+    avec_sections(corpus, "black-scholes", HYPOTHESES, LIMITES, who=BAPTISTE)
+    avec_sections(corpus, "black-scholes", "- version de Marie\n", None, who=MARIE)
+    dossier = site / "notes" / "corpus" / "black-scholes"
+    assert (dossier / "marie.hypotheses.typ").read_text(encoding="utf-8") == "- version de Marie\n"
+    assert not (dossier / "marie.limites.typ").exists()  # Marie n'en a pas écrit
+    assert (dossier / "baptiste.limites.typ").exists()   # et ça ne touche pas celles de Baptiste
+    # Les noms de fichiers des sections ne sont pas pris pour des auteurs.
+    assert [v.author for v in corpus.get("black-scholes").versions] == ["baptiste", "marie"]
+
+
+def test_les_sections_sont_reservees_aux_formules(services, site):
+    corpus = services.corpus
+    creer(corpus, "variance", type_="definition")
+    with pytest.raises(InvalidRequestError) as raised:
+        avec_sections(corpus, "variance", HYPOTHESES, None)
+    assert raised.value.field == "hypotheses"
+    assert not (site / "notes" / "corpus" / "variance" / "baptiste.hypotheses.typ").exists()
+    # Une section vide n'est pas un contenu : un client qui envoie toujours les deux champs passe.
+    avec_sections(corpus, "variance", "", "", source="La dispersion autour de la moyenne.")
+
+
+def test_changer_le_type_d_une_formule_ignore_ses_sections(services, site):
+    # Les fichiers restent (rien n'est perdu si on se ravise), mais ne sont plus affichés.
+    corpus = services.corpus
+    creer(corpus, "black-scholes")
+    avec_sections(corpus, "black-scholes", HYPOTHESES, LIMITES)
+    avant = hauteur((site / "notes" / "corpus" / "black-scholes" / "baptiste-1.svg").read_text(encoding="utf-8"))
+    corpus.update_meta("black-scholes", EntryMeta("definition", "Black-Scholes"))
+    apres = hauteur((site / "notes" / "corpus" / "black-scholes" / "baptiste-1.svg").read_text(encoding="utf-8"))
+    assert apres < avant
+    assert (site / "notes" / "corpus" / "black-scholes" / "baptiste.limites.typ").exists()
+    assert "include" in (site / "notes" / "_corpus.typ").read_text(encoding="utf-8")
+    assert "baptiste.limites.typ" not in (site / "notes" / "_corpus.typ").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("fautive, ou", [
+    ("source", dict(source="Ligne 1\n$ sigmaa $")),
+    ("hypotheses", dict(hypotheses="- bonne\n- mauvaise $ sigmaa $\n")),
+    ("limites", dict(limites="Première ligne\n\n$ sigmaa $\n")),
+])
+def test_une_erreur_designe_le_texte_fautif_et_sa_ligne(services, site, fautive, ou):
+    # Trois textes, une seule boîte : sans précaution, l'erreur ne dirait pas lequel est en cause.
+    # Le serveur compile chaque texte seul pour le trouver, et compte les lignes dans ce texte.
+    corpus = services.corpus
+    creer(corpus, "black-scholes")
+    textes = dict(source=FORMULE, hypotheses=HYPOTHESES, limites=LIMITES) | ou
+    with pytest.raises(TypstCompileError) as raised:
+        avec_sections(corpus, "black-scholes", textes["hypotheses"], textes["limites"], source=textes["source"])
+    erreur = raised.value
+    assert erreur.part == fautive
+    assert erreur.message == "unknown variable: sigmaa"
+    assert erreur.line == {"source": 2, "hypotheses": 2, "limites": 3}[fautive]
+    # Comme toute version cassée : tout le texte est enregistré, la version est exclue des fiches.
+    assert erreur.saved is True
+    assert corpus.get("black-scholes").versions[0].valid is False
+    assert "baptiste" not in (site / "notes" / "_corpus.typ").read_text(encoding="utf-8")
+    assert erreur.extensions()["part"] == fautive
+
+
+def test_une_erreur_sans_section_ne_porte_pas_de_partie(services):
+    # Hors formule avec sections, la ligne se rapporte au seul texte : inutile d'ajouter la partie.
+    creer(services.corpus, "bayes")
+    with pytest.raises(TypstCompileError) as raised:
+        version(services.corpus, "bayes", "Ligne 1\n$ sigmaa $")
+    assert (raised.value.part, raised.value.line) == (None, 2)
+    assert "part" not in raised.value.extensions()
+
+
+def test_une_version_cassee_par_une_section_ne_casse_pas_les_fiches(services):
+    corpus = services.corpus
+    creer(corpus, "black-scholes")
+    avec_sections(corpus, "black-scholes", source=FORMULE, who=MARIE)
+    with pytest.raises(TypstCompileError):
+        avec_sections(corpus, "black-scholes", "$ sigmaa $", None, who=BAPTISTE)
+    # La version de Baptiste a quitté _corpus.typ, celle de Marie reste : la fiche compile.
+    services.compiler.svg_pages(FICHE + '#entree("black-scholes")')
+    # Corrigée, la version revient.
+    avec_sections(corpus, "black-scholes", "$ sigma $", None, who=BAPTISTE)
+    assert corpus.get("black-scholes").versions[0].valid is True
+    assert "baptiste.hypotheses.typ" in (services.corpus.root / "_corpus.typ").read_text(encoding="utf-8")
+
+
+def test_une_section_peut_citer_une_autre_entree(services):
+    corpus = services.corpus
+    creer(corpus, "loi-normale", type_="definition", titre="Loi normale")
+    creer(corpus, "black-scholes")
+    avec_sections(corpus, "black-scholes", CITE + '- rendements suivant la #voir("loi-normale")\n', None)
+    # La citation faite dans une section compte comme celles du texte : rétrolien, dépendants.
+    assert corpus.get("black-scholes").cites == ("loi-normale",)
+    assert corpus.dependents("loi-normale").entries == (("black-scholes", "baptiste"),)
+    # Donc renommer la loi normale recompile la formule, dont le bloc montre ce titre.
+    _, rapport = corpus.update_meta("loi-normale", EntryMeta("definition", "Loi gaussienne"))
+    assert rapport.rebuilt == ["corpus/black-scholes/baptiste"]
+
+
+def test_une_section_ne_peut_pas_inserer_d_entree(services, site):
+    # Même garde que pour le texte : une section qui insérerait une entrée ferait une boucle.
+    creer(services.corpus, "black-scholes")
+    for section in ("hypotheses", "limites"):
+        with pytest.raises(CorpusImportForbiddenError):
+            avec_sections(services.corpus, "black-scholes", **{section: '#entree("black-scholes")'})
+    assert not (site / "notes" / "corpus" / "black-scholes" / "baptiste.typ").exists()
+
+
+def test_l_apercu_montre_les_sections_sans_rien_ecrire(services, site):
+    corpus = services.corpus
+    creer(corpus, "black-scholes")
+    sans = hauteur(corpus.preview("formule", "Black-Scholes", "BD", FORMULE)[0])
+    avec = hauteur(corpus.preview("formule", "Black-Scholes", "BD", FORMULE, HYPOTHESES, LIMITES)[0])
+    assert avec > sans + 50
+    # Un aperçu n'est qu'un aperçu : aucun fichier.
+    assert not list((site / "notes" / "corpus" / "black-scholes").glob("baptiste*"))
+    # Pour un autre type, les sections envoyées sont ignorées.
+    definition = hauteur(corpus.preview("definition", "Variance", "BD", "Texte", HYPOTHESES, LIMITES)[0])
+    assert definition == hauteur(corpus.preview("definition", "Variance", "BD", "Texte")[0])
+    # Et une erreur d'aperçu désigne elle aussi le texte fautif.
+    with pytest.raises(TypstCompileError) as raised:
+        corpus.preview("formule", "Black-Scholes", "BD", FORMULE, HYPOTHESES, "$ sigmaa $")
+    assert (raised.value.part, raised.value.line) == ("limites", 1)
+
+
 # ---------------------------------------------------------------- API
 
 
@@ -293,6 +514,31 @@ def test_les_erreurs_du_corpus_par_l_api(api):
     assert (status, body["field"]) == (422, "type")
     status, _, body = api("POST", "/api/corpus", {"id": "abc", "type": "formule", "titre": " "})
     assert (status, body["field"]) == (422, "titre")
+
+
+def test_les_hypotheses_et_les_limites_par_l_api(api):
+    api("POST", "/api/corpus", {"id": "black-scholes", "type": "formule", "titre": "Black-Scholes"})
+    moi = {"name": "Baptiste Durand", "initials": "BD"}
+
+    # Une version qui n'existe pas encore : les deux sections sont à null, l'éditeur les voit vides.
+    _, _, body = api("GET", "/api/corpus/black-scholes/baptiste")
+    assert (body["data"]["hypotheses"], body["data"]["limites"]) == (None, None)
+
+    # Aperçu avec les sections, puis enregistrement, puis relecture.
+    status, _, body = api("POST", "/api/compile/entry", {"type": "formule", "titre": "BS", "initials": "BD", "source": FORMULE, "hypotheses": HYPOTHESES, "limites": LIMITES})
+    assert status == 200 and body["data"]["pages"][0].startswith("<svg")
+    status, _, _ = api("PUT", "/api/corpus/black-scholes/baptiste", {"source": FORMULE, "hypotheses": HYPOTHESES, "limites": LIMITES, **moi})
+    assert status == 200
+    _, _, body = api("GET", "/api/corpus/black-scholes/baptiste")
+    assert (body["data"]["source"], body["data"]["hypotheses"], body["data"]["limites"]) == (FORMULE, HYPOTHESES, LIMITES)
+
+    # Une erreur dans une section : 422 habituel, avec la partie fautive et la ligne dans ce texte.
+    status, _, body = api("PUT", "/api/corpus/black-scholes/baptiste", {"source": FORMULE, "hypotheses": HYPOTHESES, "limites": "ok\n$ sigmaa $", **moi})
+    assert (status, body["title"], body["part"], body["line"], body["saved"]) == (422, "TYPST_COMPILE_ERROR", "limites", 2, True)
+
+    # Un champ qui n'est pas du texte est refusé avant tout.
+    status, _, body = api("PUT", "/api/corpus/black-scholes/baptiste", {"source": FORMULE, "hypotheses": 3, **moi})
+    assert (status, body["field"]) == (422, "hypotheses")
 
 
 # ---------------------------------------------------------------- readings tirés des fiches

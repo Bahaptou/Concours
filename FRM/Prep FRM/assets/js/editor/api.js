@@ -47,9 +47,9 @@ export const getVersion = (id, author) => request("GET", versionUrl(id, author))
 export const createEntry = (link, meta) => request(link.method, link.href, meta);
 /** meta: { type, titre, readings } */
 export const updateEntry = (link, meta) => request(link.method, link.href, meta);
-/** version: { source, name, initials, code? } */
+/** version: { source, name, initials, code?, hypotheses?, limites? } (the last two: formulas only) */
 export const saveVersion = (link, version) => request(link.method, link.href, version);
-/** draft: { type, titre, initials, source } */
+/** draft: { type, titre, initials, source, hypotheses?, limites? } */
 export const previewEntry = (link, draft) => request(link.method, link.href, draft);
 
 /** Last-chance save when the page closes: keepalive lets the request outlive the page. */

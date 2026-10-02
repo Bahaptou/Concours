@@ -33,6 +33,8 @@ class VersionPayload:
     name: str
     initials: str
     code: str | None
+    hypotheses: str | None  # None: not sent, left as is; blank: the block is removed
+    limites: str | None
 
 
 @dataclass(frozen=True)
@@ -48,6 +50,8 @@ class EntryPreviewPayload:
     titre: str
     initials: str
     source: str
+    hypotheses: str | None
+    limites: str | None
 
 
 # ---------------------------------------------------------------- path parameters
@@ -143,6 +147,8 @@ def parse_version_payload(body: bytes) -> VersionPayload:
         name=_text(data, "name", max_length=NAME_MAX).strip(),
         initials=_initials(data),
         code=_text(data, "code", required=False),
+        hypotheses=_text(data, "hypotheses", required=False),
+        limites=_text(data, "limites", required=False),
     )
 
 
@@ -165,4 +171,6 @@ def parse_entry_preview(body: bytes) -> EntryPreviewPayload:
         titre=_text(data, "titre", max_length=TITLE_MAX).strip(),
         initials=_initials(data),
         source=_text(data, "source"),
+        hypotheses=_text(data, "hypotheses", required=False),
+        limites=_text(data, "limites", required=False),
     )

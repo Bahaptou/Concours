@@ -52,6 +52,8 @@ class VersionContext:
     author: str
     source: str | None
     code: str | None
+    hypotheses: str | None
+    limites: str | None
 
 
 @dataclass(frozen=True)

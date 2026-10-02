@@ -151,6 +151,8 @@ class VersionPresenter:
             "exists": ctx.source is not None,
             "source": ctx.source,
             "code": ctx.code,
+            "hypotheses": ctx.hypotheses,
+            "limites": ctx.limites,
         }
         return envelope(
             data,

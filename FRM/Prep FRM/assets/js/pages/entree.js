@@ -1,14 +1,14 @@
 // Corpus entry editor: entree.html creates an entry (optionally ?type=… to prefill),
 // entree.html?id=bayes edits one. On top, the metadata shared by every version (identifier,
 // type, title); below, the current profile's version in CodeMirror with a live preview in its
-// box, and the Python code of a simulation. Readings are not chosen here: they come from the
-// notes citing or inserting the entry.
+// box, the assumptions and limits of a formula, and the Python code of a simulation. Readings
+// are not chosen here: they come from the notes citing or inserting the entry.
 // Saved on demand (button or Ctrl+S), not while typing: a saved version is shared at once and
 // recompiles the notes that insert it, so it should be a deliberate act.
 // Loaded as an ES module after the classic scripts, which provide window.FRM.
 import { EditorState, EditorView } from "../../vendor/codemirror/codemirror.js";
 import { isInMath } from "../editor/typst-language.js";
-import { baseExtensions, showProblem } from "../editor/setup.js";
+import { baseExtensions, showProblem, setErrorLine } from "../editor/setup.js";
 import { renderToolbar, formattingKeys, insert, ENTRY_TOOLS } from "../editor/toolbar.js";
 import { corpusPicker, ensureImport } from "../editor/corpus-picker.js";
 import * as api from "../editor/api.js";
@@ -40,6 +40,14 @@ const CODE_TEMPLATES = {
 };
 const CODE_TYPES = Object.keys(CODE_TEMPLATES);
 const codeTemplate = (type) => CODE_TEMPLATES[type] || CODE_TEMPLATES.simulation;
+// Texts a formula carries under its formula: small blocks in its box, on the corpus page and in
+// the notes inserting it. Typst like the rest (formulas allowed), written in their own fields.
+// Keep the types in step with SECTION_TYPES in backend/corpus.py.
+const SECTIONS = [
+  { id: "hypotheses", label: "Hypothèses", hint: "Conditions pour que la formule soit valable. Une puce par hypothèse (bouton Liste)." },
+  { id: "limites", label: "Limites", hint: "Quand la formule trompe ou ne s'applique plus. Une puce par limite." },
+];
+const SECTION_TYPES = ["formule"];
 const moduleName = (entryId) => entryId.replace(/-/g, "_");
 
 /** Line importing a brick into Python code: its public functions, from the given author's
@@ -138,6 +146,13 @@ function layout({ creating, meta, author }) {
 <div class="editor-grid">
   <div>
     <div class="cm-host" data-editor></div>
+${SECTIONS.map(
+  (section) => `    <div class="section-pane" data-section-pane="${section.id}" hidden>
+      <h3>${section.label}</h3>
+      <p class="small muted">${section.hint}</p>
+      <div class="cm-host section" data-section="${section.id}"></div>
+    </div>`
+).join("\n")}
     <div class="code-pane" data-code-pane hidden>
       <h3 data-code-title>Code Python</h3>
       <div class="toolbar" data-code-tools></div>
@@ -197,6 +212,7 @@ async function start() {
   let savedMeta = entry ? JSON.stringify(metaOf()) : null;
   let savedSource = version && version.data.exists ? version.data.source : null;
   let savedCode = version ? version.data.code : null;
+  const savedSections = Object.fromEntries(SECTIONS.map((section) => [section.id, (version && version.data[section.id]) || ""]));
 
   // ---------------------------------------------------------- metadata form
 
@@ -205,6 +221,7 @@ async function start() {
   }
 
   const hasCode = () => CODE_TYPES.includes(form.type.value);
+  const hasSections = () => SECTION_TYPES.includes(form.type.value);
 
   function refreshMetaDisplay() {
     const meta = metaOf();
@@ -212,10 +229,13 @@ async function start() {
     if (entry) $("[data-kicker]").textContent = FRM.entryType(meta.type).label;
     $("[data-readings]").textContent = readingsLine(entry);
     $("[data-code-pane]").hidden = !hasCode();
+    for (const section of SECTIONS) $(`[data-section-pane="${section.id}"]`).hidden = !hasSections();
+    $("[data-editor]").classList.toggle("compact", hasSections());
     $("[data-code-title]").textContent = form.type.value === "brique"
       ? `Code de la brique · une simulation l'importe avec : from briques.${moduleName(form.id.value || "identifiant")} import …`
       : "Code Python de la simulation";
-    $("[data-file]").textContent = `notes/corpus/${form.id.value || "…"}/${author}.${hasCode() ? "typ + .py" : "typ"}`;
+    const extraFiles = hasCode() ? " + .py" : hasSections() ? ` + ${SECTIONS.map((section) => `.${section.id}.typ`).join(" + ")}` : "";
+    $("[data-file]").textContent = `notes/corpus/${form.id.value || "…"}/${author}.typ${extraFiles}`;
   }
 
   // While creating, the identifier follows the title until it is edited by hand.
@@ -285,13 +305,28 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
       case "ENTRY_CONFLICT":
         return formError(`L'identifiant « ${esc(problem.entryId)} » est déjà pris (${esc(FRM.entryType(problem.existingType).label.toLowerCase())}) : <a href="corpus.html?id=${encodeURIComponent(problem.entryId)}">voir cette entrée</a>, ou choisis-en un autre.`, "id");
       case "CORPUS_IMPORT_FORBIDDEN":
-        return showProblem($("[data-error]"), view, { explanation: "Import interdit dans une entrée", detail: reason }, "Une entrée cite les autres avec #voir, jamais en les insérant : ça évite les boucles.");
+        return showCompileError({ explanation: "Import interdit dans une entrée", detail: reason }, "Une entrée cite les autres avec #voir, jamais en les insérant : ça évite les boucles.");
       case "INVALID_REQUEST_PAYLOAD":
         if (problem.field === "name" || problem.field === "initials") return formError(`Profil incomplet pour signer ta version (${esc(reason)}). <button type="button" class="link-btn" data-profile>Modifier le profil</button>`);
         return formError(`${esc(reason)}`, problem.field);
       default:
         return formError(esc(problem.detail || error.message));
     }
+  }
+
+  // ---------------------------------------------------------- compile errors
+
+  /** Texts of the sections, as the server takes them: only formulas have them. */
+  const sectionTexts = () => (hasSections() ? Object.fromEntries(SECTIONS.map((section) => [section.id, sectionViews[section.id].state.doc.toString()])) : {});
+
+  /** Shows a compile error next to the text that holds it (the server says which: `part`), or
+   *  clears the marks of every field when `problem` is null. */
+  function showCompileError(problem, note) {
+    for (const field of [view, ...Object.values(sectionViews)]) field.dispatch({ effects: setErrorLine.of(null) });
+    const box = $("[data-error]");
+    if (!problem) return showProblem(box, view, null);
+    const section = SECTIONS.find((candidate) => candidate.id === problem.part);
+    showProblem(box, section ? sectionViews[section.id] : view, problem, note, section ? section.label : "");
   }
 
   // ---------------------------------------------------------- preview
@@ -313,15 +348,16 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
         titre: meta.titre || "Sans titre",
         initials: store.profile.initials(),
         source: view.state.doc.toString(),
+        ...sectionTexts(),
       });
       if (seq !== previewSeq) return; // an older request answered late: ignore it
       $("[data-preview]").innerHTML = result.data.pages.join("");
-      showProblem($("[data-error]"), view, null);
+      showCompileError(null);
     } catch (error) {
       if (seq !== previewSeq) return;
-      if (error instanceof api.ApiProblem && error.title === "TYPST_COMPILE_ERROR") showProblem($("[data-error]"), view, error.problem);
+      if (error instanceof api.ApiProblem && error.title === "TYPST_COMPILE_ERROR") showCompileError(error.problem);
       else if (error instanceof api.ApiProblem) explainFailure(error);
-      else showProblem($("[data-error]"), view, { detail: error.message, explanation: "Aperçu indisponible" });
+      else showCompileError({ detail: error.message, explanation: "Aperçu indisponible" });
     }
   }
 
@@ -337,8 +373,9 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
   // Without a version yet, the starting text counts as "nothing written": no empty version is created.
   const sourceChanged = () => view.state.doc.toString() !== (savedSource ?? NEW_VERSION);
   const codeChanged = () => hasCode() && codeView.state.doc.toString() !== (savedCode ?? codeTemplate(form.type.value));
+  const sectionsChanged = () => hasSections() && SECTIONS.some((section) => sectionViews[section.id].state.doc.toString() !== savedSections[section.id]);
   const metaChanged = () => JSON.stringify(metaOf()) !== savedMeta;
-  const isDirty = () => (entry ? metaChanged() : Boolean(form.titre.value.trim())) || sourceChanged() || codeChanged();
+  const isDirty = () => (entry ? metaChanged() : Boolean(form.titre.value.trim())) || sourceChanged() || codeChanged() || sectionsChanged();
 
   function markDirty() {
     if (!saving) status(isDirty() ? "Modifications non enregistrées" : "✓ À jour", isDirty() ? "warn" : "ok");
@@ -383,16 +420,18 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
         showReport(updated.data.rebuild);
         rebuilt += dependentsIn(updated.data.rebuild);
       }
-      if (sourceChanged() || codeChanged()) {
+      if (sourceChanged() || codeChanged() || sectionsChanged()) {
         const source = view.state.doc.toString();
         const code = hasCode() ? codeView.state.doc.toString() : undefined;
+        const sections = sectionTexts();
         const written = () => {
           savedSource = source;
           if (code !== undefined) savedCode = code;
+          Object.assign(savedSections, sections);
         };
         const href = api.versionUrl(entry.data.id, author);
         try {
-          const saved = await api.saveVersion({ method: "PUT", href }, { source, name: store.profile.displayName(), initials: store.profile.initials(), code });
+          const saved = await api.saveVersion({ method: "PUT", href }, { source, name: store.profile.displayName(), initials: store.profile.initials(), code, ...sections });
           written();
           adopt(saved);
           showReport(saved.data.rebuild);
@@ -403,7 +442,7 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
           throw error;
         }
       }
-      showProblem($("[data-error]"), view, null);
+      showCompileError(null);
       saving = false;
       const s = rebuilt > 1 ? "s" : "";
       status(`✓ Enregistré à ${savedAt()}${rebuilt ? ` · ${rebuilt} fiche${s} ou entrée${s} liée${s} recompilée${s}` : ""}`, "ok");
@@ -411,14 +450,14 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
       saving = false;
       if (error instanceof api.ApiProblem && error.title === "TYPST_COMPILE_ERROR" && error.problem.saved) {
         status(`✓ Texte enregistré à ${savedAt()} · ne compile pas : ta version est absente des fiches jusqu'à correction`, "warn");
-        showProblem($("[data-error]"), view, error.problem, "Corrige puis enregistre : ta version reviendra dans les fiches.");
+        showCompileError(error.problem, "Corrige puis enregistre : ta version reviendra dans les fiches.");
         showReport(error.problem.rebuild);
         api.getEntry(entry.data.id).then(adopt, () => {});
         return;
       }
       if (error instanceof api.ApiProblem && error.title === "TYPST_COMPILE_ERROR") {
         // Not saved: only the version's source can fail to compile before being written.
-        showProblem($("[data-error]"), view, error.problem);
+        showCompileError(error.problem);
       } else {
         explainFailure(error);
       }
@@ -430,24 +469,34 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
 
   const saveKey = { key: "Mod-s", preventDefault: true, run: () => (saveNow(), true) };
   let toggleMath = () => {};
-  const view = new EditorView({
-    parent: $("[data-editor]"),
-    state: EditorState.create({
-      doc: savedSource ?? NEW_VERSION,
-      extensions: baseExtensions({
-        keys: [saveKey, ...formattingKeys],
-        onUpdate(update) {
-          if (update.docChanged) {
-            markDirty();
-            schedulePreview();
-          }
-          if (update.docChanged || update.selectionSet) {
-            toggleMath(isInMath(update.state.doc.toString(), update.state.selection.main.head));
-          }
-        },
-      }),
-    }),
-  });
+  // The Typst fields (text, assumptions, limits) share one toolbar: it acts on the one last focused.
+  let active = null;
+
+  function onFieldUpdate(update) {
+    if (update.docChanged) {
+      markDirty();
+      schedulePreview();
+    }
+    if (update.view === active && (update.docChanged || update.selectionSet)) {
+      toggleMath(isInMath(update.state.doc.toString(), update.state.selection.main.head));
+    }
+  }
+
+  const typstField = (parent, doc) =>
+    new EditorView({
+      parent,
+      state: EditorState.create({ doc, extensions: baseExtensions({ keys: [saveKey, ...formattingKeys], onUpdate: onFieldUpdate }) }),
+    });
+
+  const view = typstField($("[data-editor]"), savedSource ?? NEW_VERSION);
+  active = view;
+  const sectionViews = Object.fromEntries(SECTIONS.map((section) => [section.id, typstField($(`[data-section="${section.id}"]`), savedSections[section.id])]));
+  for (const field of [view, ...Object.values(sectionViews)]) {
+    field.dom.addEventListener("focusin", () => {
+      active = field;
+      toggleMath(isInMath(field.state.doc.toString(), field.state.selection.main.head));
+    });
+  }
 
   const codeView = new EditorView({
     parent: $("[data-code]"),
@@ -458,7 +507,7 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
   });
 
   // An entry cites others by title only (#voir from _corpus-titres.typ): no cycle possible.
-  const picker = corpusPicker(view, {
+  const picker = corpusPicker(() => active, {
     load: async () => (await api.listCorpus()).data.entries,
     actions: [
       {
@@ -469,7 +518,7 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     ],
     exclude: () => (entry ? entry.data.id : null),
   });
-  toggleMath = renderToolbar({ textRow: $("[data-text-tools]"), mathRow: $("[data-math-tools]") }, view, { tools: ENTRY_TOOLS, extras: [picker] });
+  toggleMath = renderToolbar({ textRow: $("[data-text-tools]"), mathRow: $("[data-math-tools]") }, () => active, { tools: ENTRY_TOOLS, extras: [picker] });
 
   // Python pane: import a brick, run the code being written (with this author's bricks).
   const brickPicker = corpusPicker(codeView, {

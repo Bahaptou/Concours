@@ -8,14 +8,51 @@
 
 = Intuition
 
+Ici nous parlons de 
+- Gouvernance, 
+- Des différents types de risque :
+  - Credit Risk
+    - Default Risk
+    - Banckrupty Risk (dans credit risk?)
+    - Downgrade Risk
+    
+  - Market Risk
+  
+  - Liquidity Risk
+    - Funding liquidity risk
+    
+  - Foreign exchange (FX) Risk
+  
+  - Operational Risk
+  
+  - Reputation Risk
+  
+  - Settlement Risk
+
+- Systemic Risk vs Specific Risk
+
+- RAROC
+
+- Derivatives
+  - options
+  - swaps
+
+- Expected Loss vs Unexpected Loss
+
+- Risk Appetite
+
+
+
+
+
+
+= Formules
+
 Premier tests 
 #voir("black-scholes-call")
 #entree("black-scholes-call")
 
 #retenir[…]
-
-
-= Formules
 
 = Exemple chiffré
 

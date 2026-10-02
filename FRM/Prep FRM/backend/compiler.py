@@ -37,17 +37,19 @@ class TypstCompiler:
     def __init__(self, root: Path):
         self.root = root
 
-    def svg_pages(self, source: str, wrapper: tuple[str, str] = ("", "")) -> list[str]:
+    def svg_pages(self, source: str, wrapper: tuple[str, str] = ("", ""), locate: bool = True) -> list[str]:
         """SVG markup of each page. ``wrapper`` (prelude, suffix) surrounds the source, e.g. to
-        render a corpus entry inside its box; error lines still refer to ``source`` itself."""
-        output = self._compile(source, "svg", wrapper)
+        render a corpus entry inside its box; error lines still refer to ``source`` itself.
+        ``locate=False`` skips the search for the failing line (about ten more compilations),
+        for callers that will not use it."""
+        output = self._compile(source, "svg", wrapper, locate)
         pages = output if isinstance(output, list) else [output]  # bytes for one page, a list for several
         return [page.decode("utf-8") for page in pages]
 
     def pdf(self, source: str) -> bytes:
         return self._compile(source, "pdf", ("", ""))
 
-    def _compile(self, source: str, fmt: str, wrapper: tuple[str, str]):
+    def _compile(self, source: str, fmt: str, wrapper: tuple[str, str], locate: bool = True):
         prelude, suffix = wrapper
         try:
             return self._raw(prelude + source + suffix, fmt)
@@ -56,7 +58,7 @@ class TypstCompiler:
                 message=error.message,
                 hints=list(error.hints or []),
                 explanation=explain(error.message),
-                line=self.first_failing_line(source, error.message),
+                line=self.first_failing_line(source, error.message) if locate else None,
             ) from None
 
     def _raw(self, source: str, fmt: str):

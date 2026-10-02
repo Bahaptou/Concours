@@ -2,7 +2,9 @@
 
 An entry has a readable, fixed identifier (``bayes``), shared metadata (type, title) in
 ``corpus/<id>/entree.json`` and one version per author: ``corpus/<id>/<author>.typ``, plus
-``<author>.py`` for a simulation or a brick. Entries cite each other with ``#voir("id")``; notes
+``<author>.py`` for a simulation or a brick, and ``<author>.hypotheses.typ`` /
+``<author>.limites.typ`` for a formula (two small blocks shown under it, in the entry's box
+everywhere: corpus page and notes). Entries cite each other with ``#voir("id")``; notes
 can also insert a whole entry with ``#entree("id")``.
 
 A brick is reusable Python code that simulations import: brick ``donnees-aleatoires`` is module
@@ -47,6 +49,8 @@ from backend.notes import NotesService, NoteTarget
 ENTRY_TYPES = ("formule", "definition", "propriete", "theoreme", "simulation", "brique")
 BRICK = "brique"
 CODE_TYPES = ("simulation", BRICK)  # entries carrying Python code
+SECTIONS = ("hypotheses", "limites")  # texts written under a formula, in this order
+SECTION_TYPES = ("formule",)  # entries carrying them
 BRICK_IMPORT = re.compile(r"^[ \t]*(?:from|import)[ \t]+briques\.([A-Za-z_]\w*)", re.MULTILINE)
 CITATION = re.compile(r'#(voir|entree)\(\s*"([a-z0-9][a-z0-9-]*)"')
 FORBIDDEN = re.compile(r"_corpus\.typ|#entree\(")
@@ -69,6 +73,16 @@ class Version:
     valid: bool  # last save compiled; invalid versions are left out of _corpus.typ
     pages: tuple[Path, ...]
     code: str | None  # simulations and bricks only
+
+
+@dataclass(frozen=True)
+class VersionFiles:
+    """What an author wrote for an entry, as stored on disk (None: no such file)."""
+
+    source: str | None
+    code: str | None
+    hypotheses: str | None
+    limites: str | None
 
 
 @dataclass(frozen=True)
@@ -165,6 +179,19 @@ class CorpusService:
     def code_path(self, entry_id: str, author: str) -> Path:
         return self.folder(entry_id) / f"{author}.py"
 
+    def section_path(self, entry_id: str, author: str, section: str) -> Path:
+        return self.folder(entry_id) / f"{author}.{section}.typ"
+
+    def read_sections(self, entry_id: str, entry_type: str, author: str) -> dict[str, str]:
+        """Non-blank sections of a version, in display order. Empty for the types that do not
+        carry sections: files left over from a change of type are ignored, not deleted."""
+        found = {}
+        for section in SECTIONS if entry_type in SECTION_TYPES else ():
+            path = self.section_path(entry_id, author, section)
+            if path.exists() and (text := path.read_text(encoding="utf-8")).strip():
+                found[section] = text
+        return found
+
     def page_paths(self, entry_id: str, author: str) -> list[Path]:
         pages = [p for p in self.folder(entry_id).glob(f"{author}-*.svg") if (m := PAGE_FILE.match(p.name)) and m["author"] == author]
         return sorted(pages, key=lambda p: int(PAGE_FILE.match(p.name)["page"]))
@@ -203,7 +230,8 @@ class CorpusService:
             source_path = self.source_path(entry_id, author)
             if not source_path.exists():
                 continue
-            cites |= {target for kind, target in citations(source_path.read_text(encoding="utf-8")) if kind == "voir"}
+            texts = [source_path.read_text(encoding="utf-8"), *self.read_sections(entry_id, raw["type"], author).values()]
+            cites |= {target for text in texts for kind, target in citations(text) if kind == "voir"}
             code_path = self.code_path(entry_id, author)
             code = code_path.read_text(encoding="utf-8") if code_path.exists() else None
             imports |= brick_imports(code or "")
@@ -229,19 +257,25 @@ class CorpusService:
         entries = [self._entry(entry_id, self._read_raw(entry_id), usage) for entry_id in ids]
         return sorted(entries, key=lambda e: e.meta.titre.lower())
 
-    def load_version(self, entry_id: str, author: str) -> tuple[str | None, str | None]:
+    def load_version(self, entry_id: str, author: str) -> VersionFiles:
         self._read_raw(entry_id)  # unknown entry -> 404
-        source, code = self.source_path(entry_id, author), self.code_path(entry_id, author)
-        return (
-            source.read_text(encoding="utf-8") if source.exists() else None,
-            code.read_text(encoding="utf-8") if code.exists() else None,
+
+        def read(path: Path) -> str | None:
+            return path.read_text(encoding="utf-8") if path.exists() else None
+
+        return VersionFiles(
+            source=read(self.source_path(entry_id, author)),
+            code=read(self.code_path(entry_id, author)),
+            hypotheses=read(self.section_path(entry_id, author, "hypotheses")),
+            limites=read(self.section_path(entry_id, author, "limites")),
         )
 
     def dependents(self, entry_id: str) -> Dependents:
         entries = []
         for path in sorted(self.entries_root.glob("*/*.typ")):
-            other, author = path.parent.name, path.stem
-            if other != entry_id and ("voir", entry_id) in citations(path.read_text(encoding="utf-8")):
+            # <author>.typ, <author>.hypotheses.typ, <author>.limites.typ: an author's name has no dot.
+            other, author = path.parent.name, path.name.split(".", 1)[0]
+            if other != entry_id and (other, author) not in entries and ("voir", entry_id) in citations(path.read_text(encoding="utf-8")):
                 entries.append((other, author))
         notes, inserting = [], []
         for target, source in self.notes.sources():
@@ -309,18 +343,44 @@ class CorpusService:
         # Citing entries and all notes show the title.
         return self.get(entry_id), self._rebuild(entry_id, entries=True, all_notes=True, report=report)
 
-    def save_version(self, entry_id: str, author: str, name: str, initials: str, source: str, code: str | None) -> tuple[Entry, RebuildReport]:
-        if FORBIDDEN.search(source):
-            raise CorpusImportForbiddenError()
+    def save_version(
+        self,
+        entry_id: str,
+        author: str,
+        name: str,
+        initials: str,
+        source: str,
+        code: str | None,
+        hypotheses: str | None = None,
+        limites: str | None = None,
+    ) -> tuple[Entry, RebuildReport]:
+        """Writes a version. ``code``, ``hypotheses`` and ``limites`` left at None are not touched;
+        a blank section removes its file (the block disappears)."""
+        sections = {"hypotheses": hypotheses, "limites": limites}
+        for text in (source, hypotheses, limites):
+            if text is not None and FORBIDDEN.search(text):
+                raise CorpusImportForbiddenError()
         failure = None
         with self._writes:
             raw = self._read_raw(entry_id)
             if code is not None and raw["type"] not in CODE_TYPES:
                 raise InvalidRequestError("code", "le code Python est réservé aux simulations et aux briques")
+            carries_sections = raw["type"] in SECTION_TYPES
+            for section, text in sections.items():
+                if text is not None and text.strip() and not carries_sections:
+                    raise InvalidRequestError(section, "les hypothèses et les limites sont réservées aux formules")
             try:
                 self.source_path(entry_id, author).write_text(source, encoding="utf-8")
                 if code is not None:
                     self.code_path(entry_id, author).write_text(code, encoding="utf-8")
+                for section, text in sections.items():
+                    if text is None:
+                        continue
+                    path = self.section_path(entry_id, author, section)
+                    if text.strip():
+                        path.write_text(text, encoding="utf-8")
+                    else:
+                        path.unlink(missing_ok=True)
             except OSError as error:
                 raise StorageError(str(self.folder(entry_id)), str(error)) from error
             raw.setdefault("auteurs", {})[author] = {"nom": name, "initiales": initials, "updatedAt": int(time.time() * 1000)}
@@ -341,11 +401,14 @@ class CorpusService:
             raise failure
         return self.get(entry_id), report
 
-    def preview(self, entry_type: str, titre: str, initials: str, source: str) -> list[str]:
+    def preview(self, entry_type: str, titre: str, initials: str, source: str, hypotheses: str | None = None, limites: str | None = None) -> list[str]:
         """SVG of an unsaved version, rendered in its box. Nothing is written."""
-        if FORBIDDEN.search(source):
-            raise CorpusImportForbiddenError()
-        return self.compiler.svg_pages(source, wrapper=self._wrapper(entry_type, titre, initials))
+        texts = {"hypotheses": hypotheses, "limites": limites}
+        for text in (source, *texts.values()):
+            if text is not None and FORBIDDEN.search(text):
+                raise CorpusImportForbiddenError()
+        sections = {section: text for section, text in texts.items() if text is not None and text.strip()}
+        return self._box_pages(entry_type, titre, initials, source, sections)
 
     def regenerate(self) -> None:
         with self._writes:
@@ -354,17 +417,43 @@ class CorpusService:
     # -------------------------------------------------------------- rendering
 
     @staticmethod
-    def _wrapper(entry_type: str, titre: str, initials: str) -> tuple[str, str]:
+    def _wrapper(entry_type: str, titre: str, initials: str, sections: dict[str, str] | None = None) -> tuple[str, str]:
+        """(prelude, suffix) putting a source inside its box. The sections go in the prelude as
+        named arguments: ``bloc-entree`` draws them under the body."""
+        arguments = "".join(f", {section}: [\n{text}\n]" for section, text in (sections or {}).items())
         prelude = (
             '#import "/_gabarit.typ": bloc-entree, page-entree\n#show: page-entree\n'
-            f"#bloc-entree({typst_string(entry_type)}, {typst_string(titre)}, {typst_string(initials)})[\n"
+            f"#bloc-entree({typst_string(entry_type)}, {typst_string(titre)}, {typst_string(initials)}{arguments})[\n"
         )
         return prelude, "\n]\n"
+
+    def _box_pages(self, entry_type: str, titre: str, initials: str, source: str, sections: dict[str, str]) -> list[str]:
+        """SVG pages of a version in its box (non-blank sections only, and only for the types that
+        carry them). A version with sections that does not compile gets ``error.part``: each text is
+        then compiled alone in the box to find the guilty one, whose own line numbers are reported."""
+        sections = sections if entry_type in SECTION_TYPES else {}
+        failure = None
+        try:
+            # With sections, a line found by searching the source alone would mean nothing: skip it.
+            return self.compiler.svg_pages(source, wrapper=self._wrapper(entry_type, titre, initials, sections), locate=not sections)
+        except TypstCompileError as error:
+            if not sections:
+                raise
+            failure = error
+        alone = self._wrapper(entry_type, titre, initials)
+        for part, text in (("source", source), *sections.items()):
+            try:
+                self.compiler.svg_pages(text, wrapper=alone)
+            except TypstCompileError as error:
+                error.part = part
+                raise
+        raise failure  # every text compiles alone: the failure comes from how they fit together
 
     def _render(self, entry_id: str, raw: dict, author: str, source: str) -> None:
         """Write the SVG pages of a version (lock held). Raises TypstCompileError."""
         info = raw["auteurs"][author]
-        pages = self.compiler.svg_pages(source, wrapper=self._wrapper(raw["type"], raw["titre"], info["initiales"]))
+        sections = self.read_sections(entry_id, raw["type"], author)
+        pages = self._box_pages(raw["type"], raw["titre"], info["initiales"], source, sections)
         try:
             for old in self.page_paths(entry_id, author)[len(pages):]:
                 old.unlink()
@@ -425,8 +514,7 @@ class CorpusService:
         versions = []
         for eid, raw in raws.items():
             valid = [
-                f"{typst_string(author)}: (initiales: {typst_string(info['initiales'])}, "
-                f"corps: () => include {typst_string(f'corpus/{eid}/{author}.typ')}),"
+                self._version_literal(eid, raw["type"], author, info)
                 for author, info in sorted(raw.get("auteurs", {}).items())
                 if info.get("valide", True) and self.source_path(eid, author).exists()
             ]
@@ -438,6 +526,17 @@ class CorpusService:
             write_atomic(self.entries_root / "index.js", self._manifest(raws))
         except OSError as error:
             raise StorageError(str(self.root), str(error)) from error
+
+    def _version_literal(self, entry_id: str, entry_type: str, author: str, info: dict) -> str:
+        """One version in _corpus.typ: its initials and, behind closures, its texts (``none`` for a section it has not)."""
+        sections = self.read_sections(entry_id, entry_type, author)
+
+        def include(file_name: str) -> str:
+            return f"() => include {typst_string(f'corpus/{entry_id}/{file_name}')}"
+
+        parts = [f"initiales: {typst_string(info['initiales'])}", f"corps: {include(f'{author}.typ')}"]
+        parts += [f"{section}: {include(f'{author}.{section}.typ') if section in sections else 'none'}" for section in SECTIONS]
+        return f"{typst_string(author)}: ({', '.join(parts)}),"
 
     def _manifest(self, raws: dict[str, dict]) -> str:
         """corpus/index.js: everything the site shows, readable from file:// pages."""
@@ -511,18 +610,24 @@ CORPUS_TEMPLATE = """// GENERATED by the Prep FRM server: the full corpus, for n
 
 #let corpus-versions = {versions}
 
+// One version in its box; a section that the version does not have is none.
+#let boite(meta, version) = bloc-entree(
+  meta.type, meta.titre, version.initiales, (version.corps)(),
+  hypotheses: if version.hypotheses != none {{ (version.hypotheses)() }},
+  limites: if version.limites != none {{ (version.limites)() }},
+)
+
 #let entree(id, auteur: none) = {{
   if id not in corpus-titres {{ panic("Entrée inconnue du corpus : " + id) }}
   let meta = corpus-titres.at(id)
   let versions = corpus-versions.at(id, default: (:))
   if auteur != none {{
     if auteur not in versions {{ panic("Pas de version valide de « " + auteur + " » pour l'entrée " + id) }}
-    let version = versions.at(auteur)
-    bloc-entree(meta.type, meta.titre, version.initiales, (version.corps)())
+    boite(meta, versions.at(auteur))
   }} else {{
     if versions.len() == 0 {{ panic("L'entrée " + id + " n'a encore aucune version valide") }}
     for (author, version) in versions {{
-      bloc-entree(meta.type, meta.titre, version.initiales, (version.corps)())
+      boite(meta, version)
     }}
   }}
 }}

@@ -1,0 +1,6 @@
+  - option européenne : exercice à maturité uniquement
+  - sous-jacent sans dividende pendant la vie de l'option
+  - prix lognormal (mouvement brownien géométrique), $sigma$ constante
+  - $r$ constant, le même pour toutes les maturités
+  - marché sans friction : ni coûts ni taxes, vente à découvert possible, négociation continue
+  - aucune opportunité d'arbitrage

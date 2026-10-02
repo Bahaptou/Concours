@@ -41,6 +41,7 @@ sont dans `../CLAUDE.md`.
   initiales, readings tirés des fiches qui l'utilisent. Les entrées se
   citent (`#voir`) ; les fiches citent ou insèrent (`#entree`). Simulations
   et briques ont une section de code Python séparée de leur description.
+  Une formule a de même deux champs, Hypothèses et Limites, affichés en blocs sous elle.
   Vues Liste (tri titre / usage / date) et Stats (`corpus-stats.js`),
   mêmes filtres : type, livre ou « sans reading », reading, auteur,
   recherche.
@@ -90,7 +91,8 @@ sont dans `../CLAUDE.md`.
   importé en `/_gabarit.typ` (`notes/` = racine Typst) ; `notes/index.js`
   (généré) liste les fiches pour les pages ouvertes en `file://`.
 - **Corpus** : `notes/corpus/<id>/entree.json` (type, titre, auteurs avec
-  `valide`), `<auteur>.typ`, `<auteur>.py` (simulation),
+  `valide`), `<auteur>.typ`, `<auteur>.hypotheses.typ` et `<auteur>.limites.typ`
+  (formule), `<auteur>.py` (simulation, brique),
   `<auteur>-<page>.svg`. Régénérés à chaque écriture du corpus, à chaque
   enregistrement de fiche et au démarrage :
   `notes/_corpus-titres.typ` (titres + `voir`), `notes/_corpus.typ`
@@ -189,6 +191,15 @@ sont dans `../CLAUDE.md`.
 - **Le menu « Formules FRM » a été remplacé par le corpus** le 2026-10-01 :
   ses 6 formules sont des entrées signées BD, sans reading tant
   qu'aucune fiche ne les utilise.
+- **Hypothèses et limites : formules seulement, dans l'encadré partout.**
+  Choix de Baptiste le 2026-10-02. Deux fichiers Typst par version, deux champs
+  sous le texte dans `entree.html`, rendus par `bloc-entree` sur la page du corpus
+  et dans les fiches (`_corpus.typ` les inclut). Un champ vide supprime son fichier,
+  un champ non envoyé n'est pas touché. Ils comptent comme le texte pour les
+  citations, l'interdiction d'insérer et la validité d'une version.
+- **Une erreur dit quel texte la porte.** Trois textes, une seule boîte : en cas
+  d'échec, le serveur compile chaque texte seul ; `part` et `line` (dans ce texte)
+  vont dans le 422, et l'éditeur marque le bon champ.
 
 ## Pièges rencontrés
 
@@ -301,3 +312,7 @@ désormais après `resolve` (trouvé par les tests le 2026-10-01).
 - **Questions sans réponse en examen.** Non enregistrées : elles comptent
   dans le score de la série mais n'apparaissent pas quand on la revoit.
 - **Mode sombre des fiches Typst.** Abandonné par Baptiste le 2026-10-01.
+- **Hypothèses et limites hors formules.** Propriété et théorème n'en ont pas
+  (écarté par Baptiste le 2026-10-02).
+- **Repérage des formules sans hypothèses ni limites.** Aucun indicateur ni
+  statistique dans le corpus : seul le rendu montre l'absence.

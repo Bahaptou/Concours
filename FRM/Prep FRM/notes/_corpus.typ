@@ -5,53 +5,72 @@
 
 #let corpus-versions = (
   "bayes": (
-    "baptiste": (initiales: "BD", corps: () => include "corpus/bayes/baptiste.typ"),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/bayes/baptiste.typ", hypotheses: none, limites: none),
   ),
   "black-scholes-call": (
-    "baptiste": (initiales: "BD", corps: () => include "corpus/black-scholes-call/baptiste.typ"),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/black-scholes-call/baptiste.typ", hypotheses: () => include "corpus/black-scholes-call/baptiste.hypotheses.typ", limites: () => include "corpus/black-scholes-call/baptiste.limites.typ"),
+  ),
+  "black-scholes-call-europeen": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/black-scholes-call-europeen/baptiste.typ", hypotheses: none, limites: none),
   ),
   "capm": (
-    "baptiste": (initiales: "BD", corps: () => include "corpus/capm/baptiste.typ"),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/capm/baptiste.typ", hypotheses: none, limites: none),
   ),
   "donnees-aleatoires": (
-    "claude": (initiales: "CL", corps: () => include "corpus/donnees-aleatoires/claude.typ"),
+    "claude": (initiales: "CL", corps: () => include "corpus/donnees-aleatoires/claude.typ", hypotheses: none, limites: none),
   ),
   "duration-convexite": (
-    "baptiste": (initiales: "BD", corps: () => include "corpus/duration-convexite/baptiste.typ"),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/duration-convexite/baptiste.typ", hypotheses: none, limites: none),
   ),
   "histogramme": (
-    "claude": (initiales: "CL", corps: () => include "corpus/histogramme/claude.typ"),
+    "claude": (initiales: "CL", corps: () => include "corpus/histogramme/claude.typ", hypotheses: none, limites: none),
   ),
   "la-vie-a-un-sens": (
-    "profil": (initiales: "PD", corps: () => include "corpus/la-vie-a-un-sens/profil.typ"),
+    "profil": (initiales: "PD", corps: () => include "corpus/la-vie-a-un-sens/profil.typ", hypotheses: none, limites: none),
   ),
   "la-vie-n-a-pas-de-sens": (
-    "baptiste": (initiales: "BD", corps: () => include "corpus/la-vie-n-a-pas-de-sens/baptiste.typ"),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/la-vie-n-a-pas-de-sens/baptiste.typ", hypotheses: none, limites: none),
   ),
   "le-sens-de-la-vie": (
-    "baptiste": (initiales: "BD", corps: () => include "corpus/le-sens-de-la-vie/baptiste.typ"),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/le-sens-de-la-vie/baptiste.typ", hypotheses: none, limites: none),
   ),
   "loi-de-student": (
-    "claude": (initiales: "CL", corps: () => include "corpus/loi-de-student/claude.typ"),
+    "claude": (initiales: "CL", corps: () => include "corpus/loi-de-student/claude.typ", hypotheses: none, limites: none),
   ),
   "loi-normale": (
-    "claude": (initiales: "CL", corps: () => include "corpus/loi-normale/claude.typ"),
+    "claude": (initiales: "CL", corps: () => include "corpus/loi-normale/claude.typ", hypotheses: none, limites: none),
   ),
   "monte-carlo": (
-    "claude": (initiales: "CL", corps: () => include "corpus/monte-carlo/claude.typ"),
+    "claude": (initiales: "CL", corps: () => include "corpus/monte-carlo/claude.typ", hypotheses: none, limites: none),
+  ),
+  "option": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/option/baptiste.typ", hypotheses: none, limites: none),
   ),
   "rendements-portefeuille": (
-    "claude": (initiales: "CL", corps: () => include "corpus/rendements-portefeuille/claude.typ"),
+    "claude": (initiales: "CL", corps: () => include "corpus/rendements-portefeuille/claude.typ", hypotheses: none, limites: none),
+  ),
+  "risk-free-rate-rfr": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/risk-free-rate-rfr/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "time-value-of-money": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/time-value-of-money/baptiste.typ", hypotheses: none, limites: none),
   ),
   "trajectoires-prix": (
-    "claude": (initiales: "CL", corps: () => include "corpus/trajectoires-prix/claude.typ"),
+    "claude": (initiales: "CL", corps: () => include "corpus/trajectoires-prix/claude.typ", hypotheses: none, limites: none),
   ),
   "var-parametrique-normale": (
-    "baptiste": (initiales: "BD", corps: () => include "corpus/var-parametrique-normale/baptiste.typ"),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/var-parametrique-normale/baptiste.typ", hypotheses: none, limites: none),
   ),
   "variance-portefeuille-2-actifs": (
-    "baptiste": (initiales: "BD", corps: () => include "corpus/variance-portefeuille-2-actifs/baptiste.typ"),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/variance-portefeuille-2-actifs/baptiste.typ", hypotheses: none, limites: none),
   ),
+)
+
+// One version in its box; a section that the version does not have is none.
+#let boite(meta, version) = bloc-entree(
+  meta.type, meta.titre, version.initiales, (version.corps)(),
+  hypotheses: if version.hypotheses != none { (version.hypotheses)() },
+  limites: if version.limites != none { (version.limites)() },
 )
 
 #let entree(id, auteur: none) = {
@@ -60,12 +79,11 @@
   let versions = corpus-versions.at(id, default: (:))
   if auteur != none {
     if auteur not in versions { panic("Pas de version valide de « " + auteur + " » pour l'entrée " + id) }
-    let version = versions.at(auteur)
-    bloc-entree(meta.type, meta.titre, version.initiales, (version.corps)())
+    boite(meta, versions.at(auteur))
   } else {
     if versions.len() == 0 { panic("L'entrée " + id + " n'a encore aucune version valide") }
     for (author, version) in versions {
-      bloc-entree(meta.type, meta.titre, version.initiales, (version.corps)())
+      boite(meta, version)
     }
   }
 }

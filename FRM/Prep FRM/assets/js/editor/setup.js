@@ -55,15 +55,17 @@ export function baseExtensions({ keys = [], onUpdate = null, typst = true } = {}
 
 /**
  * Shows a problem (RFC 9457 body from the server) in `box` and highlights its line in `view`;
- * `null` clears both. `note` is the last line of the box.
+ * `null` clears both. `note` is the last line of the box. `label` names the text that holds the
+ * error when the editor has several ("Hypothèses, ligne 3 · …").
  */
-export function showProblem(box, view, problem, note = "L'aperçu garde la dernière version valide.") {
+export function showProblem(box, view, problem, note = "L'aperçu garde la dernière version valide.", label = "") {
   if (!problem) {
     box.hidden = true;
     view.dispatch({ effects: setErrorLine.of(null) });
     return;
   }
-  const where = problem.line ? `Ligne ${problem.line} · ` : "";
+  const place = [label, problem.line ? `${label ? "ligne" : "Ligne"} ${problem.line}` : ""].filter(Boolean).join(", ");
+  const where = place ? `${place} · ` : "";
   const hints = (problem.hints || []).map((hint) => `<li>${esc(hint)}</li>`).join("");
   box.innerHTML = `
 <strong>${where}${esc(problem.explanation || "Erreur de compilation")}</strong>
