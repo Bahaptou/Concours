@@ -1,7 +1,7 @@
 > ⚠️ **Généré par IA — peut être faux, périmé ou incomplet.** Ne pas
 > considérer comme source de vérité sans vérification. Toute incohérence
 > constatée avec le code réel doit être signalée à Baptiste, jamais corrigée
-> silencieusement (voir Règle n°2/n°3 dans [CLAUDE.md](../../.claude/CLAUDE.md)).
+> silencieusement (voir Règle n°2/n°3 dans [CLAUDE.md](../.claude/CLAUDE.md)).
 
 # FRM : domaine et documents
 

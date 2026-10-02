@@ -5,7 +5,8 @@ petit serveur démarre et le navigateur s'ouvre sur l'accueil. Ouvrir `index.htm
 possible pour lire, mais les éditeurs (fiches, corpus) ont besoin du serveur.
 
 **Usage personnel.** Les questions sont extraites des banques AnalystPrep, dont la redistribution est
-interdite : ne pas publier ce dossier en ligne ni le partager avec quelqu'un qui n'a pas les PDFs.
+interdite : ne pas publier ce dossier en ligne (le dépôt GitHub privé fait exception) ni le partager
+avec quelqu'un qui n'a pas les PDFs.
 
 ## Installation (une fois par machine)
 
@@ -134,7 +135,7 @@ tests/                        tests du serveur (uv run pytest)
 pyproject.toml · uv.lock      projet uv « prep-frm » (Python 3.13, dépendance typst)
 index.html · dashboard.html · quiz.html · livre.html · reading.html · corpus.html · fiches.html   pages lisibles sans serveur
 editeur.html · entree.html    éditeurs de fiche et d'entrée du corpus (serveur nécessaire)
-assets/css/style.css          thème (repris de job/Prep Padam), couleurs des graphiques, éditeur
+assets/css/style.css          thème, couleurs des graphiques, éditeur
 assets/js/*.js                scripts classiques partagés (store, core, questions, ui, save, profile, charts, runner…)
 assets/js/pages/*.js          un script par page
 assets/js/editor/*.js         modules des éditeurs (CodeMirror, langage Typst, barre d'outils, menu Corpus, gabarit, API)

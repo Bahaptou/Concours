@@ -1,7 +1,7 @@
 > ⚠️ **Généré par IA — peut être faux, périmé ou incomplet.** Ne pas
 > considérer comme source de vérité sans vérification. Toute incohérence
 > constatée avec le code réel doit être signalée à Baptiste, jamais corrigée
-> silencieusement (voir Règle n°2/n°3 dans [CLAUDE.md](../../../.claude/CLAUDE.md)).
+> silencieusement (voir Règle n°2/n°3 dans [CLAUDE.md](../../.claude/CLAUDE.md)).
 
 # Prep FRM : doc pour agents
 
@@ -140,9 +140,10 @@ sont dans `../CLAUDE.md`.
 - **Sauvegarde restée en version 1** malgré les champs ajoutés (profil,
   réponses, marques, séries) : les champs absents sont tolérés au
   chargement, un fichier sans profil garde le profil courant.
-- **Jamais publié en ligne** (droits AnalystPrep).
-- **Projet uv indépendant** (`prep-frm`), convention fixée le 2026-10-01
-  avec la session de la refonte uv, voir `.claude/docs/python-env.md`.
+- **Jamais publié en ligne** (droits AnalystPrep), à l'exception du dépôt
+  GitHub privé (décision de Baptiste le 2026-10-02, « pour l'instant »).
+- **Projet uv indépendant** (`prep-frm`), convention fixée le 2026-10-01,
+  voir la Règle n°6 de `.claude/CLAUDE.md`.
 - **Serveur local depuis le 2026-10-01** (`Lancer Prep FRM.bat`,
   127.0.0.1:8765) pour l'éditeur de fiches et, plus tard, les
   simulations. La lecture reste possible en double-clic, éditer non.

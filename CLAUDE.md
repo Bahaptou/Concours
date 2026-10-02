@@ -1,7 +1,7 @@
 > ⚠️ **Généré par IA — peut être faux, périmé ou incomplet.** Ne pas
 > considérer comme source de vérité sans vérification. Toute incohérence
 > constatée avec le code réel doit être signalée à Baptiste, jamais corrigée
-> silencieusement (voir Règle n°2/n°3 dans [CLAUDE.md](../.claude/CLAUDE.md)).
+> silencieusement (voir Règle n°2/n°3 dans [CLAUDE.md](.claude/CLAUDE.md)).
 
 # Concours
 
@@ -22,14 +22,17 @@ d'entraînement, et un seul projet de code : Prep FRM.
 | `FRM/` (PDFs, domaine FRM)       | `FRM/CLAUDE.md`                                      |
 | `FRM/Prep FRM/`                  | `FRM/Prep FRM/CLAUDE.md`, puis son `README.md`       |
 | `CFA/`                           | Rien de documenté : demander à Baptiste              |
+| WorldTradeFinance4 (modèle)      | `../WorldTradeFinance4/.claude/CLAUDE.md`            |
 
 ## Règles
 
 - **Les PDFs sont sous droits.** CFA Institute : « For candidate use only.
   Not for distribution. » ; AnalystPrep : « Reproduction and/or distribution
-  of this document is prohibited. » Usage personnel et local uniquement : ne
-  jamais publier ni téléverser leur contenu (artifact, service en ligne,
-  dépôt public).
+  of this document is prohibited. » Usage personnel uniquement. Ils sont
+  versionnés dans le dépôt GitHub **privé** `Bahaptou/Concours` (décision de
+  Baptiste le 2026-10-02, « pour l'instant ») ; ne jamais les publier ni les
+  téléverser ailleurs (artifact, service en ligne, dépôt public). Rendre le
+  dépôt public serait les publier : en parler à Baptiste avant.
 - **Les PDFs ne se renomment ni ne se déplacent.** Les outils de Prep FRM
   les lisent par leur nom de fichier.
 - **CFA et FRM restent séparés.** Baptiste a refusé le 2026-10-01 tout
