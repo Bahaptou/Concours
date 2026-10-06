@@ -13,10 +13,13 @@ API, under ``/api`` (responses ``{"data", "links"}``, errors as RFC 9457 problem
     POST /api/corpus                     {"id", "type", "titre"}: creates an entry
     GET  /api/corpus/<id>                an entry, its versions, who cites it
     PUT  /api/corpus/<id>                {"type", "titre"}: updates it, recompiles dependents
-    GET  /api/corpus/<id>/<author>       a version's source (and Python code for a simulation)
-    PUT  /api/corpus/<id>/<author>       {"source", "name", "initials", "code"?}: saves a version
-    POST /api/compile/entry              {"type", "titre", "initials", "source"}: preview of a version
+    DELETE /api/corpus/<id>              deletes it and removes its references from notes and entries
+    GET  /api/corpus/<id>/<author>       a version's source (and Python code, assumptions, limits)
+    PUT  /api/corpus/<id>/<author>       {"source", "name", "initials", "code"?, "hypotheses"?, "limites"?}: saves a version
+    POST /api/compile/entry              {"type", "titre", "initials", "source", "hypotheses"?, "limites"?}: preview of a version
     POST /api/run                        {"code", "author", "timeout"}: runs simulation or brick code
+    GET  /api/images                     shared images (notes/images/)
+    POST /api/images                     {"name", "format", "data" (base64)}: adds an image, never replaces one
 """
 from __future__ import annotations
 
@@ -33,6 +36,7 @@ from backend.compiler import TypstCompiler
 from backend.corpus import CorpusService
 from backend.http.handler import make_handler
 from backend.http.routes import Services
+from backend.images import ImagesService
 from backend.notes import NotesService
 from backend.simulations import SimulationRunner
 
@@ -49,7 +53,8 @@ def build_services(static_root: Path, notes_root: Path) -> Services:
     # Entries' readings come from the notes' citations: the corpus files follow every note save.
     notes.on_saved = corpus.regenerate
     simulations = SimulationRunner(corpus)
-    return Services(notes=notes, compiler=compiler, corpus=corpus, simulations=simulations, static_root=static_root)
+    images = ImagesService(notes_root)
+    return Services(notes=notes, compiler=compiler, corpus=corpus, simulations=simulations, images=images, static_root=static_root)
 
 
 def running_instance() -> str | None:

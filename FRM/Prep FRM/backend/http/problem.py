@@ -11,9 +11,11 @@ from http import HTTPStatus
 
 from backend.errors import (
     AppError,
+    BrickInUseError,
     CorpusImportForbiddenError,
     EntryExistsError,
     ForbiddenRequestError,
+    ImageExistsError,
     InvalidRequestError,
     NotFoundError,
     PayloadTooLargeError,
@@ -35,6 +37,8 @@ class ErrorTitle:
     NOT_FOUND = "NOT_FOUND"
     ENTRY_NOT_FOUND = "ENTRY_NOT_FOUND"
     ENTRY_CONFLICT = "ENTRY_CONFLICT"
+    IMAGE_CONFLICT = "IMAGE_CONFLICT"
+    BRICK_IN_USE = "BRICK_IN_USE"
     CORPUS_IMPORT_FORBIDDEN = "CORPUS_IMPORT_FORBIDDEN"
     TYPST_COMPILE_ERROR = "TYPST_COMPILE_ERROR"
     STORAGE_ERROR = "STORAGE_ERROR"
@@ -57,6 +61,8 @@ EXCEPTION_MAPPING: dict[type[Exception], ErrorMapping] = {
     NotFoundError: ErrorMapping(HTTPStatus.NOT_FOUND, ErrorTitle.NOT_FOUND),
     UnknownEntryError: ErrorMapping(HTTPStatus.NOT_FOUND, ErrorTitle.ENTRY_NOT_FOUND),
     EntryExistsError: ErrorMapping(HTTPStatus.CONFLICT, ErrorTitle.ENTRY_CONFLICT),
+    ImageExistsError: ErrorMapping(HTTPStatus.CONFLICT, ErrorTitle.IMAGE_CONFLICT),
+    BrickInUseError: ErrorMapping(HTTPStatus.CONFLICT, ErrorTitle.BRICK_IN_USE),
     CorpusImportForbiddenError: ErrorMapping(HTTPStatus.UNPROCESSABLE_ENTITY, ErrorTitle.CORPUS_IMPORT_FORBIDDEN),
     TypstCompileError: ErrorMapping(HTTPStatus.UNPROCESSABLE_ENTITY, ErrorTitle.TYPST_COMPILE_ERROR),
     SimulationRunnerError: ErrorMapping(

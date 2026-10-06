@@ -11,6 +11,7 @@ import { isInMath } from "../editor/typst-language.js";
 import { baseExtensions, showProblem, setErrorLine } from "../editor/setup.js";
 import { renderToolbar, formattingKeys, insert, ENTRY_TOOLS } from "../editor/toolbar.js";
 import { corpusPicker, ensureImport } from "../editor/corpus-picker.js";
+import { imageMenu, attachImageInput } from "../editor/images.js";
 import * as api from "../editor/api.js";
 
 const { FRM } = window;
@@ -125,6 +126,7 @@ function layout({ creating, meta, author }) {
   <div><div class="kicker">Corpus · <span data-kicker>${creating ? "Nouvelle entrée" : esc(FRM.entryType(meta.type).label)}</span> · version de ${esc(store.profile.displayName())}</div><h2 data-heading>${esc(meta.titre || "Nouvelle entrée")}</h2></div>
   <div class="editor-actions">
     <span class="save-status" data-save-status></span>
+    <button type="button" class="btn ghost danger" data-delete${creating ? " hidden" : ""} title="Supprime l'entrée et toutes ses versions, et retire ses références des fiches et des autres entrées">Supprimer l'entrée</button>
     <a class="btn ghost" data-entry-link href="corpus.html"${creating ? " hidden" : ""}>Voir dans le corpus</a>
     <button type="button" class="btn" data-save title="Ctrl+S">${creating ? "Créer l'entrée" : "Enregistrer"}</button>
   </div>
@@ -392,6 +394,7 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
       form.id.readOnly = true;
       $("[data-save]").textContent = "Enregistrer";
     }
+    $("[data-delete]").hidden = false;
     const link = $("[data-entry-link]");
     link.href = ui.entryHref(entry.data);
     link.hidden = false;
@@ -518,7 +521,9 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     ],
     exclude: () => (entry ? entry.data.id : null),
   });
-  toggleMath = renderToolbar({ textRow: $("[data-text-tools]"), mathRow: $("[data-math-tools]") }, () => active, { tools: ENTRY_TOOLS, extras: [picker] });
+  const images = imageMenu(() => active);
+  for (const field of [view, ...Object.values(sectionViews)]) attachImageInput(field, images.open);
+  toggleMath = renderToolbar({ textRow: $("[data-text-tools]"), mathRow: $("[data-math-tools]") }, () => active, { tools: ENTRY_TOOLS, extras: [picker, images.element] });
 
   // Python pane: import a brick, run the code being written (with this author's bricks).
   const brickPicker = corpusPicker(codeView, {
@@ -533,9 +538,51 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     FRM.runner.panel({ code: () => codeView.state.doc.toString(), author, readings: () => (entry ? entry.data.readings : []) })
   );
 
+  // ---------------------------------------------------------- delete
+
+  let deleted = false;
+
+  /** Confirmation text: what goes, and where references are removed (the server does it). */
+  function deletionSummary() {
+    const { titre, versions, usedBy, citedBy } = entry.data;
+    const lines = [`Supprimer « ${titre} » et ${versions.length > 1 ? `ses ${versions.length} versions` : "sa version"} ? C'est définitif (sauf retour par git).`];
+    const places = [
+      ...usedBy.map((use) => targetLabel(`notes/r${use.reading}/fiche-${use.author}`)),
+      ...citedBy.map((id) => `Entrée « ${corpus.data.entries.find((e) => e.id === id)?.titre || id} »`),
+    ];
+    if (places.length) {
+      lines.push("", "Ses références seront retirées (#voir devient le titre en texte simple, #entree disparaît) :", ...places.map((place) => `• ${place}`));
+    }
+    return lines.join("\n");
+  }
+
+  async function deleteNow() {
+    const users = entry.data.importedBy;
+    if (users.length) return formError(`Cette brique est importée par : ${users.map(esc).join(", ")}. Retire l'import de leur code d'abord.`);
+    if (!confirm(deletionSummary())) return;
+    status("Suppression…");
+    try {
+      const result = await api.deleteEntry(entry.data.id);
+      deleted = true;
+      const failed = result.data.rebuild.failed;
+      if (failed.length) {
+        alert(`Entrée supprimée. Ces textes ont été réécrits mais ne compilent pas (une erreur à eux) :\n${failed.map((f) => `• ${targetLabel(f.target)} : ${f.message}`).join("\n")}`);
+      }
+      location.href = "corpus.html";
+    } catch (error) {
+      status("⚠ Non supprimée", "error");
+      if (error instanceof api.ApiProblem && error.title === "BRICK_IN_USE") {
+        formError(`Cette brique est importée par : ${error.problem.importedBy.map(esc).join(", ")}. Retire l'import de leur code d'abord.`);
+      } else {
+        formError(esc(error.message));
+      }
+    }
+  }
+
+  $("[data-delete]").addEventListener("click", deleteNow);
   $("[data-save]").addEventListener("click", saveNow);
   window.addEventListener("beforeunload", (event) => {
-    if (!isDirty()) return;
+    if (deleted || !isDirty()) return;
     event.preventDefault();
     event.returnValue = ""; // the browser asks before leaving: nothing is saved behind your back here
   });

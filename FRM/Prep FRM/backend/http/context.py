@@ -59,3 +59,15 @@ class VersionContext:
 @dataclass(frozen=True)
 class EntryPreviewContext:
     pages: list[str]
+
+
+@dataclass(frozen=True)
+class ImagesContext:
+    images: list  # list[backend.images.Image]
+    urls: dict  # image name -> URL of the file
+
+
+@dataclass(frozen=True)
+class ImageContext:
+    image: object  # backend.images.Image
+    url: str

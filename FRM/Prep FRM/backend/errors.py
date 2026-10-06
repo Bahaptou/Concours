@@ -94,6 +94,34 @@ class EntryExistsError(AppError):
         return {"entryId": self.entry_id, "existingType": self.existing_type}
 
 
+class BrickInUseError(AppError):
+    """Deleting a brick that some code still imports: the import must go first."""
+
+    def __init__(self, entry_id: str, imported_by: list[str]):
+        self.entry_id = entry_id
+        self.imported_by = imported_by
+
+    def __str__(self) -> str:
+        return f"La brique « {self.entry_id} » est encore importée par : {', '.join(self.imported_by)}."
+
+    def extensions(self) -> dict:
+        return {"entryId": self.entry_id, "importedBy": self.imported_by}
+
+
+class ImageExistsError(AppError):
+    """Adding an image whose name is already taken: images are never replaced."""
+
+    def __init__(self, name: str, typst_path: str):
+        self.name = name
+        self.typst_path = typst_path
+
+    def __str__(self) -> str:
+        return f"Une image s'appelle déjà « {self.name} »."
+
+    def extensions(self) -> dict:
+        return {"name": self.name, "typstPath": self.typst_path}
+
+
 class CorpusImportForbiddenError(InvalidRequestError):
     """An entry may only cite (#voir): importing the full corpus could create an import cycle."""
 

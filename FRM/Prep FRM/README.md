@@ -62,9 +62,13 @@ Chaque personne écrit sa propre fiche par reading, en **Typst**, dans l'éditeu
   taper sa valeur (`14pt`, `1.1em`). Sans effet sur les titres, dont la taille est fixée par le gabarit ;
 - **∑ Maths** (Ctrl+M) entoure la sélection de `$…$` ; dès que le curseur est dans une formule, une
   barre « Mode maths » propose fraction, racine, exposant, indice, somme, lettres grecques… ;
-- **📚 Corpus** cherche une entrée du corpus et la **cite** (`#voir("bayes")` : son titre, en couleur)
+- **📚 Corpus** cherche une entrée du corpus (filtres type, livre, reading, auteur, comme sur la page
+  Corpus) et la **cite** (`#voir("bayes")` : son titre, en couleur)
   ou l'**insère** (`#entree("bayes")` : l'entrée entière, toutes versions) ; la ligne `#import` nécessaire
   est ajoutée toute seule ;
+- **🖼 Images** : colle une capture (Ctrl+V), glisse un fichier ou choisis-le ; l'image est compressée,
+  nommée (nom obligatoire, commun à tous) et rangée dans `notes/images/`, puis `#image(…)` est inséré.
+  Un nom pris ne se remplace pas ; le menu liste aussi les images existantes. Marche aussi dans les entrées.
 - encadrés **À retenir**, **Piège**, **Définition** (définis dans `notes/_gabarit.typ`) ;
 - une erreur affiche un bandeau avec sa ligne et une explication ; l'aperçu garde la dernière version
   valide ;
@@ -103,6 +107,9 @@ formules y sont, signées BD).
   Typst comme le reste, propres à chaque version. Ils s'affichent en deux petits blocs sous la formule,
   dans son encadré (hypothèses en cadre plein, limites en tirets), sur la page du corpus et dans les
   fiches qui insèrent la formule. Un champ vide n'affiche rien. Les autres types n'en ont pas.
+- **Supprimer une entrée** : bouton dans l'éditeur d'entrée. Ses références sont retirées des fiches et
+  des autres entrées (`#voir` devient son titre en texte simple, `#entree` disparaît). Une brique encore
+  importée par une simulation ne se supprime pas : retirer l'import d'abord.
 
 Fichiers : `notes/corpus/<id>/entree.json` (type, titre, auteurs), `<prénom>.typ` (la version),
 `<prénom>.hypotheses.typ` et `<prénom>.limites.typ` (une formule), `<prénom>.py` (le code d'une simulation
@@ -129,6 +136,7 @@ modifier à la main.
   `if __name__ == "__main__":` d'une brique est sa démonstration, lancée par ▶ Exécuter sur la brique
   elle-même. Briques de départ (signées CL, Claude) : données aléatoires, trajectoires de prix,
   rendements de portefeuille, histogramme avec quantile, Monte-Carlo.
+- **📌 Enregistrer comme image**, sous chaque figure : la figure rejoint les images, prête à insérer.
 - **Sécurité** : le serveur ne répond qu'au site qu'il sert (une page d'un autre site ouverte dans le
   navigateur ne peut ni écrire ni exécuter de code), et le code ne voit pas l'environnement du serveur.
   Ce n'est pas un bac à sable : le code a les droits de l'utilisateur sur sa machine.
@@ -152,6 +160,7 @@ data/curriculum.js            GÉNÉRÉ depuis les PDFs, ne pas modifier à la m
 data/questions/rN.js          GÉNÉRÉ : questions du reading N, chargées à la demande
 notes/                        nos fiches Typst, le gabarit commun et index.js (GÉNÉRÉ par le serveur)
 notes/corpus/                 le corpus : une entrée par dossier, index.js GÉNÉRÉ
+notes/images/                 images des fiches et des entrées (dossier commun)
 save/                         sauvegardes JSON exportées depuis le navigateur
 tools/extract_curriculum.py   générateur de data/curriculum.js
 tools/extract_questions.py    générateur de data/questions/

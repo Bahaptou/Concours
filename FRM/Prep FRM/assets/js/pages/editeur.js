@@ -6,6 +6,7 @@ import { isInMath } from "../editor/typst-language.js";
 import { baseExtensions, showProblem } from "../editor/setup.js";
 import { renderToolbar, formattingKeys, insert, insertBlock } from "../editor/toolbar.js";
 import { corpusPicker, ensureImport } from "../editor/corpus-picker.js";
+import { imageMenu, attachImageInput } from "../editor/images.js";
 import { noteTemplate } from "../editor/template.js";
 import * as api from "../editor/api.js";
 
@@ -175,7 +176,9 @@ async function start() {
       { label: "Insérer", title: "L'entrée entière, toutes versions : #entree(\"id\")", run: (v, entry) => (useCorpus(v), insertBlock(v, `#entree("${entry.id}")`)) },
     ],
   });
-  toggleMath = renderToolbar({ textRow: $("[data-text-tools]"), mathRow: $("[data-math-tools]") }, view, { extras: [picker] });
+  const images = imageMenu(view);
+  attachImageInput(view, images.open);
+  toggleMath = renderToolbar({ textRow: $("[data-text-tools]"), mathRow: $("[data-math-tools]") }, view, { extras: [picker, images.element] });
   status(note.data.exists ? "✓ À jour" : "Nouvelle fiche : elle sera enregistrée dès ta première modification", note.data.exists ? "ok" : "");
   refreshPreview();
   view.focus();

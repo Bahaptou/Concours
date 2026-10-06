@@ -13,11 +13,14 @@ from typing import Callable
 from backend.compiler import TypstCompiler
 from backend.errors import RouteNotFoundError
 from backend.corpus import CorpusService
+from backend.images import ImagesService
 from backend.http.context import (
     CompileContext,
     CorpusContext,
     EntryContext,
     EntryPreviewContext,
+    ImageContext,
+    ImagesContext,
     NoteContext,
     RunContext,
     SavedNoteContext,
@@ -27,6 +30,7 @@ from backend.http.payload import (
     parse_author,
     parse_entry_id,
     parse_entry_preview,
+    parse_image_payload,
     parse_meta_payload,
     parse_new_entry,
     parse_note_target,
@@ -37,9 +41,12 @@ from backend.http.payload import (
 from backend.http.presenter import (
     CompilePresenter,
     CorpusPresenter,
+    DeletedEntryPresenter,
     EntryPresenter,
     EntryPreviewPresenter,
     HealthPresenter,
+    ImagePresenter,
+    ImagesPresenter,
     NotePresenter,
     RootPresenter,
     RunPresenter,
@@ -56,6 +63,7 @@ class Services:
     compiler: TypstCompiler
     corpus: CorpusService
     simulations: SimulationRunner
+    images: ImagesService
     static_root: Path  # to turn files on disk into URLs
 
 
@@ -164,6 +172,12 @@ def update_entry(request: ApiRequest, services: Services) -> ApiResponse:
     return entry_response(HTTPStatus.OK, entry, services, report)
 
 
+def delete_entry(request: ApiRequest, services: Services) -> ApiResponse:
+    entry_id = parse_entry_id(request.params["id"])
+    report = services.corpus.delete(entry_id)
+    return ApiResponse(HTTPStatus.OK, DeletedEntryPresenter().present(entry_id, report))
+
+
 def get_version(request: ApiRequest, services: Services) -> ApiResponse:
     entry_id, author = parse_entry_id(request.params["id"]), parse_author(request.params["author"])
     files = services.corpus.load_version(entry_id, author)
@@ -193,6 +207,21 @@ def preview_entry(request: ApiRequest, services: Services) -> ApiResponse:
     return ApiResponse(HTTPStatus.OK, EntryPreviewPresenter().present(EntryPreviewContext(pages)))
 
 
+# ---------------------------------------------------------------- images
+
+
+def list_images(request: ApiRequest, services: Services) -> ApiResponse:
+    images = services.images.list()
+    ctx = ImagesContext(images, {image.name: url_of(image.path, services) for image in images})
+    return ApiResponse(HTTPStatus.OK, ImagesPresenter().present(ctx))
+
+
+def add_image(request: ApiRequest, services: Services) -> ApiResponse:
+    payload = parse_image_payload(request.body)
+    image = services.images.save(payload.name, payload.format, payload.data)
+    return ApiResponse(HTTPStatus.CREATED, ImagePresenter().present(ImageContext(image, url_of(image.path, services))))
+
+
 # ---------------------------------------------------------------- routing table
 
 NOTE = r"^/api/notes/(?P<reading>[^/]+)/(?P<author>[^/]+)$"
@@ -209,8 +238,11 @@ ROUTES = [
     Route("POST", re.compile(r"^/api/corpus$"), "create_entry", create_entry),
     Route("POST", re.compile(r"^/api/compile/entry$"), "preview_entry", preview_entry),
     Route("POST", re.compile(r"^/api/run$"), "run", run_code),
+    Route("GET", re.compile(r"^/api/images$"), "images", list_images),
+    Route("POST", re.compile(r"^/api/images$"), "add_image", add_image),
     Route("GET", re.compile(ENTRY), "entry", get_entry),
     Route("PUT", re.compile(ENTRY), "update_entry", update_entry),
+    Route("DELETE", re.compile(ENTRY), "delete_entry", delete_entry),
     Route("GET", re.compile(VERSION), "version", get_version),
     Route("PUT", re.compile(VERSION), "save_version", save_version),
 ]

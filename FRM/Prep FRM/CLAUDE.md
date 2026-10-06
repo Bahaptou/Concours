@@ -26,7 +26,7 @@ sont dans `../CLAUDE.md`.
   rechargeable.
 - **Fiches (étape 4)** : une fiche Typst par personne et par reading,
   écrite dans `editeur.html` (CodeMirror 6, aperçu en direct, barre
-  « Mode maths », menu « 📚 Corpus »), compilée en SVG et PDF par le
+  « Mode maths », menus « 📚 Corpus » et « 🖼 Images »), compilée en SVG et PDF par le
   serveur, affichée sur la page Reading.
 - **Portail des fiches** (`fiches.html`, onglet « Fiches ») : les 62
   readings avec étapes, fiches et entrées utilisées ; filtres livre,
@@ -74,7 +74,7 @@ sont dans `../CLAUDE.md`.
   WorldTradeFinance4 : `errors.py` (hiérarchie `AppError`, sans HTTP),
   services `compiler.py`, `notes.py`, `corpus.py` (un verrou chacun,
   jamais imbriqués ; écritures atomiques via `files.py`) et
-  `simulations.py` (sous-processus, au plus 2 en parallèle), puis
+  `simulations.py` (sous-processus, au plus 2 en parallèle), `images.py`, puis
   `http/` : `guard.py` (seul le site servi passe), `payload.py`
   (validation), `routes.py` (une fonction par route), `context.py`,
   `presenter.py` (enveloppe `{data, links}`), `problem.py` (RFC 9457,
@@ -154,7 +154,7 @@ sont dans `../CLAUDE.md`.
   de compilation Typst est une erreur métier : 422 `TYPST_COMPILE_ERROR`,
   avec `line`, `hints`, `explanation`, `saved` en extensions, jamais 200.
 - **Le front construit les URL `/api/notes/<reading>/<author>`,
-  `/api/corpus`, `/api/corpus/<id>` et `/api/corpus/<id>/<author>`** (le
+  `/api/corpus`, `/api/corpus/<id>`, `/api/corpus/<id>/<author>` et `/api/images`** (le
   reste vient des `links`) : si une route change, changer aussi
   `assets/js/editor/api.js`.
 - **Une fiche par personne**, nommée d'après le prénom du profil ; la
@@ -200,6 +200,16 @@ sont dans `../CLAUDE.md`.
 - **Une erreur dit quel texte la porte.** Trois textes, une seule boîte : en cas
   d'échec, le serveur compile chaque texte seul ; `part` et `line` (dans ce texte)
   vont dans le 422, et l'éditeur marque le bon champ.
+- **Images : dossier commun `notes/images/`, jamais remplacées.** Choix de
+  Baptiste le 2026-10-02 (« ça force à bien nommer »). Chemin depuis la racine
+  Typst (`/images/…`) : marche dans une fiche, une entrée, une entrée insérée.
+  Compressées dans le navigateur (1600 px, PNG ou JPEG), envoyées en base64
+  dans du JSON (la garde n'est pas touchée) ; requêtes portées à 6 Mo.
+- **Supprimer une entrée retire ses références** (choix de Baptiste le
+  2026-10-06) : `#voir` devient le titre échappé, `#entree` disparaît
+  (`strip_references`). Fiches puis entrées réécrites et recompilées, sans
+  plafond, avant l'effacement du dossier. Une brique importée est refusée
+  (409 `BRICK_IN_USE`). Le gestionnaire lit le corps des DELETE (JSON exigé).
 
 ## Pièges rencontrés
 
@@ -289,6 +299,15 @@ désormais après `resolve` (trouvé par les tests le 2026-10-01).
 `Popen` lancé par la simulation continuait. Groupe de processus +
 `taskkill /T /F` (trouvé par la revue WTF4, testé le 2026-10-01).
 
+**Les attributs `data-*` d'un menu entraient en collision avec ceux de la page.**
+Les pages cherchent `document.querySelector("[data-preview]")` ; le menu Images,
+placé avant dans la page, en avait un : l'aperçu de la fiche s'y écrivait, caché.
+Les attributs des menus sont préfixés (`data-img-…`) (trouvé en test le 2026-10-02).
+
+**Insérer avec le curseur en tête de fiche sortait du gabarit.** Le contenu placé
+avant `#show: fiche.with(…)` échappe à la mise en page. Les menus Corpus et
+Images placent le curseur sous tout l'en-tête (trouvé en test le 2026-10-02).
+
 ## Ce qui n'est pas en place
 
 - **Bac à sable.** Le code exécuté peut lire les fichiers et accéder au
@@ -296,9 +315,10 @@ désormais après `resolve` (trouvé par les tests le 2026-10-01).
   corpus écrivent du code, à revoir pour un produit multi-utilisateur.
 - **Exécution sans serveur.** Pas de Pyodide : en double-clic, le bouton
   est remplacé par l'invitation à lancer le `.bat`.
-- **Suppression ou renommage d'une entrée.** Aucune route : l'identifiant
-  est fixé à la création. À la main : supprimer `notes/corpus/<id>/`,
-  relancer le serveur, corriger les `#voir`/`#entree` qui la citent.
+- **Renommage d'une entrée.** L'identifiant est fixé à la création : la
+  supprimer puis la recréer (les citations deviennent du texte simple).
+- **Fiche ouverte pendant une suppression.** Sa sauvegarde automatique remet
+  la référence retirée ; la fiche ne compile plus jusqu'à correction.
 - **Recompilation des fiches au démarrage.** Le serveur régénère les
   fichiers du corpus mais ne recompile pas les fiches : un dépendant
   `skipped` attend son prochain enregistrement.
@@ -316,3 +336,6 @@ désormais après `resolve` (trouvé par les tests le 2026-10-01).
   (écarté par Baptiste le 2026-10-02).
 - **Repérage des formules sans hypothèses ni limites.** Aucun indicateur ni
   statistique dans le corpus : seul le rendu montre l'absence.
+- **Suppression ou renommage d'une image.** Aucune route : à la main dans
+  `notes/images/`, puis corriger les `#image` qui la citent.
+- **Suivi des usages d'une image.** Rien n'indique quelles fiches l'utilisent.

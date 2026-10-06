@@ -2,6 +2,8 @@
 ``InvalidRequestError`` before any business logic runs."""
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import re
 from dataclasses import dataclass
@@ -17,7 +19,7 @@ ENTRY_ID = re.compile(r"^[a-z0-9][a-z0-9-]{1,49}$")
 INITIALS = re.compile(r"^[A-ZÀ-ÖØ-Þ]{1,4}$")
 TITLE_MAX = 120
 NAME_MAX = 80
-MAX_BODY = 1_000_000
+MAX_BODY = 6_000_000  # an image of 4 MB (backend/images.py) weighs about 5.4 MB in base64
 CODE_MAX = 200_000
 MIN_TIMEOUT = 1
 
@@ -42,6 +44,13 @@ class RunPayload:
     code: str
     author: str
     timeout: float
+
+
+@dataclass(frozen=True)
+class ImagePayload:
+    name: str
+    format: str
+    data: bytes  # decoded; name, format and content are checked by backend/images.py
 
 
 @dataclass(frozen=True)
@@ -162,6 +171,17 @@ def parse_run_payload(body: bytes) -> RunPayload:
         raise InvalidRequestError("timeout", f"nombre de secondes entre {MIN_TIMEOUT} et {MAX_TIMEOUT:g}")
     # The author picks which version of each brick is imported.
     return RunPayload(code, parse_author(str(data.get("author", ""))), float(timeout))
+
+
+def parse_image_payload(body: bytes) -> ImagePayload:
+    """{"name", "format", "data"}: data is the file in base64 (JSON carries no raw bytes)."""
+    data = _json_object(body)
+    encoded = _text(data, "data")
+    try:
+        decoded = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError):
+        raise InvalidRequestError("data", "base64 attendu") from None
+    return ImagePayload(_text(data, "name").strip(), _text(data, "format").strip().lower(), decoded)
 
 
 def parse_entry_preview(body: bytes) -> EntryPreviewPayload:

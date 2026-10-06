@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import threading
 import time
 from dataclasses import dataclass, field
@@ -36,6 +37,7 @@ from pathlib import Path
 
 from backend.compiler import TypstCompiler
 from backend.errors import (
+    BrickInUseError,
     CorpusImportForbiddenError,
     EntryExistsError,
     InvalidRequestError,
@@ -153,6 +155,55 @@ class BrickSource:
 def citations(source: str) -> set[tuple[str, str]]:
     """{(kind, id)} found in a source, kind being "voir" or "entree"."""
     return {(m[1], m[2]) for m in CITATION.finditer(source)}
+
+
+MARKUP_SPECIAL = re.compile(r"([\\*_#$\[\]<>@`~])")  # characters with a meaning in Typst markup
+
+
+def _call_end(text: str, open_paren: int) -> int:
+    """Index just after the parenthesis closing the call opened at ``open_paren`` (strings skipped)."""
+    depth, in_string, index = 0, False, open_paren
+    while index < len(text):
+        char = text[index]
+        if in_string:
+            if char == "\\":
+                index += 1
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+        index += 1
+    return len(text)
+
+
+def strip_references(source: str, entry_id: str, titre: str) -> tuple[str, int]:
+    """Removes an entry's calls from a Typst source, for its deletion: ``#voir("id")`` becomes the
+    title as plain text (escaped for markup), ``#entree("id", …)`` disappears, with its line when
+    nothing else is on it. Returns (new source, number of calls removed)."""
+    plain = MARKUP_SPECIAL.sub(r"\\\1", titre)
+    edits = []  # (start, end, replacement), in order
+    for match in CITATION.finditer(source):
+        if match[2] != entry_id or (edits and match.start() < edits[-1][1]):
+            continue
+        start, end = match.start(), _call_end(source, match.start() + 1 + len(match[1]))
+        if match[1] == "voir":
+            edits.append((start, end, plain))
+            continue
+        line_start = source.rfind("\n", 0, start) + 1
+        line_end = source.find("\n", end)
+        line_end = len(source) if line_end == -1 else line_end
+        if not source[line_start:start].strip() and not source[end:line_end].strip():
+            start, end = line_start, min(line_end + 1, len(source))
+        edits.append((start, end, ""))
+    for start, end, replacement in reversed(edits):
+        source = source[:start] + replacement + source[end:]
+    return source, len(edits)
 
 
 class CorpusService:
@@ -400,6 +451,52 @@ class CorpusService:
             failure.rebuild = report.to_dict()  # the 422 carries the report too
             raise failure
         return self.get(entry_id), report
+
+    def delete(self, entry_id: str) -> RebuildReport:
+        """Deletes an entry (every version) and its references: in the notes and the other entries,
+        #voir becomes the title as plain text and #entree disappears (see strip_references); what
+        was rewritten is recompiled, its failures reported, never raised. A brick still imported by
+        some code is refused: removing the import would break that code."""
+        raw = self._read_raw(entry_id)  # unknown entry -> 404
+        if raw["type"] == BRICK and (users := self.importers(entry_id)):
+            raise BrickInUseError(entry_id, users)
+        report = RebuildReport()
+        # References first, while the entry still exists: an interruption leaves an unused entry,
+        # never a note citing a missing one. Notes are saved even when they no longer compile.
+        for target, source in list(self.notes.sources()):
+            new_source, count = strip_references(source, entry_id, raw["titre"])
+            if not count:
+                continue
+            label = f"notes/r{target.reading}/fiche-{target.author}"
+            try:
+                self.notes.save(target, new_source)
+                report.rebuilt.append(label)
+            except TypstCompileError as error:
+                report.failed.append({"target": label, "message": error.message})
+        rewritten = []
+        with self._writes:
+            for path in sorted(self.entries_root.glob("*/*.typ")):
+                other, author = path.parent.name, path.name.split(".", 1)[0]
+                if other == entry_id:
+                    continue
+                new_text, count = strip_references(path.read_text(encoding="utf-8"), entry_id, raw["titre"])
+                if count:
+                    try:
+                        path.write_text(new_text, encoding="utf-8")
+                    except OSError as error:
+                        raise StorageError(str(path), str(error)) from error
+                    if (other, author) not in rewritten:
+                        rewritten.append((other, author))
+        for other, author in rewritten:
+            if self.source_path(other, author).exists():
+                self._rerender_into(other, author, report)
+        with self._writes:
+            try:
+                shutil.rmtree(self.folder(entry_id))
+            except OSError as error:
+                raise StorageError(str(self.folder(entry_id)), str(error)) from error
+            self._regenerate()
+        return report
 
     def preview(self, entry_type: str, titre: str, initials: str, source: str, hypotheses: str | None = None, limites: str | None = None) -> list[str]:
         """SVG of an unsaved version, rendered in its box. Nothing is written."""

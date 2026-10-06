@@ -34,6 +34,7 @@ export const noteUrl = (reading, author) => `/api/notes/${reading}/${author}`;
 export const CORPUS_URL = "/api/corpus";
 export const entryUrl = (id) => `${CORPUS_URL}/${encodeURIComponent(id)}`;
 export const versionUrl = (id, author) => `${entryUrl(id)}/${author}`;
+export const IMAGES_URL = "/api/images";
 
 export const getNote = (reading, author) => request("GET", noteUrl(reading, author));
 export const compile = (link, source) => request(link.method, link.href, { source });
@@ -47,10 +48,18 @@ export const getVersion = (id, author) => request("GET", versionUrl(id, author))
 export const createEntry = (link, meta) => request(link.method, link.href, meta);
 /** meta: { type, titre, readings } */
 export const updateEntry = (link, meta) => request(link.method, link.href, meta);
+/** Deletes an entry and removes its references from notes and entries. The server wants JSON
+ *  for every write, hence the empty body. */
+export const deleteEntry = (id) => request("DELETE", entryUrl(id), {});
 /** version: { source, name, initials, code?, hypotheses?, limites? } (the last two: formulas only) */
 export const saveVersion = (link, version) => request(link.method, link.href, version);
 /** draft: { type, titre, initials, source, hypotheses?, limites? } */
 export const previewEntry = (link, draft) => request(link.method, link.href, draft);
+
+// Shared images (notes/images/).
+export const listImages = () => request("GET", IMAGES_URL);
+/** image: { name, format, data } with data in base64 */
+export const addImage = (image) => request("POST", IMAGES_URL, image);
 
 /** Last-chance save when the page closes: keepalive lets the request outlive the page. */
 export function saveOnExit(link, source) {

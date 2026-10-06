@@ -53,6 +53,62 @@
     return payload.data;
   }
 
+  // ------------------------------------------------------------------ keeping a figure
+
+  /** Saves a figure (PNG data URL) in the shared images (notes/images/). Resolves to the image,
+   *  rejects with an Error; error.conflict is true when the name is taken. */
+  async function saveFigure(name, dataUrl) {
+    let response;
+    try {
+      response = await fetch("/api/images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, format: "png", data: dataUrl.split(",", 2)[1] }),
+      });
+    } catch (e) {
+      throw new Error("Serveur injoignable : relance « Lancer Prep FRM.bat ».");
+    }
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      const error = new Error((payload && payload.detail) || `Erreur ${response.status}`);
+      error.conflict = payload && payload.title === "IMAGE_CONFLICT";
+      throw error;
+    }
+    return payload.data;
+  }
+
+  /** Under a figure: name it, save it, then show the line to put in a note. */
+  function keepFigure(slot, dataUrl) {
+    slot.innerHTML = `
+<input class="run-keep-name" placeholder="nom, ex. var-historique-pertes" maxlength="60" aria-label="Nom de l'image">
+<button type="button" class="btn ghost" data-keep-save>Enregistrer</button>
+<span class="run-keep-msg"></span>`;
+    const input = slot.querySelector("input");
+    const message = slot.querySelector(".run-keep-msg");
+    const save = async () => {
+      const name = input.value.trim();
+      if (!/^[a-z0-9][a-z0-9-]{1,59}$/.test(name)) {
+        message.textContent = "Minuscules, chiffres et tirets (2 caractères au moins).";
+        return;
+      }
+      message.textContent = "Enregistrement…";
+      try {
+        const image = await saveFigure(name, dataUrl);
+        const line = `#image("${image.typstPath}", width: 70%)`;
+        slot.innerHTML = `✓ Enregistrée sous « ${esc(image.name)} ». Dans l'éditeur de fiche : menu 🖼 Images, ou colle <code>${esc(line)}</code> <button type="button" class="link-btn" data-keep-copy>Copier</button>`;
+        // Not data-copy: ui.js handles that one for code blocks.
+        slot.querySelector("[data-keep-copy]").addEventListener("click", (event) => {
+          navigator.clipboard.writeText(line).then(() => (event.target.textContent = "Copié ✓"), () => {});
+        });
+      } catch (error) {
+        message.textContent = error.conflict ? `Une image s'appelle déjà « ${name} » : choisis un autre nom.` : `⚠ ${error.message}`;
+      }
+    };
+    slot.querySelector("[data-keep-save]").addEventListener("click", save);
+    input.addEventListener("keydown", (event) => event.key === "Enter" && save());
+    input.focus();
+  }
+
   // ------------------------------------------------------------------ panel
 
   function renderResult(box, result, readings) {
@@ -66,7 +122,15 @@
       : "";
     const stdout = result.stdout ? `<pre class="run-out">${esc(result.stdout)}</pre>` : "";
     const stderr = result.stderr ? `<pre class="run-out run-err">${esc(result.stderr)}</pre>` : "";
-    const figures = result.figures.map((src, i) => `<img class="run-figure" src="${src}" alt="Figure ${i + 1}">`).join("");
+    const figures = result.figures
+      .map(
+        (src, i) => `
+<div class="run-figure-box">
+  <img class="run-figure" src="${src}" alt="Figure ${i + 1}">
+  <div class="run-keep small" data-keep="${i}"><button type="button" class="link-btn" data-keep-open>📌 Enregistrer comme image</button> pour la mettre dans une fiche</div>
+</div>`
+      )
+      .join("");
     const ticked = result.ok && readings.length
       ? `<div class="small muted">Étape ③ cochée : ${readings.map((r) => esc(FRM.findReading(r)?.tag || `R${r}`)).join(", ")}.</div>`
       : "";
@@ -95,6 +159,12 @@
     const button = root.querySelector("[data-run]");
     const input = root.querySelector(".run-timeout");
     const box = root.querySelector(".run-result");
+    let figures = []; // of the last run, for "Enregistrer comme image"
+    box.addEventListener("click", (event) => {
+      if (!event.target.closest("[data-keep-open]")) return;
+      const slot = event.target.closest("[data-keep]");
+      keepFigure(slot, figures[Number(slot.dataset.keep)]);
+    });
     input.addEventListener("change", () => {
       const value = Math.min(MAX_TIMEOUT, Math.max(1, Math.round(Number(input.value) || DEFAULT_TIMEOUT)));
       input.value = value;
@@ -107,6 +177,7 @@
         const result = await execute(code(), author, Number(input.value) || DEFAULT_TIMEOUT);
         const ids = result.ok ? readings() : [];
         ids.forEach((id) => store.progress.set(id, "simulation", true));
+        figures = result.figures;
         renderResult(box, result, ids);
         if (ids.length) ui.refresh();
       } catch (error) {

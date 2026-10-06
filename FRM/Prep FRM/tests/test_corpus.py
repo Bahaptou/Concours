@@ -12,8 +12,8 @@ import re
 import pytest
 
 from backend import corpus as corpus_module
-from backend.corpus import EntryMeta
-from backend.errors import CorpusImportForbiddenError, EntryExistsError, InvalidRequestError, TypstCompileError, UnknownEntryError
+from backend.corpus import EntryMeta, strip_references
+from backend.errors import BrickInUseError, CorpusImportForbiddenError, EntryExistsError, InvalidRequestError, TypstCompileError, UnknownEntryError
 from backend.notes import NoteTarget
 
 # En-tête qu'une version d'entrée écrit pour pouvoir citer d'autres entrées.
@@ -539,6 +539,139 @@ def test_les_hypotheses_et_les_limites_par_l_api(api):
     # Un champ qui n'est pas du texte est refusé avant tout.
     status, _, body = api("PUT", "/api/corpus/black-scholes/baptiste", {"source": FORMULE, "hypotheses": 3, **moi})
     assert (status, body["field"]) == (422, "hypotheses")
+
+
+# ---------------------------------------------------------------- suppression d'une entrée
+#
+# Supprimer une entrée retire aussi ses références, pour qu'aucune fiche ni entrée ne cite une
+# entrée disparue (choix de Baptiste) : #voir devient le titre en texte simple, la phrase reste
+# lisible ; #entree disparaît. Une brique encore importée par du code est refusée.
+
+
+def test_retirer_les_references_d_une_entree_dans_un_texte():
+    texte = (
+        'Utilise #voir("bayes") ici.\n'  # citation dans une phrase : remplacée par le titre
+        '#entree("bayes")\n'  # insertion seule sur sa ligne : la ligne disparaît
+        'avant #entree("bayes", auteur: "m(a)rie") après\n'  # parenthèse dans une chaîne : sautée
+        '#voir("bayes-2")\n'  # une autre entrée au nom proche : intacte
+    )
+    nouveau, nombre = strip_references(texte, "bayes", "Règle de *Bayes* [simple]")
+    assert nombre == 3
+    # Les caractères qui ont un sens en Typst sont échappés : le titre s'affiche tel quel.
+    assert nouveau == 'Utilise Règle de \\*Bayes\\* \\[simple\\] ici.\navant  après\n#voir("bayes-2")\n'
+
+
+def test_un_titre_echappe_s_affiche_tel_quel(services):
+    # Vérifie l'échappement par Typst lui-même : le texte compile (un « [ » non échappé ouvrirait
+    # un bloc de contenu jamais refermé).
+    nouveau, _ = strip_references('#voir("x")', "x", "Coût [moyen] *pondéré* #1 $ @ref <a>")
+    services.compiler.svg_pages(nouveau)
+
+
+def test_supprimer_une_entree_efface_ses_fichiers_et_le_corpus_genere(services, site):
+    corpus = services.corpus
+    creer(corpus, "bayes", titre="Règle de Bayes")
+    version(corpus, "bayes", "$ P(A|B) $", BAPTISTE)
+    version(corpus, "bayes", "Version de Marie.", MARIE)
+    rapport = corpus.delete("bayes")
+    assert rapport.failed == []
+    # Le dossier entier part : toutes les versions, leurs rendus.
+    assert not (site / "notes" / "corpus" / "bayes").exists()
+    # Les fichiers générés ne la connaissent plus.
+    for fichier in ("_corpus-titres.typ", "_corpus.typ", "corpus/index.js"):
+        assert '"bayes"' not in (site / "notes" / fichier).read_text(encoding="utf-8"), fichier
+    with pytest.raises(UnknownEntryError):
+        corpus.get("bayes")
+
+
+def test_supprimer_une_entree_retire_ses_references_des_fiches(services):
+    corpus, notes = services.corpus, services.notes
+    creer(corpus, "bayes", titre="Règle de Bayes")
+    version(corpus, "bayes", "$ P(A|B) $")
+    notes.save(NoteTarget(12, "baptiste"), FICHE + 'Voir #voir("bayes").\n#entree("bayes")\nFin.')
+    notes.save(NoteTarget(13, "marie"), FICHE + "Rien à voir.")
+    rapport = corpus.delete("bayes")
+    # La fiche qui l'utilisait est réécrite puis recompilée ; l'autre n'est pas touchée.
+    assert rapport.rebuilt == ["notes/r12/fiche-baptiste"]
+    assert notes.load(NoteTarget(12, "baptiste")) == FICHE + "Voir Règle de Bayes.\nFin."
+    assert notes.load(NoteTarget(13, "marie")) == FICHE + "Rien à voir."
+    # Et elle compile, sans l'entrée disparue.
+    services.compiler.svg_pages(notes.load(NoteTarget(12, "baptiste")))
+
+
+def test_supprimer_une_entree_retire_ses_references_des_autres_entrees(services, site):
+    corpus = services.corpus
+    creer(corpus, "loi-normale", type_="definition", titre="Loi normale")
+    creer(corpus, "black-scholes")
+    # Citée dans la section Hypothèses d'une version et dans le texte d'une autre.
+    avec_sections(corpus, "black-scholes", CITE + '- rendements selon la #voir("loi-normale")\n', None, who=BAPTISTE)
+    version(corpus, "black-scholes", CITE + 'Voir #voir("loi-normale").', who=MARIE)
+    rapport = corpus.delete("loi-normale")
+    dossier = site / "notes" / "corpus" / "black-scholes"
+    assert (dossier / "baptiste.hypotheses.typ").read_text(encoding="utf-8") == CITE + "- rendements selon la Loi normale\n"
+    assert (dossier / "marie.typ").read_text(encoding="utf-8") == CITE + "Voir Loi normale."
+    # Les deux versions sont recompilées, restent valides, et ne citent plus rien.
+    assert sorted(rapport.rebuilt) == ["corpus/black-scholes/baptiste", "corpus/black-scholes/marie"]
+    entree = corpus.get("black-scholes")
+    assert all(v.valid for v in entree.versions)
+    assert entree.cites == ()
+
+
+def test_une_fiche_qui_ne_compile_plus_est_rapportee_sans_bloquer(services):
+    # La fiche contenait déjà sa propre erreur : elle est quand même réécrite, l'échec rapporté.
+    corpus, notes = services.corpus, services.notes
+    creer(corpus, "bayes")
+    with pytest.raises(TypstCompileError):
+        notes.save(NoteTarget(12, "baptiste"), FICHE + '#voir("bayes")\n#inconnu()')
+    rapport = corpus.delete("bayes")
+    assert rapport.failed == [{"target": "notes/r12/fiche-baptiste", "message": "unknown variable: inconnu"}]
+    assert '#voir("bayes")' not in notes.load(NoteTarget(12, "baptiste"))
+    assert not corpus.exists("bayes")
+
+
+def test_une_brique_encore_importee_ne_se_supprime_pas(services, site):
+    corpus = services.corpus
+    creer(corpus, "outils", type_="brique")
+    version(corpus, "outils", "Fonctions.", code="def f():\n    return 1\n")
+    creer(corpus, "var-historique", type_="simulation")
+    version(corpus, "var-historique", "Simulation.", code="from briques.outils import f\nprint(f())\n")
+    with pytest.raises(BrickInUseError) as raised:
+        corpus.delete("outils")
+    assert raised.value.imported_by == ["var-historique"]
+    # Rien n'a bougé.
+    assert (site / "notes" / "corpus" / "outils" / "baptiste.py").exists()
+    # Une fois l'import retiré, la suppression passe.
+    version(corpus, "var-historique", "Simulation.", code="print(1)\n")
+    corpus.delete("outils")
+    assert not corpus.exists("outils")
+
+
+def test_supprimer_une_entree_inconnue_donne_404(services):
+    with pytest.raises(UnknownEntryError):
+        services.corpus.delete("inconnue")
+
+
+def test_la_suppression_par_l_api(api):
+    api("POST", "/api/corpus", {"id": "bayes", "type": "formule", "titre": "Bayes"})
+    api("PUT", "/api/notes/12/baptiste", {"source": FICHE + '#voir("bayes")'})
+    # Une écriture doit déclarer du JSON, DELETE compris (garde du serveur) : corps {} ici.
+    status, _, body = api("DELETE", "/api/corpus/bayes", {})
+    assert status == 200
+    assert body["data"]["deleted"] == "bayes"
+    assert body["data"]["rebuild"]["rebuilt"] == ["notes/r12/fiche-baptiste"]
+    status, _, body = api("DELETE", "/api/corpus/bayes", {})
+    assert (status, body["title"]) == (404, "ENTRY_NOT_FOUND")
+    status, _, body = api("GET", "/api/corpus")
+    assert body["data"]["entries"] == []
+
+
+def test_supprimer_une_brique_importee_par_l_api_donne_409(api, services):
+    services.corpus.create("outils", EntryMeta("brique", "Outils"))
+    version(services.corpus, "outils", "Texte.", code="def f():\n    return 1\n")
+    services.corpus.create("sim", EntryMeta("simulation", "Sim"))
+    version(services.corpus, "sim", "Texte.", code="import briques.outils\n")
+    status, _, body = api("DELETE", "/api/corpus/outils", {})
+    assert (status, body["title"], body["importedBy"]) == (409, "BRICK_IN_USE", ["sim"])
 
 
 # ---------------------------------------------------------------- readings tirés des fiches

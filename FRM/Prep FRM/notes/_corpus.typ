@@ -13,8 +13,17 @@
   "black-scholes-call-europeen": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/black-scholes-call-europeen/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "board-of-directors": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/board-of-directors/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "capm": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/capm/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "chief-risk-officer": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/chief-risk-officer/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "currency-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/currency-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
   "donnees-aleatoires": (
     "claude": (initiales: "CL", corps: () => include "corpus/donnees-aleatoires/claude.typ", hypotheses: none, limites: none),
@@ -22,8 +31,20 @@
   "duration-convexite": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/duration-convexite/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "economic-capital": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/economic-capital/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "equity-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/equity-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "foreign-exchange-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/foreign-exchange-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "histogramme": (
     "claude": (initiales: "CL", corps: () => include "corpus/histogramme/claude.typ", hypotheses: none, limites: none),
+  ),
+  "interest-rate-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/interest-rate-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
   "la-vie-a-un-sens": (
     "profil": (initiales: "PD", corps: () => include "corpus/la-vie-a-un-sens/profil.typ", hypotheses: none, limites: none),
@@ -49,8 +70,14 @@
   "rendements-portefeuille": (
     "claude": (initiales: "CL", corps: () => include "corpus/rendements-portefeuille/claude.typ", hypotheses: none, limites: none),
   ),
+  "reputation-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/reputation-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "risk-free-rate-rfr": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/risk-free-rate-rfr/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "risk-reward-tradeoff-principle": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/risk-reward-tradeoff-principle/baptiste.typ", hypotheses: none, limites: none),
   ),
   "time-value-of-money": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/time-value-of-money/baptiste.typ", hypotheses: none, limites: none),

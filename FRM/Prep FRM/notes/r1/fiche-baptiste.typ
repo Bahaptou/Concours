@@ -37,22 +37,38 @@ Ici nous parlons de
   - options
   - swaps
 
-- Expected Loss vs Unexpected Loss
 
 - Risk Appetite
 
+- Expected Loss vs Unexpected Loss
+
+#image("/images/loss-categories-expected-unexpected-loss.png", width: 70%)
 
 
 
 
 
-= Formules
 
-Premier tests 
-#voir("black-scholes-call")
-#entree("black-scholes-call")
+= Formules et Définitions
+
+#voir("economic-capital")
+
+#voir("unexpected-loss")
+
+#voir("foreign-exchange-risk") #voir("currency-risk")
+
+#voir("equity-risk")
+
+#voir("interest-rate-risk")
+
+#voir("reputation-risk")
+
+#voir("risk-reward-tradeoff-principle")
+
 
 #retenir[…]
+
+
 
 = Exemple chiffré
 

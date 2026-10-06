@@ -102,7 +102,7 @@ def make_handler(services: Services) -> type[SimpleHTTPRequestHandler]:
                 check_source(self.headers, self.server.server_address[1])
                 route, params = resolve(method, path)
                 check_content_type(method, self.headers)
-                body = self._read_body() if method in ("POST", "PUT") else b""
+                body = self._read_body() if method in ("POST", "PUT", "DELETE") else b""  # a body left unread would spoil the next request
                 response = route.handler(ApiRequest(method, path, params, body), services)
             except Exception as exc:  # noqa: BLE001 - the single conversion point to problem details
                 self._log_error(exc)

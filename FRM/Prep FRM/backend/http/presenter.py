@@ -12,6 +12,8 @@ from backend.http.context import (
     CorpusContext,
     EntryContext,
     EntryPreviewContext,
+    ImageContext,
+    ImagesContext,
     NoteContext,
     RunContext,
     SavedNoteContext,
@@ -141,6 +143,11 @@ class EntryPresenter:
         return envelope(data, *links)
 
 
+class DeletedEntryPresenter:
+    def present(self, entry_id: str, report) -> dict:
+        return envelope({"deleted": entry_id, "rebuild": report.to_dict()}, Link("corpus", CORPUS, "Corpus"))
+
+
 class VersionPresenter:
     def present(self, ctx: VersionContext) -> dict:
         href = version_href(ctx.entry_id, ctx.author)
@@ -185,3 +192,33 @@ class RunPresenter:
 class EntryPreviewPresenter:
     def present(self, ctx: EntryPreviewContext) -> dict:
         return envelope({"pages": ctx.pages}, Link("self", ENTRY_PREVIEW, "Aperçu d'une version", "POST"))
+
+
+# ---------------------------------------------------------------- images
+
+IMAGES = "/api/images"
+
+
+def image_to_dict(image, url: str) -> dict:
+    return {
+        "name": image.name,
+        "format": image.format,
+        "size": image.size,
+        "updatedAt": image.updated_at,
+        "url": url,  # to show it in the site
+        "typstPath": image.typst_path,  # to write in a note: #image("…")
+    }
+
+
+class ImagesPresenter:
+    def present(self, ctx: ImagesContext) -> dict:
+        return envelope(
+            {"images": [image_to_dict(image, ctx.urls[image.name]) for image in ctx.images]},
+            Link("self", IMAGES, "Images"),
+            Link("create", IMAGES, "Ajouter une image", "POST"),
+        )
+
+
+class ImagePresenter:
+    def present(self, ctx: ImageContext) -> dict:
+        return envelope(image_to_dict(ctx.image, ctx.url), Link("images", IMAGES, "Images"))

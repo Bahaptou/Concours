@@ -1,0 +1,12 @@
+{
+  "type": "theoreme",
+  "titre": "Risk-Reward Tradeoff Principle",
+  "auteurs": {
+    "baptiste": {
+      "nom": "Baptiste Durand",
+      "initiales": "BD",
+      "updatedAt": 1791296401007,
+      "valide": true
+    }
+  }
+}
