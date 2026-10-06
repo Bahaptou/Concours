@@ -12,6 +12,7 @@
  *     "attempts":   [ { "q": "315", "reading": 12, "choice": "B", "correct": false,
  *                       "ms": 83000 | null, "at": 1759240000000, "session": "s…" | null } ],
  *     "flags":      { "<questionId>": { "review": true, "unreadable": true } },
+ *     "treated":    { "<questionId>": { "at": 1759240000000, "reading": 12 } },   (facultatif)
  *     "sessions":   [ { "id", "mode": "training" | "exam", "label", "startedAt", "finishedAt",
  *                       "total", "answered", "correct", "ms", "timeLimit" } ]
  *   }
@@ -37,6 +38,7 @@
     confidence: {},
     attempts: [],
     flags: {},
+    treated: {},
     sessions: [],
     lastExport: null,
   });
@@ -125,6 +127,13 @@
     return Object.fromEntries(entries);
   }
 
+  /** { "<questionId>": { at, reading } } : identifiants numériques, date et reading valides. */
+  function cleanTreated(treated) {
+    const entries = Object.entries(treated && typeof treated === "object" ? treated : {});
+    const valid = ([id, t]) => /^\d+$/.test(id) && t && isCount(t.at) && Number.isInteger(t.reading);
+    return Object.fromEntries(entries.filter(valid).map(([id, t]) => [id, { at: t.at, reading: t.reading }]));
+  }
+
   const cleanList = (list, clean) => (Array.isArray(list) ? list.map(clean).filter(Boolean) : []);
 
   // ------------------------------------------------------------------ API
@@ -189,6 +198,20 @@
     all: () => state.flags,
   };
 
+  /** Questions « traitées » : déjà exploitées (fiche, corpus). À part des marques 🚩 et ⚠,
+   *  qui signalent un problème : une question traitée n'est pas une question marquée.
+   *  Le reading est gardé pour compter par reading sans charger le texte des questions. */
+  const treated = {
+    has: (questionId) => Boolean(state.treated[questionId]),
+    at: (questionId) => (state.treated[questionId] ? state.treated[questionId].at : null),
+    toggle(questionId, readingId) {
+      if (state.treated[questionId]) delete state.treated[questionId];
+      else state.treated[questionId] = { at: Date.now(), reading: Number(readingId) };
+      persist();
+    },
+    all: () => state.treated,
+  };
+
   const sessions = {
     all: () => state.sessions,
     add(session) {
@@ -234,6 +257,7 @@
       confidence: state.confidence,
       attempts: state.attempts,
       flags: state.flags,
+      treated: state.treated,
       sessions: state.sessions,
     };
   }
@@ -256,6 +280,7 @@
       confidence: clean("confidence", (v) => Number.isInteger(v) && v >= 0 && v <= MAX_SCORE),
       attempts: cleanList(data.attempts, cleanAttempt),
       flags: cleanFlags(data.flags),
+      treated: cleanTreated(data.treated),
       sessions: cleanList(data.sessions, cleanSession),
     };
   }
@@ -292,6 +317,7 @@
     confidence,
     attempts,
     flags,
+    treated,
     sessions,
     activeSession,
     snapshot,

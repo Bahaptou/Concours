@@ -1,0 +1,12 @@
+#import "/_corpus-titres.typ": voir
+// Ta version de cette entrée. Pour citer une autre entrée : menu « 📚 Corpus », puis Citer.
+Illustration of :
+#voir("funding-liquidity-risk")#voir("liquidity-risk")
+
+Historical examples : the Northern Rock crisis in 2007 are crucial case studies showcasing the implications of poor funding liquidity management.
+
+EN : 
+- Northern Rock, a significant UK mortgage lender, encountered a severe funding liquidity crisis in 2007, a situation that signaled the onset of the global financial crisis. The bank heavily relied on wholesale markets instead of depositor funds to finance its mortgage lending, a strategy that backfired amidst the global credit crunch triggered by the US subprime mortgage crisis. With most of its assets tied up in long-term mortgages, Northern Rock found itself unable to liquidate these assets swiftly enough to meet its short-term obligations, particularly the short-term debts it had incurred to finance long-term loans. This liquidity crisis led to the first bank run in the UK in over a century, resulting in a loss of customer confidence, a government bailout, and eventually nationalization in February 2008.
+
+FR :
+- Northern Rock, un important prêteur hypothécaire britannique, a connu en 2007 une grave crise de liquidité de financement, une situation qui a annoncé le début de la crise financière mondiale. La banque s'appuyait fortement sur les marchés de gros plutôt que sur les dépôts de ses clients pour financer ses prêts hypothécaires, une stratégie qui s'est retournée contre elle lors de la crise mondiale du crédit déclenchée par la crise des prêts hypothécaires à risque (subprimes) aux États-Unis. La majeure partie de ses actifs étant immobilisée dans des prêts hypothécaires à long terme, Northern Rock s'est retrouvée dans l'incapacité de liquider ces actifs assez rapidement pour honorer ses obligations à court terme, en particulier les dettes à court terme qu'elle avait contractées pour financer des prêts à long terme. Cette crise de liquidité a provoqué la première panique bancaire (« bank run ») au Royaume-Uni depuis plus d'un siècle, entraînant une perte de confiance des clients, un plan de sauvetage public, puis finalement une nationalisation en février 2008.

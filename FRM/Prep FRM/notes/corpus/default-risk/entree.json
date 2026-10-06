@@ -1,0 +1,12 @@
+{
+  "type": "definition",
+  "titre": "Default Risk",
+  "auteurs": {
+    "baptiste": {
+      "nom": "Baptiste Durand",
+      "initiales": "BD",
+      "updatedAt": 1791308310456,
+      "valide": true
+    }
+  }
+}

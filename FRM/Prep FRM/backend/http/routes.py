@@ -34,6 +34,8 @@ from backend.http.payload import (
     parse_meta_payload,
     parse_new_entry,
     parse_note_target,
+    parse_question_id,
+    parse_question_link,
     parse_run_payload,
     parse_source_payload,
     parse_version_payload,
@@ -178,6 +180,18 @@ def delete_entry(request: ApiRequest, services: Services) -> ApiResponse:
     return ApiResponse(HTTPStatus.OK, DeletedEntryPresenter().present(entry_id, report))
 
 
+def link_question(request: ApiRequest, services: Services) -> ApiResponse:
+    entry_id, question_id = parse_entry_id(request.params["id"]), parse_question_id(request.params["question"])
+    entry = services.corpus.link_question(entry_id, question_id, parse_question_link(request.body), linked=True)
+    return entry_response(HTTPStatus.OK, entry, services)
+
+
+def unlink_question(request: ApiRequest, services: Services) -> ApiResponse:
+    entry_id, question_id = parse_entry_id(request.params["id"]), parse_question_id(request.params["question"])
+    entry = services.corpus.link_question(entry_id, question_id, 0, linked=False)
+    return entry_response(HTTPStatus.OK, entry, services)
+
+
 def get_version(request: ApiRequest, services: Services) -> ApiResponse:
     entry_id, author = parse_entry_id(request.params["id"]), parse_author(request.params["author"])
     files = services.corpus.load_version(entry_id, author)
@@ -227,6 +241,7 @@ def add_image(request: ApiRequest, services: Services) -> ApiResponse:
 NOTE = r"^/api/notes/(?P<reading>[^/]+)/(?P<author>[^/]+)$"
 ENTRY = r"^/api/corpus/(?P<id>[^/]+)$"
 VERSION = r"^/api/corpus/(?P<id>[^/]+)/(?P<author>[^/]+)$"
+QUESTION_LINK = r"^/api/corpus/(?P<id>[^/]+)/questions/(?P<question>[^/]+)$"
 
 ROUTES = [
     Route("GET", re.compile(r"^/api/?$"), "api_root", api_root),
@@ -243,6 +258,8 @@ ROUTES = [
     Route("GET", re.compile(ENTRY), "entry", get_entry),
     Route("PUT", re.compile(ENTRY), "update_entry", update_entry),
     Route("DELETE", re.compile(ENTRY), "delete_entry", delete_entry),
+    Route("PUT", re.compile(QUESTION_LINK), "link_question", link_question),
+    Route("DELETE", re.compile(QUESTION_LINK), "unlink_question", unlink_question),
     Route("GET", re.compile(VERSION), "version", get_version),
     Route("PUT", re.compile(VERSION), "save_version", save_version),
 ]

@@ -674,6 +674,95 @@ def test_supprimer_une_brique_importee_par_l_api_donne_409(api, services):
     assert (status, body["title"], body["importedBy"]) == (409, "BRICK_IN_USE", ["sim"])
 
 
+# ---------------------------------------------------------------- questions liées à une entrée
+#
+# On relie des questions AnalystPrep aux entrées du corpus depuis la page des questions, pour
+# retrouver les questions d'une ou plusieurs entrées et s'en faire des séries. Le lien vit dans
+# entree.json : partagé comme le reste du corpus (git). Il ne rattache pas l'entrée au reading de
+# la question : les readings d'une entrée viennent des fiches seulement.
+
+
+def test_lier_une_question_l_ecrit_dans_l_entree_et_le_manifeste(services, site):
+    corpus = services.corpus
+    creer(corpus, "bayes")
+    entree = corpus.link_question("bayes", "315", 12, linked=True)
+    assert entree.questions == (("315", 12),)
+    meta = json.loads((site / "notes" / "corpus" / "bayes" / "entree.json").read_text(encoding="utf-8"))
+    assert meta["questions"] == [{"id": "315", "reading": 12}]
+    # Le manifeste (pages ouvertes sans serveur) porte les liens : la page Corpus et les séries les lisent.
+    manifeste = (site / "notes" / "corpus" / "index.js").read_text(encoding="utf-8")
+    assert '"questions": [{"id": "315", "reading": 12}]' in manifeste
+
+
+def test_les_liens_sont_tries_et_sans_doublon(services):
+    corpus = services.corpus
+    creer(corpus, "bayes")
+    for question, reading in (("402", 13), ("315", 12), ("90", 12), ("315", 12)):
+        entree = corpus.link_question("bayes", question, reading, linked=True)
+    # Par reading puis par numéro (90 avant 315, pas l'ordre alphabétique) ; lier deux fois ne double pas.
+    assert entree.questions == (("90", 12), ("315", 12), ("402", 13))
+
+
+def test_delier_une_question(services, site):
+    corpus = services.corpus
+    creer(corpus, "bayes")
+    corpus.link_question("bayes", "315", 12, linked=True)
+    corpus.link_question("bayes", "402", 13, linked=True)
+    assert corpus.link_question("bayes", "315", 0, linked=False).questions == (("402", 13),)
+    # Délier une question non liée ne fait rien (idempotent).
+    assert corpus.link_question("bayes", "999", 0, linked=False).questions == (("402", 13),)
+    # Plus aucun lien : la clé disparaît du fichier, qui retrouve sa forme d'avant.
+    corpus.link_question("bayes", "402", 0, linked=False)
+    meta = json.loads((site / "notes" / "corpus" / "bayes" / "entree.json").read_text(encoding="utf-8"))
+    assert "questions" not in meta
+
+
+def test_un_lien_ne_rattache_pas_l_entree_au_reading_de_la_question(services):
+    corpus = services.corpus
+    creer(corpus, "bayes")
+    corpus.link_question("bayes", "315", 12, linked=True)
+    assert corpus.get("bayes").readings == ()
+
+
+def test_les_liens_survivent_aux_modifications_de_l_entree(services):
+    # Changer le titre ou écrire une version réécrit entree.json : les liens doivent rester.
+    corpus = services.corpus
+    creer(corpus, "bayes")
+    corpus.link_question("bayes", "315", 12, linked=True)
+    corpus.update_meta("bayes", EntryMeta("formule", "Règle de Bayes"))
+    version(corpus, "bayes", "$ P(A|B) $")
+    assert corpus.get("bayes").questions == (("315", 12),)
+
+
+def test_lier_et_delier_par_l_api(api):
+    api("POST", "/api/corpus", {"id": "bayes", "type": "formule", "titre": "Bayes"})
+    status, _, body = api("PUT", "/api/corpus/bayes/questions/315", {"reading": 12})
+    assert status == 200
+    assert body["data"]["questions"] == [{"id": "315", "reading": 12}]
+    # La liste du corpus porte aussi les liens (le menu des questions s'en sert pour Lier / Délier).
+    _, _, body = api("GET", "/api/corpus")
+    assert body["data"]["entries"][0]["questions"] == [{"id": "315", "reading": 12}]
+    status, _, body = api("DELETE", "/api/corpus/bayes/questions/315", {})
+    assert (status, body["data"]["questions"]) == (200, [])
+
+
+@pytest.mark.parametrize("chemin, corps, champ", [
+    ("/api/corpus/bayes/questions/abc", {"reading": 12}, "question"),   # pas un identifiant
+    ("/api/corpus/bayes/questions/315", {"reading": 63}, "reading"),    # reading hors programme
+    ("/api/corpus/bayes/questions/315", {"reading": "12"}, "reading"),  # texte au lieu d'un entier
+    ("/api/corpus/bayes/questions/315", {}, "reading"),                 # reading manquant
+])
+def test_un_lien_mal_forme_est_refuse(api, chemin, corps, champ):
+    api("POST", "/api/corpus", {"id": "bayes", "type": "formule", "titre": "Bayes"})
+    status, _, body = api("PUT", chemin, corps)
+    assert (status, body["field"]) == (422, champ)
+
+
+def test_lier_a_une_entree_inconnue_donne_404(api):
+    status, _, body = api("PUT", "/api/corpus/inconnue/questions/315", {"reading": 12})
+    assert (status, body["title"]) == (404, "ENTRY_NOT_FOUND")
+
+
 # ---------------------------------------------------------------- readings tirés des fiches
 
 

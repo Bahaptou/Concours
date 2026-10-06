@@ -76,12 +76,14 @@
   ${tile(rate(s.firstRate), "1er essai", "réussite sur les vues")}
   ${tile(rate(s.lastRate), "Dernier essai", `${s.mastered} maîtrisées (2 justes de suite)`)}
   ${tile(s.attempts, "Essais", s.avgMs === null ? "" : `${FRM.quizView.clock(s.avgMs)} en moyenne`)}
+  ${tile(`${s.treated} / ${s.total}`, "Traitées", "exploitées dans les fiches")}
 </div>
 <div class="save-actions">
   <a class="btn" href="${quizHref()}">Lancer une série</a>
   <a class="btn ghost" href="${quizHref("&select=unseen")}">Jamais vues (${count("unseen")})</a>
   <a class="btn ghost" href="${quizHref("&select=wrong")}">Ratées (${count("wrong")})</a>
   <a class="btn ghost" href="${quizHref("&select=flagged")}">Marquées (${count("flagged")})</a>
+  <a class="btn ghost" href="${quizHref("&select=untreated")}">Non traitées (${count("untreated")})</a>
 </div>
 <details class="q-table-toggle">
   <summary>Suivi question par question (${list.length})</summary>

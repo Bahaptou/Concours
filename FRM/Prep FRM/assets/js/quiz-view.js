@@ -92,15 +92,79 @@
     const flags = store.flags.get(question.id);
     const button = (kind, icon) =>
       `<button type="button" class="toggle small" data-flag="${kind}" data-question="${esc(question.id)}" aria-pressed="${Boolean(flags[kind])}">${icon} ${esc(FRM.questions.FLAG_LABELS[kind])}</button>`;
-    return `<div class="q-flags">${button("review", "🚩")}${button("unreadable", "⚠")}</div>`;
+    // "Traitée" is not a flag (a problem to look at again) but where the work on it stands.
+    const treated = `<button type="button" class="toggle small treated-toggle" data-treated="${esc(question.id)}" data-reading="${question.reading}" aria-pressed="${store.treated.has(question.id)}" title="Question déjà exploitée (fiche, corpus)">✓ ${esc(FRM.questions.TREATED_LABEL)}</button>`;
+    const link = withServer
+      ? `<button type="button" class="toggle small" data-link-question="${esc(question.id)}" data-reading="${question.reading}" title="Relier la question à des entrées du corpus">📚 Corpus</button>`
+      : "";
+    return `<div class="q-flags">${button("review", "🚩")}${button("unreadable", "⚠")}${treated}${link}<span class="q-links" data-q-links="${esc(question.id)}">${linkChips(question.id)}</span></div>`;
+  }
+
+  // ------------------------------------------------------------------ liens avec le corpus
+  // Stored in the corpus (entree.json, shared): read from the corpus manifest, written through the
+  // server. The menu is the editors' one (ES modules, imported when needed: server only).
+
+  const withServer = location.protocol.startsWith("http");
+
+  const linkedEntries = (questionId) => FRM.corpusEntries().filter((entry) => (entry.questions || []).some((q) => q.id === String(questionId)));
+
+  const linkChips = (questionId) =>
+    linkedEntries(questionId)
+      .map((entry) => `<a class="q-link-chip" href="${ui.entryHref(entry)}" title="Entrée du corpus liée à cette question">${ui.typeTag(entry.type)} ${esc(entry.titre)}</a>`)
+      .join("");
+
+  function refreshLinkChips(questionId) {
+    document.querySelectorAll(`[data-q-links="${questionId}"]`).forEach((slot) => (slot.innerHTML = linkChips(questionId)));
+  }
+
+  /** Replaces the « 📚 Corpus » button by the corpus menu, opened: Lier / Délier on each entry. */
+  async function openLinkMenu(button) {
+    const questionId = button.dataset.linkQuestion;
+    const reading = Number(button.dataset.reading);
+    const moduleUrl = (path) => new URL(path, document.baseURI).href;
+    const [{ corpusPicker }, api] = await Promise.all([import(moduleUrl("assets/js/editor/corpus-picker.js")), import(moduleUrl("assets/js/editor/api.js"))]);
+    const isLinked = (entry) => (entry.questions || []).some((q) => q.id === questionId);
+    const picker = corpusPicker(null, {
+      label: "📚 Corpus",
+      title: "Relier la question à des entrées du corpus",
+      keepOpen: true,
+      async load() {
+        const entries = (await api.listCorpus()).data.entries;
+        FRM.registerCorpus(Object.fromEntries(entries.map((entry) => [entry.id, entry])));
+        refreshLinkChips(questionId);
+        return entries;
+      },
+      actions: [
+        {
+          label: (entry) => (isLinked(entry) ? "Délier" : "Lier"),
+          title: "Relier cette question à l'entrée, ou retirer le lien",
+          run: (_, entry) => (isLinked(entry) ? api.unlinkQuestion(entry.id, questionId) : api.linkQuestion(entry.id, questionId, reading)),
+        },
+      ],
+    });
+    button.replaceWith(picker);
+    picker.querySelector("button").click();
   }
 
   function flagIcons(questionId) {
     const flags = store.flags.get(questionId);
-    return [flags.review && "🚩", flags.unreadable && "⚠"].filter(Boolean).join(" ");
+    return [flags.review && "🚩", flags.unreadable && "⚠", store.treated.has(questionId) && "✓"].filter(Boolean).join(" ");
   }
 
   document.addEventListener("click", (event) => {
+    const linkButton = event.target.closest("[data-link-question]");
+    if (linkButton) {
+      openLinkMenu(linkButton).catch((error) => ui.flash(`Menu du corpus indisponible : ${error.message}`));
+      return;
+    }
+    const treatedButton = event.target.closest("[data-treated]");
+    if (treatedButton) {
+      store.treated.toggle(treatedButton.dataset.treated, treatedButton.dataset.reading);
+      treatedButton.setAttribute("aria-pressed", String(store.treated.has(treatedButton.dataset.treated)));
+      document.dispatchEvent(new CustomEvent("frm:treated", { detail: { questionId: treatedButton.dataset.treated } }));
+      ui.refresh();
+      return;
+    }
     const button = event.target.closest("[data-flag]");
     if (!button) return;
     store.flags.toggle(button.dataset.question, button.dataset.flag);

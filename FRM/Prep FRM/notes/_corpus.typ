@@ -4,6 +4,9 @@
 #import "/_corpus-titres.typ": corpus-titres, voir
 
 #let corpus-versions = (
+  "bankruptcy-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/bankruptcy-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "bayes": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/bayes/baptiste.typ", hypotheses: none, limites: none),
   ),
@@ -16,17 +19,29 @@
   "board-of-directors": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/board-of-directors/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "business-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/business-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "capm": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/capm/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "case-northern-rock": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/case-northern-rock/baptiste.typ", hypotheses: none, limites: none),
   ),
   "chief-risk-officer": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/chief-risk-officer/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "commodity-price-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/commodity-price-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "currency-risk": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/currency-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "default-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/default-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "donnees-aleatoires": (
-    "claude": (initiales: "CL", corps: () => include "corpus/donnees-aleatoires/claude.typ", hypotheses: none, limites: none),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/donnees-aleatoires/baptiste.typ", hypotheses: none, limites: none),
   ),
   "duration-convexite": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/duration-convexite/baptiste.typ", hypotheses: none, limites: none),
@@ -37,38 +52,50 @@
   "equity-risk": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/equity-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "expected-loss": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/expected-loss/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "foreign-exchange-risk": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/foreign-exchange-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "funding-liquidity-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/funding-liquidity-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "histogramme": (
-    "claude": (initiales: "CL", corps: () => include "corpus/histogramme/claude.typ", hypotheses: none, limites: none),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/histogramme/baptiste.typ", hypotheses: none, limites: none),
   ),
   "interest-rate-risk": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/interest-rate-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
-  "la-vie-a-un-sens": (
-    "profil": (initiales: "PD", corps: () => include "corpus/la-vie-a-un-sens/profil.typ", hypotheses: none, limites: none),
-  ),
   "la-vie-n-a-pas-de-sens": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/la-vie-n-a-pas-de-sens/baptiste.typ", hypotheses: none, limites: none),
   ),
-  "le-sens-de-la-vie": (
-    "baptiste": (initiales: "BD", corps: () => include "corpus/le-sens-de-la-vie/baptiste.typ", hypotheses: none, limites: none),
+  "liquidity-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/liquidity-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
   "loi-de-student": (
-    "claude": (initiales: "CL", corps: () => include "corpus/loi-de-student/claude.typ", hypotheses: none, limites: none),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/loi-de-student/baptiste.typ", hypotheses: none, limites: none),
   ),
   "loi-normale": (
-    "claude": (initiales: "CL", corps: () => include "corpus/loi-normale/claude.typ", hypotheses: none, limites: none),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/loi-normale/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "market-liquidity-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/market-liquidity-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "market-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/market-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
   "monte-carlo": (
-    "claude": (initiales: "CL", corps: () => include "corpus/monte-carlo/claude.typ", hypotheses: none, limites: none),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/monte-carlo/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "operational-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/operational-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
   "option": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/option/baptiste.typ", hypotheses: none, limites: none),
   ),
   "rendements-portefeuille": (
-    "claude": (initiales: "CL", corps: () => include "corpus/rendements-portefeuille/claude.typ", hypotheses: none, limites: none),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/rendements-portefeuille/baptiste.typ", hypotheses: none, limites: none),
   ),
   "reputation-risk": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/reputation-risk/baptiste.typ", hypotheses: none, limites: none),
@@ -79,11 +106,20 @@
   "risk-reward-tradeoff-principle": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/risk-reward-tradeoff-principle/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "strategic-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/strategic-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "tail-loss": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/tail-loss/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "time-value-of-money": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/time-value-of-money/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "trading-liquidity-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/trading-liquidity-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "trajectoires-prix": (
-    "claude": (initiales: "CL", corps: () => include "corpus/trajectoires-prix/claude.typ", hypotheses: none, limites: none),
+    "baptiste": (initiales: "BD", corps: () => include "corpus/trajectoires-prix/baptiste.typ", hypotheses: none, limites: none),
   ),
   "var-parametrique-normale": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/var-parametrique-normale/baptiste.typ", hypotheses: none, limites: none),

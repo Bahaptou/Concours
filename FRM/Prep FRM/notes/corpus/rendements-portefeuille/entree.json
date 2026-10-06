@@ -2,9 +2,9 @@
   "type": "brique",
   "titre": "Rendement et volatilité d'un portefeuille",
   "auteurs": {
-    "claude": {
-      "nom": "Claude",
-      "initiales": "CL",
+    "baptiste": {
+      "nom": "Baptiste Durand",
+      "initiales": "BD",
       "updatedAt": 1790873914500,
       "valide": true
     }

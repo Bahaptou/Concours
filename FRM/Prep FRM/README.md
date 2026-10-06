@@ -134,7 +134,7 @@ modifier à la main.
   du panneau de code ajoute la ligne d'import. À l'exécution, chaque brique prend la version de l'auteur
   du code s'il en a une, sinon une autre (la sortie dit laquelle). Le bloc
   `if __name__ == "__main__":` d'une brique est sa démonstration, lancée par ▶ Exécuter sur la brique
-  elle-même. Briques de départ (signées CL, Claude) : données aléatoires, trajectoires de prix,
+  elle-même. Briques de départ : données aléatoires, trajectoires de prix,
   rendements de portefeuille, histogramme avec quantile, Monte-Carlo.
 - **📌 Enregistrer comme image**, sous chaque figure : la figure rejoint les images, prête à insérer.
 - **Sécurité** : le serveur ne répond qu'au site qu'il sert (une page d'un autre site ouverte dans le
@@ -189,7 +189,10 @@ tools/vendor_codemirror/      regroupement de CodeMirror (npm + esbuild, mainten
 - L'étape ② d'un reading se coche seule quand toutes ses questions ont été tentées au moins une fois
   (elle reste décochable à la main).
 - Deux marques par question : « À revoir » et « Formule illisible ». Les séries peuvent viser les
-  questions jamais vues, ratées au dernier essai ou marquées.
+  questions jamais vues, ratées au dernier essai, marquées ou non traitées.
+- **✓ Traitée** : une question déjà exploitée (fiche, corpus). Dans le bilan d'une série : compteur,
+  « Masquer les traitées », « Suivante non traitée ». Compte par reading sur la page Reading et au
+  dashboard. Ce n'est pas une marque : une question traitée n'est pas « marquée ».
 - Repère de temps : 100 questions en 4 h, soit 2 min 24 par question (compte à rebours de l'examen).
 - Une série en cours se reprend après un rechargement (elle n'est pas dans la sauvegarde).
 

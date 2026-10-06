@@ -119,6 +119,7 @@
   ${tile(rateText(quiz.lastRate), "Réussite", `dernier essai · 1er essai ${rateText(quiz.firstRate)}`)}
   ${tile(ui.number(quiz.mastered), "Maîtrisées", "2 bonnes réponses de suite")}
   ${tile(ui.number(quiz.attempts), "Essais", pace)}
+  ${tile(`${ui.number(quiz.treated)} / ${ui.number(quiz.total)}`, "Questions traitées", "exploitées dans les fiches")}
 </div>`;
   }
 
@@ -277,6 +278,7 @@
             { label: "Dernier essai", num: true },
             { label: "Maîtrisées", num: true },
             { label: "Temps moyen", num: true },
+            { label: "Traitées", num: true },
           ],
           measured.map((u) => [
             ...nameCells(u.ref, u.name, u.href),
@@ -286,6 +288,7 @@
             rateText(u.quiz.lastRate),
             String(u.quiz.mastered),
             u.quiz.avgMs === null ? "—" : clock(u.quiz.avgMs),
+            `${u.quiz.treated} / ${u.quiz.total}`,
           ])
         ),
     });

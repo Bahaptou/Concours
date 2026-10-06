@@ -51,6 +51,10 @@ export const updateEntry = (link, meta) => request(link.method, link.href, meta)
 /** Deletes an entry and removes its references from notes and entries. The server wants JSON
  *  for every write, hence the empty body. */
 export const deleteEntry = (id) => request("DELETE", entryUrl(id), {});
+/** Links an AnalystPrep question to an entry, or removes the link (both idempotent). */
+export const questionLinkUrl = (id, question) => `${entryUrl(id)}/questions/${encodeURIComponent(question)}`;
+export const linkQuestion = (id, question, reading) => request("PUT", questionLinkUrl(id, question), { reading });
+export const unlinkQuestion = (id, question) => request("DELETE", questionLinkUrl(id, question), {});
 /** version: { source, name, initials, code?, hypotheses?, limites? } (the last two: formulas only) */
 export const saveVersion = (link, version) => request(link.method, link.href, version);
 /** draft: { type, titre, initials, source, hypotheses?, limites? } */

@@ -55,6 +55,10 @@ Ici nous parlons de
 
 #voir("unexpected-loss")
 
+#voir("expected-loss")
+
+#voir("credit-risk") #voir("default-risk")
+
 #voir("foreign-exchange-risk") #voir("currency-risk")
 
 #voir("equity-risk")
@@ -63,7 +67,21 @@ Ici nous parlons de
 
 #voir("reputation-risk")
 
+#voir("business-risk")
+
+#voir("operational-risk")
+
+#voir("strategic-risk")
+
+#voir("liquidity-risk")#voir("funding-liquidity-risk")#voir("case-northern-rock")
+
+#voir("trading-liquidity-risk")#voir("market-liquidity-risk")
+
+#voir("market-risk")#voir("commodity-price-risk")
+
 #voir("risk-reward-tradeoff-principle")
+
+#voir("tail-loss")
 
 
 #retenir[…]

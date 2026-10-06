@@ -82,6 +82,23 @@ def parse_note_target(reading: str, author: str) -> NoteTarget:
     return NoteTarget(parse_reading(reading), parse_author(author))
 
 
+QUESTION_ID = re.compile(r"^\d{1,6}$")
+
+
+def parse_question_id(value: str) -> str:
+    if not QUESTION_ID.match(value):
+        raise InvalidRequestError("question", "identifiant de question AnalystPrep attendu (chiffres)")
+    return value
+
+
+def parse_question_link(body: bytes) -> int:
+    """{"reading": N}: the question's reading, kept with the link so that pages load the right bank."""
+    value = _json_object(body).get("reading")
+    if isinstance(value, bool) or not isinstance(value, int) or value not in READINGS:
+        raise InvalidRequestError("reading", f"entier entre {READINGS.start} et {READINGS.stop - 1} attendu")
+    return value
+
+
 def parse_entry_id(value: str) -> str:
     if not ENTRY_ID.match(value):
         raise InvalidRequestError("id", "minuscules, chiffres et tirets, de 2 à 50 caractères (ex. « bayes »)")

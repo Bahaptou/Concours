@@ -590,6 +590,21 @@ fieldset.field legend{padding:0; margin-bottom:4px;}
 .q-detail.is-wrong .q-status{color:var(--bad);}
 .q-detail.is-skipped .q-status{color:var(--muted);}
 .q-detail-body{padding:4px 12px 12px 12px; border-top:1px solid var(--line);}
+/* Questions already worked into notes ("Traitée"): a badge, a quieter row, and they can be hidden */
+.q-treated-badge{display:none; white-space:nowrap; font-size:11.5px; font-weight:700; color:var(--ink-soft); border:1px solid var(--line); border-radius:999px; padding:1px 8px;}
+.q-detail.is-treated .q-treated-badge{display:inline-block;}
+.q-detail.is-treated:not([open]) summary{color:var(--muted);}
+.hide-treated .q-detail.is-treated{display:none;}
+.treated-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin:10px 0 4px;}
+.treated-bar label{display:inline-flex; align-items:center; gap:6px;}
+/* Corpus entries linked to a question (chips), and the "corpus entries" scope of a new series */
+.q-links{display:inline-flex; flex-wrap:wrap; gap:6px;}
+.q-link-chip{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink); text-decoration:none; padding:2px 8px 2px 2px; border:1px solid var(--line); border-radius:999px; background:var(--surface);}
+.q-link-chip:hover{border-color:var(--primary-soft);}
+.entries-field{grid-column:1 / -1;}
+.entries-match{display:flex; flex-wrap:wrap; gap:4px 18px;}
+.entries-list{max-height:220px; overflow:auto; margin-top:6px; padding:4px 8px; border:1px solid var(--line); border-radius:8px;}
+.entry-choice[hidden]{display:none;}
 
 /* Things to Remember et calculs (page reading) */
 .fiche{margin-top:10px; border:1px solid var(--line); border-radius:10px; background:var(--surface);}

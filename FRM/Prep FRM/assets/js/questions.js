@@ -16,9 +16,11 @@
     { id: "unseen", label: "Jamais vues" },
     { id: "wrong", label: "Ratées au dernier essai" },
     { id: "flagged", label: "Marquées" },
+    { id: "untreated", label: "Non traitées" },
   ];
 
   const FLAG_LABELS = { review: "À revoir", unreadable: "Formule illisible" };
+  const TREATED_LABEL = "Traitée";
 
   // ------------------------------------------------------------------ chargement
 
@@ -85,7 +87,9 @@
    *  firstRate / lastRate : réussite au premier / dernier essai, sur les questions vues.
    *  ratio : questions justes au dernier essai / toutes les questions (non vue = 0). */
   function statsOf(readings) {
-    const s = { total: 0, seen: 0, attempts: 0, correctAttempts: 0, firstOk: 0, lastOk: 0, mastered: 0, totalMs: 0, timed: 0 };
+    const ids = new Set(readings.map((reading) => reading.id));
+    const treated = Object.values(store.treated.all()).filter((t) => ids.has(t.reading)).length;
+    const s = { total: 0, treated, seen: 0, attempts: 0, correctAttempts: 0, firstOk: 0, lastOk: 0, mastered: 0, totalMs: 0, timed: 0 };
     for (const reading of readings) {
       s.total += reading.questions.count;
       for (const r of recordsOf(reading.id)) {
@@ -155,6 +159,7 @@
       return Boolean(r && !r.lastCorrect);
     },
     flagged: isFlagged,
+    untreated: (q) => !store.treated.has(q.id),
   };
 
   const filterPool = (questions, selection) => questions.filter(FILTERS[selection] || FILTERS.all);
@@ -206,6 +211,7 @@
     EXAM_PACE_MS,
     SELECTIONS,
     FLAG_LABELS,
+    TREATED_LABEL,
     load,
     loaded: (readingId) => banks.get(Number(readingId)) || null,
     recordOf,

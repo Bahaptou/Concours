@@ -95,6 +95,7 @@ class Entry:
     cites: tuple[str, ...]  # entries cited by its versions
     used_by: tuple[NoteTarget, ...]  # notes citing or inserting it
     imports: tuple[str, ...] = ()  # bricks imported by its versions' code
+    questions: tuple[tuple[str, int], ...] = ()  # linked AnalystPrep questions: (question id, reading)
 
     @property
     def readings(self) -> tuple[int, ...]:
@@ -297,7 +298,8 @@ class CorpusService:
             ))
         meta = EntryMeta(raw["type"], raw["titre"])
         used_by = tuple(sorted(usage.get(entry_id, []), key=lambda n: (n.reading, n.author)))
-        return Entry(entry_id, meta, tuple(versions), tuple(sorted(cites - {entry_id})), used_by, tuple(sorted(imports - {entry_id})))
+        questions = tuple((q["id"], q["reading"]) for q in raw.get("questions", []))
+        return Entry(entry_id, meta, tuple(versions), tuple(sorted(cites - {entry_id})), used_by, tuple(sorted(imports - {entry_id})), questions)
 
     def get(self, entry_id: str) -> Entry:
         return self._entry(entry_id, self._read_raw(entry_id), self._usage())
@@ -378,6 +380,23 @@ class CorpusService:
             self._regenerate()
         # Notes or entries may already have cited this identifier (and failed): retry them.
         return self.get(entry_id), self._rebuild(entry_id, entries=True, all_notes=True)
+
+    def link_question(self, entry_id: str, question_id: str, reading: int, linked: bool) -> Entry:
+        """Links an AnalystPrep question to an entry (or unlinks it); idempotent. Stored in
+        entree.json, shared like the rest of the corpus. Nothing to recompile: renderings do not
+        show the links; only the manifest (corpus page, quiz page) changes. The links do not attach
+        the entry to the question's reading: readings come from the notes only."""
+        with self._writes:
+            raw = self._read_raw(entry_id)
+            questions = [q for q in raw.get("questions", []) if q["id"] != question_id]
+            if linked:
+                questions.append({"id": question_id, "reading": reading})
+            raw["questions"] = sorted(questions, key=lambda q: (q["reading"], int(q["id"])))
+            if not raw["questions"]:
+                del raw["questions"]
+            self._write_raw(entry_id, raw)
+            self._regenerate()
+        return self.get(entry_id)
 
     def update_meta(self, entry_id: str, meta: EntryMeta) -> tuple[Entry, RebuildReport]:
         self._check_type(entry_id, meta.type)
@@ -671,6 +690,7 @@ def entry_to_dict(entry: Entry, notes_root: Path) -> dict:
         "cites": list(entry.cites),
         "imports": list(entry.imports),
         "usedBy": [{"reading": n.reading, "author": n.author} for n in entry.used_by],
+        "questions": [{"id": question, "reading": reading} for question, reading in entry.questions],
         "versions": [
             {
                 "author": v.author,

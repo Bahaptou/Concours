@@ -253,6 +253,18 @@
     return items.length ? `<ul>${items.join("")}</ul>` : `<p class="small muted">Aucune.</p>`;
   }
 
+  /** AnalystPrep questions linked to the entry (from the questions page): each opens on its own. */
+  function questionLinks(entry) {
+    const items = (entry.questions || []).map((q) => {
+      const reading = FRM.findReading(q.reading);
+      if (!reading) return "";
+      return `<li><a href="quiz.html?reading=${reading.id}&amp;q=${encodeURIComponent(q.id)}" title="${esc(reading.title)}">${esc(reading.tag)} · Q.${esc(q.id)}</a></li>`;
+    });
+    return items.length
+      ? `<ul>${items.join("")}</ul>`
+      : `<p class="small muted">Aucune. On lie une question depuis la page Questions (bouton 📚 Corpus sous la question).</p>`;
+  }
+
   function mountEntry(entry) {
     const me = store.profile.authorSlug();
     const mine = entry.versions.some((v) => v.author === me);
@@ -283,7 +295,7 @@
     <span>Citer : <code>#voir("${esc(entry.id)}")</code></span>
     <span>Insérer dans une fiche : <code>#entree("${esc(entry.id)}")</code></span>
   </div>
-  <div class="save-actions">${actions}</div>
+  <div class="save-actions">${actions}${(entry.questions || []).length ? `<a class="btn ghost" href="quiz.html?entries=${encodeURIComponent(entry.id)}">Série sur ses questions (${entry.questions.length})</a>` : ""}</div>
 </div>
 <div class="card">
   <h2>${entry.versions.length > 1 ? `${entry.versions.length} versions` : "Version"}</h2>
@@ -295,6 +307,7 @@
     <div><h3>Cite</h3>${entryLinks(entry.cites)}</div>
     <div><h3>Citée par</h3>${entryLinks(entry.citedBy || [])}</div>
     <div><h3>Utilisée dans les fiches</h3>${noteLinks(entry.usedBy || [])}</div>
+    <div><h3>Questions liées</h3>${questionLinks(entry)}</div>
     ${(entry.imports || []).length || entry.type === "simulation" ? `<div><h3>Briques importées</h3>${entryLinks(entry.imports || [])}</div>` : ""}
     ${entry.type === "brique" ? `<div><h3>Importée par</h3>${entryLinks(entry.importedBy || [])}</div>` : ""}
   </div>

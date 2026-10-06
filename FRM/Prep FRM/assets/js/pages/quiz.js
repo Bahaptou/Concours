@@ -5,7 +5,7 @@
  * compte à rebours possible au rythme de l'examen). La série en cours est
  * sauvegardée à chaque action et se reprend après un rechargement.
  *
- * Adresse : ?reading=12 ou ?book=2 (périmètre pré-rempli), &select=unseen|wrong|flagged,
+ * Adresse : ?reading=12 ou ?book=2 (périmètre pré-rempli), &select=unseen|wrong|flagged|untreated,
  *           &q=315 (cette seule question, tout de suite), ?exam=1 (réglages d'examen blanc),
  *           ?session=s… (revoir le bilan d'une série terminée). */
 (function (FRM, ui, view) {
@@ -29,33 +29,69 @@
 
   // ------------------------------------------------------------------ périmètres et libellés
 
-  function scopeReadings(scope) {
+  // Scope "entries": the questions linked to corpus entries (stored in the corpus, read from its
+  // manifest). match "any": linked to at least one of the chosen entries; "all": to every one.
+  const ENTRIES_SCOPE = "entries";
+  const linkedEntries = () => FRM.corpusEntries().filter((entry) => (entry.questions || []).length);
+
+  /** Questions (id -> reading) of the chosen entries, combined by `match`. */
+  function entryQuestions({ entries = [], match = "any" }) {
+    const lists = entries.map(FRM.findEntry).filter(Boolean).map((entry) => entry.questions || []);
+    if (!lists.length) return new Map();
+    const counts = new Map();
+    const readingOf = new Map();
+    for (const list of lists) {
+      for (const q of new Map(list.map((item) => [item.id, item])).values()) {
+        counts.set(q.id, (counts.get(q.id) || 0) + 1);
+        readingOf.set(q.id, q.reading);
+      }
+    }
+    const kept = [...counts].filter(([, n]) => (match === "all" ? n === lists.length : true)).map(([id]) => [id, readingOf.get(id)]);
+    return new Map(kept);
+  }
+
+  function scopeReadings(scope, scopeOptions = options) {
     const [kind, id] = scope.split(":");
     if (kind === "book") return FRM.findBook(id).readings;
     if (kind === "reading") return [FRM.findReading(id)];
+    if (kind === ENTRIES_SCOPE) return [...new Set(entryQuestions(scopeOptions).values())].map(FRM.findReading).filter(Boolean);
     return FRM.readings;
   }
 
-  function scopeLabel(scope) {
+  /** Questions of a scope: the readings' banks, narrowed to the linked questions for "entries". */
+  async function scopePool(scopeOptions) {
+    const pool = await bank.load(scopeReadings(scopeOptions.scope, scopeOptions).map((r) => r.id));
+    if (scopeOptions.scope !== ENTRIES_SCOPE) return pool;
+    const wanted = entryQuestions(scopeOptions);
+    return pool.filter((q) => wanted.has(q.id));
+  }
+
+  function scopeLabel(scope, scopeOptions = options) {
     const [kind, id] = scope.split(":");
     if (kind === "book") return `Livre ${id} · ${FRM.findBook(id).title}`;
     if (kind === "reading") return `${FRM.findReading(id).tag} · ${FRM.findReading(id).title}`;
+    if (kind === ENTRIES_SCOPE) {
+      const titles = (scopeOptions.entries || []).map(FRM.findEntry).filter(Boolean).map((entry) => entry.titre);
+      return `Corpus · ${titles.join(scopeOptions.match === "all" ? " ∩ " : " ∪ ")}`;
+    }
     return "Tout le programme";
   }
 
   function describe(options) {
     if (options.label) return options.label;
     const selection = bank.SELECTIONS.find((s) => s.id === options.selection);
-    return [scopeLabel(options.scope), selection.id !== "all" && selection.label.toLowerCase()].filter(Boolean).join(" · ");
+    return [scopeLabel(options.scope, options), selection.id !== "all" && selection.label.toLowerCase()].filter(Boolean).join(" · ");
   }
 
   function initialOptions() {
     if (params.get("exam")) return { ...EXAM_PRESET };
     const reading = FRM.findReading(params.get("reading"));
     const book = FRM.findBook(params.get("book"));
-    const scope = reading ? `reading:${reading.id}` : book ? `book:${book.id}` : "all";
+    const entries = (params.get("entries") || "").split(",").filter((id) => FRM.findEntry(id));
+    const scope = entries.length ? ENTRIES_SCOPE : reading ? `reading:${reading.id}` : book ? `book:${book.id}` : "all";
     const selection = bank.SELECTIONS.some((s) => s.id === params.get("select")) ? params.get("select") : "all";
-    return { scope, selection, count: null, order: "pdf", mode: "training", countdown: false, weighted: false };
+    const match = params.get("match") === "all" ? "all" : "any";
+    return { scope, entries, match, selection, count: null, order: "pdf", mode: "training", countdown: false, weighted: false };
   }
 
   let options = initialOptions();
@@ -68,7 +104,30 @@
     const readings = FRM.books
       .map((b) => `<optgroup label="${esc(`Livre ${b.id} · ${b.title}`)}">${b.readings.map((r) => option(`reading:${r.id}`, `${r.tag} · ${r.title}`)).join("")}</optgroup>`)
       .join("");
-    return `<select name="scope">${option("all", "Tout le programme")}<optgroup label="Livres entiers">${books}</optgroup>${readings}</select>`;
+    const corpus = linkedEntries().length ? `<optgroup label="Corpus">${option(ENTRIES_SCOPE, "Questions liées à des entrées du corpus…")}</optgroup>` : "";
+    return `<select name="scope">${option("all", "Tout le programme")}${corpus}<optgroup label="Livres entiers">${books}</optgroup>${readings}</select>`;
+  }
+
+  /** Entries with linked questions, to tick; shown when the scope is "entries". */
+  function entriesFieldset() {
+    const entries = linkedEntries();
+    if (!entries.length) return "";
+    const chosen = new Set(options.entries || []);
+    const items = entries
+      .map(
+        (entry) => `<label class="choice entry-choice" data-entry-title="${esc(ui.fold(`${entry.titre} ${entry.id}`))}"><input type="checkbox" name="entries" value="${esc(entry.id)}"${chosen.has(entry.id) ? " checked" : ""}>
+      <span>${ui.typeTag(entry.type)} ${esc(entry.titre)} <span class="muted small">(${entry.questions.length})</span></span></label>`
+      )
+      .join("");
+    return `
+    <fieldset class="field entries-field" data-when="entries"><legend>Entrées du corpus</legend>
+      <div class="entries-match">
+        ${radio("match", "any", "Au moins une", "questions liées à l'une des entrées cochées")}
+        ${radio("match", "all", "Toutes", "seulement celles liées à toutes les entrées cochées")}
+      </div>
+      <input type="search" class="search" data-entries-search placeholder="Filtrer les entrées…" aria-label="Filtrer les entrées">
+      <div class="entries-list">${items}</div>
+    </fieldset>`;
   }
 
   const radio = (name, value, label, hint = "") =>
@@ -84,6 +143,7 @@
   <div class="setup-grid">
     <label class="field">Périmètre ${scopeSelect()}</label>
     <label class="field">Nombre de questions <select name="count">${counts}</select></label>
+    ${entriesFieldset()}
     <fieldset class="field"><legend>Questions</legend>${selections}</fieldset>
     <fieldset class="field"><legend>Mode</legend>
       ${radio("mode", "training", "Entraînement", "correction après chaque question")}
@@ -143,6 +203,8 @@
     const data = new FormData(form);
     return {
       scope: data.get("scope"),
+      entries: data.getAll("entries"),
+      match: data.get("match") || "any",
       selection: data.get("selection"),
       count: Number(data.get("count")) || null,
       order: data.get("order") || "random", // désactivé quand la série est répartie selon les poids
@@ -157,7 +219,9 @@
     const form = root().querySelector("[data-setup]");
     if (!form) return;
     options = readForm(form);
-    const pool = await bank.load(scopeReadings(options.scope).map((r) => r.id));
+    const entriesField = form.querySelector("[data-when='entries']");
+    if (entriesField) entriesField.hidden = options.scope !== ENTRIES_SCOPE;
+    const pool = await scopePool(options);
     for (const s of bank.SELECTIONS) form.querySelector(`[data-pool="${s.id}"]`).textContent = `(${bank.filterPool(pool, s.id).length})`;
     const available = bank.filterPool(pool, options.selection).length;
     const n = options.count ? Math.min(options.count, available) : available;
@@ -208,7 +272,7 @@
   }
 
   async function startFromOptions(launchOptions) {
-    const pool = await bank.load(scopeReadings(launchOptions.scope).map((r) => r.id));
+    const pool = await scopePool(launchOptions);
     const weighted = launchOptions.weighted && launchOptions.scope === "all";
     launch(bank.buildSeries(pool, { ...launchOptions, weighted }), launchOptions);
   }
@@ -436,15 +500,16 @@ ${training ? "" : palette()}
     const q = row.question;
     const state = !row.choice ? "is-skipped" : row.choice === q.answer ? "is-right" : "is-wrong";
     const status = { "is-skipped": "— Sans réponse", "is-right": "✓ Juste", "is-wrong": "✗ Faux" }[state];
+    const treated = store.treated.has(q.id) ? " is-treated" : "";
     return `
-<details class="q-detail ${state}">
-  <summary><span class="q-num">${i + 1}</span><span class="q-status">${status}</span>
+<details class="q-detail ${state}${treated}" data-qid="${esc(q.id)}">
+  <summary><span class="q-num">${i + 1}</span><span class="q-status">${status}</span><span class="q-treated-badge">✓ Traitée</span>
     <span>${view.heading(q)} <span class="muted small">· ${row.choice ? `ta réponse ${row.choice} · ` : ""}bonne réponse ${q.answer} · ${view.clock(row.ms)}</span></span></summary>
   <div class="q-detail-body">
     <div class="doc-text q-stem">${view.blocks(q.stem)}</div>
     ${view.options(q, { choice: row.choice, reveal: true, locked: true })}
     ${view.correction(q, row.choice)}
-    <div class="q-footer">${view.flagButtons(q)}</div>
+    <div class="q-footer">${view.flagButtons(q)}<button type="button" class="btn ghost" data-next-untreated>Suivante non traitée ↓</button></div>
   </div>
 </details>`;
   }
@@ -482,11 +547,49 @@ ${training ? "" : palette()}
 ${shown.length ? `<div class="card"><h2>Par reading</h2>${byReadingTable(shown)}</div>` : ""}
 <div class="card">
   <h2>Détail des questions</h2>
-  <p class="small muted">Ouvre une question pour revoir l'énoncé et la correction.</p>
-  ${shown.length ? shown.map(detailRow).join("") : `<div class="placeholder">Aucune réponse enregistrée dans cette série.</div>`}
+  <p class="small muted">Ouvre une question pour revoir l'énoncé et la correction. « ✓ Traitée » quand tu l'as exploitée (fiche, corpus).</p>
+  ${shown.length ? `
+  <div class="treated-bar">
+    <strong data-treated-count></strong>
+    <label class="small"><input type="checkbox" data-hide-treated${hideTreated ? " checked" : ""}> Masquer les traitées</label>
+    <button type="button" class="btn ghost" data-next-untreated>Question non traitée suivante ↓</button>
+  </div>
+  <div class="q-details${hideTreated ? " hide-treated" : ""}" data-detail-list>${shown.map(detailRow).join("")}</div>` : `<div class="placeholder">Aucune réponse enregistrée dans cette série.</div>`}
 </div>`;
+    refreshTreated();
     window.scrollTo(0, 0);
   }
+
+  // ------------------------------------------------------------------ questions traitées (bilan)
+
+  let hideTreated = false; // « Masquer les traitées », gardé d'un bilan à l'autre pendant la visite
+
+  const detailList = () => root().querySelector("[data-detail-list]");
+
+  /** Badges et compteur « n / N traitées » du bilan, après un clic sur ✓ Traitée. */
+  function refreshTreated() {
+    const list = detailList();
+    if (!list) return;
+    const items = [...list.querySelectorAll("[data-qid]")];
+    items.forEach((item) => item.classList.toggle("is-treated", store.treated.has(item.dataset.qid)));
+    const ids = new Set(items.map((item) => item.dataset.qid));
+    const done = [...ids].filter((id) => store.treated.has(id)).length;
+    root().querySelector("[data-treated-count]").textContent = `${done} / ${ids.size} traitée${done > 1 ? "s" : ""}`;
+  }
+
+  /** Ouvre la prochaine question non traitée après celle qui est ouverte (sinon depuis le début). */
+  function nextUntreated() {
+    const items = [...detailList().querySelectorAll("[data-qid]")];
+    const current = items.findIndex((item) => item.open);
+    const untreated = (item) => !store.treated.has(item.dataset.qid);
+    const next = items.find((item, i) => i > current && untreated(item)) || items.find(untreated);
+    items.forEach((item) => (item.open = false));
+    if (!next) return ui.flash("Toutes les questions de cette série sont traitées.");
+    next.open = true;
+    next.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+
+  document.addEventListener("frm:treated", () => screen === "summary" && refreshTreated());
 
   /** Bilan d'une série terminée, reconstruit depuis ses réponses enregistrées. */
   async function review(sessionId) {
@@ -524,7 +627,7 @@ ${shown.length ? `<div class="card"><h2>Par reading</h2>${byReadingTable(shown)}
 
   document.addEventListener("click", (event) => {
     const target = event.target.closest(
-      "[data-choice], [data-validate], [data-next], [data-prev], [data-goto], [data-finish], [data-resume], [data-abandon], [data-exam-preset], [data-retry], [data-new]"
+      "[data-choice], [data-validate], [data-next], [data-prev], [data-goto], [data-finish], [data-resume], [data-abandon], [data-exam-preset], [data-retry], [data-new], [data-next-untreated]"
     );
     if (!target || !root().contains(target)) return;
     const d = target.dataset;
@@ -547,10 +650,24 @@ ${shown.length ? `<div class="card"><h2>Par reading</h2>${byReadingTable(shown)}
       const retry = summary.rows.filter((r) => (exam ? r.choice !== r.question.answer : r.choice && r.choice !== r.question.answer));
       launch(retry.map((r) => r.question), { ...summary.options, label: `${summary.label} · erreurs`, count: null });
     } else if ("new" in d) renderSetup();
+    else if ("nextUntreated" in d) nextUntreated();
+  });
+
+  document.addEventListener("input", (event) => {
+    if (!event.target.matches("[data-entries-search]")) return;
+    const query = ui.fold(event.target.value.trim());
+    // A ticked entry stays visible: the search finds entries to add, it never hides the choice made.
+    root().querySelectorAll(".entry-choice").forEach((item) => {
+      item.hidden = Boolean(query) && !item.dataset.entryTitle.includes(query) && !item.querySelector("input").checked;
+    });
   });
 
   document.addEventListener("change", (event) => {
     if (event.target.closest("[data-setup]")) refreshSetup();
+    if (event.target.matches("[data-hide-treated]")) {
+      hideTreated = event.target.checked;
+      detailList().classList.toggle("hide-treated", hideTreated);
+    }
   });
 
   document.addEventListener("submit", (event) => {
@@ -594,8 +711,16 @@ ${shown.length ? `<div class="card"><h2>Par reading</h2>${byReadingTable(shown)}
     body: `<div id="quiz"></div>`,
   });
 
-  const singleReading = FRM.findReading(params.get("reading"));
-  if (params.get("session")) review(params.get("session"));
-  else if (params.get("q") && singleReading) startSingle(singleReading.id, params.get("q"));
-  else renderSetup();
+  // The corpus manifest first: entries linked to each question, and the "corpus entries" scope.
+  ui.loadScript("notes/corpus/index.js")
+    .catch(() => {
+      /* no corpus yet: the server writes the manifest when it starts */
+    })
+    .then(() => {
+      if (params.get("entries")) options = initialOptions(); // entries are known only now
+      const singleReading = FRM.findReading(params.get("reading"));
+      if (params.get("session")) review(params.get("session"));
+      else if (params.get("q") && singleReading) startSingle(singleReading.id, params.get("q"));
+      else renderSetup();
+    });
 })(window.FRM, window.FRM.ui, window.FRM.quizView);

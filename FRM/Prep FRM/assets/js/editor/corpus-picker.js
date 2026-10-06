@@ -87,11 +87,13 @@ export function keepCursorBelowHeader(view) {
  * view: the editor the actions write into, or a function returning it (editors with several fields);
  * load: async () => entries ({ id, type, titre, readings, versions }), called at each opening so
  *       that an entry created in another tab shows up;
- * actions: [{ label, title, run(view, entry) }], one button per action on each entry;
+ * actions: [{ label, title, run(view, entry) }], one button per action on each entry; label may be
+ *          a function of the entry ("Lier" / "Délier"), run may be async;
+ * keepOpen: true to stay open after an action (entries reloaded), false to close (insertions);
  * exclude: () => id of an entry not to offer (the one being edited), or null;
  * label, title: the toolbar button (the corpus by default; "Briques" for the Python pane).
  */
-export function corpusPicker(view, { load, actions, exclude = () => null, label = "📚 Corpus", title = "Citer ou insérer une entrée du corpus" }) {
+export function corpusPicker(view, { load, actions, exclude = () => null, keepOpen = false, label = "📚 Corpus", title = "Citer ou insérer une entrée du corpus" }) {
   const root = Object.assign(document.createElement("div"), { className: "picker" });
   root.innerHTML = `
 <button type="button" class="tool" aria-expanded="false" title="${esc(title)}">${esc(label)}</button>
@@ -173,7 +175,7 @@ export function corpusPicker(view, { load, actions, exclude = () => null, label 
 <li class="picker-item">
   ${typeTag(entry.type)}
   <span class="ptitle">${esc(entry.titre)} <span class="entry-id">${esc(entry.id)}</span>${tags ? `<span class="preadings">${esc(tags)}</span>` : ""}</span>
-  ${actions.map((action, i) => `<button type="button" class="tool" data-action="${i}" data-id="${esc(entry.id)}" title="${esc(action.title)}">${esc(action.label)}</button>`).join("")}
+  ${actions.map((action, i) => `<button type="button" class="tool" data-action="${i}" data-id="${esc(entry.id)}" title="${esc(action.title)}">${esc(typeof action.label === "function" ? action.label(entry) : action.label)}</button>`).join("")}
 </li>`;
         })
         .join("") || `<li class="picker-item muted">${pool.length ? "Aucune entrée ne correspond à ces filtres." : "Le corpus est vide."}</li>`;
@@ -203,10 +205,22 @@ export function corpusPicker(view, { load, actions, exclude = () => null, label 
     button.setAttribute("aria-expanded", "false");
   }
 
-  function run(index, id) {
+  async function run(index, id) {
     const entry = entries.find((e) => e.id === id);
-    close();
-    if (entry) actions[index].run(target(), entry);
+    if (!keepOpen) close();
+    if (!entry) return;
+    try {
+      await actions[index].run(target(), entry);
+    } catch (error) {
+      status.textContent = `⚠ ${error.message}`;
+      return;
+    }
+    if (keepOpen) {
+      // Several actions in a row (link a question to several entries): reload to show the new state.
+      entries = await load();
+      renderFilters();
+      render();
+    }
   }
 
   button.addEventListener("click", () => (panel.hidden ? open() : close()));
@@ -228,7 +242,7 @@ export function corpusPicker(view, { load, actions, exclude = () => null, label 
   panel.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       close();
-      target().focus();
+      target()?.focus(); // no editor when the menu links a question
     }
   });
   search.addEventListener("keydown", (event) => {

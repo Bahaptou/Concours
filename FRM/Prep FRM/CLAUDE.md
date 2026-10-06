@@ -21,6 +21,8 @@ sont dans `../CLAUDE.md`.
   immédiate) ou en examen (correction à la fin, compte à rebours), examen
   blanc réparti 20/20/30/30, historique des séries consultable. L'étape 2
   se coche seule quand toutes les questions d'un reading ont été tentées.
+  Une question peut être « traitée » (exploitée dans les fiches) : état à
+  part des marques, avec son reading pour compter sans charger les questions.
 - **Dashboard** : avancement, confiance et réussite, filtrables par livre.
 - **Sauvegarde** : tout l'état en un fichier JSON, exporté dans `save/` et
   rechargeable.
@@ -118,8 +120,10 @@ sont dans `../CLAUDE.md`.
   inconnue reste un 404). L'enfant reçoit un environnement minimal ; au
   dépassement de temps, l'arbre de processus est tué (`taskkill /T`).
   Ce n'est pas un bac à sable : le code a les droits de l'utilisateur.
-- **Briques de départ signées « Claude » (CL)** pour qu'on sache qui les
-  a écrites ; ce sont des outils génériques, pas du contenu FRM.
+- **Pas de profil Claude** (décision de Baptiste le 2026-10-06). Les briques
+  de départ et deux formules (loi normale, loi de Student), d'abord signées
+  « Claude » (CL), sont passées au nom de Baptiste (BD). Ce que Claude écrit
+  dans le corpus n'est plus signé Claude.
 
 - **Ouvrable en double-clic (`file://`).** Le navigateur y bloque les
   modules ES et `fetch()` : scripts classiques, données en `.js`, fichiers
@@ -140,7 +144,7 @@ sont dans `../CLAUDE.md`.
 - **Profil = simple repère**, pas de comptes. Pour regarder la sauvegarde
   de quelqu'un d'autre : fenêtre de navigation privée.
 - **Sauvegarde restée en version 1** malgré les champs ajoutés (profil,
-  réponses, marques, séries) : les champs absents sont tolérés au
+  réponses, marques, séries, questions traitées) : les champs absents sont tolérés au
   chargement, un fichier sans profil garde le profil courant.
 - **Jamais publié en ligne** (droits AnalystPrep), à l'exception du dépôt
   GitHub privé (décision de Baptiste le 2026-10-02, « pour l'instant »).

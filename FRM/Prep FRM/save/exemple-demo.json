@@ -1,8 +1,7 @@
 {
   "app": "prep-frm",
   "version": 1,
-  "exportedAt": "2026-09-30T12:00:00.000Z",
-  "note": "Données FICTIVES générées par tools/make_demo_save.py, pour visualiser les graphiques.",
+  "exportedAt": "2026-10-06T14:40:27.940Z",
   "profile": {
     "firstName": "Profil",
     "lastName": "Démo"
@@ -7761,50 +7760,50 @@
     }
   ],
   "flags": {
-    "3762": {
-      "review": true
-    },
-    "3719": {
-      "review": true
-    },
-    "3798": {
-      "review": true
-    },
-    "3254": {
-      "review": true
-    },
-    "1103": {
-      "review": true
-    },
-    "3274": {
-      "review": true
-    },
-    "3731": {
-      "review": true
-    },
-    "5329": {
+    "52": {
       "review": true
     },
     "209": {
       "review": true
     },
-    "52": {
+    "250": {
       "review": true
     },
-    "250": {
+    "378": {
+      "unreadable": true
+    },
+    "1103": {
+      "review": true
+    },
+    "3254": {
+      "review": true
+    },
+    "3274": {
       "review": true
     },
     "3341": {
       "review": true
     },
-    "5323": {
-      "unreadable": true
+    "3719": {
+      "review": true
+    },
+    "3731": {
+      "review": true
+    },
+    "3762": {
+      "review": true
+    },
+    "3798": {
+      "review": true
     },
     "5315": {
       "unreadable": true
     },
-    "378": {
+    "5323": {
       "unreadable": true
+    },
+    "5329": {
+      "review": true
     },
     "6221": {
       "unreadable": true

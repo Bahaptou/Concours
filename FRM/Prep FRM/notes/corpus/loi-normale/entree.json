@@ -2,9 +2,9 @@
   "type": "formule",
   "titre": "Loi normale",
   "auteurs": {
-    "claude": {
-      "nom": "Claude",
-      "initiales": "CL",
+    "baptiste": {
+      "nom": "Baptiste Durand",
+      "initiales": "BD",
       "updatedAt": 1790874059820,
       "valide": true
     }

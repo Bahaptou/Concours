@@ -14,6 +14,7 @@ API, under ``/api`` (responses ``{"data", "links"}``, errors as RFC 9457 problem
     GET  /api/corpus/<id>                an entry, its versions, who cites it
     PUT  /api/corpus/<id>                {"type", "titre"}: updates it, recompiles dependents
     DELETE /api/corpus/<id>              deletes it and removes its references from notes and entries
+    PUT|DELETE /api/corpus/<id>/questions/<q>  {"reading"} / {}: links or unlinks an AnalystPrep question
     GET  /api/corpus/<id>/<author>       a version's source (and Python code, assumptions, limits)
     PUT  /api/corpus/<id>/<author>       {"source", "name", "initials", "code"?, "hypotheses"?, "limites"?}: saves a version
     POST /api/compile/entry              {"type", "titre", "initials", "source", "hypotheses"?, "limites"?}: preview of a version
