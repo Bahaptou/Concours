@@ -110,6 +110,9 @@ formules y sont, signées BD).
 - **Supprimer une entrée** : bouton dans l'éditeur d'entrée. Ses références sont retirées des fiches et
   des autres entrées (`#voir` devient son titre en texte simple, `#entree` disparaît). Une brique encore
   importée par une simulation ne se supprime pas : retirer l'import d'abord.
+- **Questions liées** : la page d'une entrée liste les questions qui lui sont liées (lien vers chacune)
+  et propose une série sur ces questions. Les liens sont partagés comme le reste du corpus ; ils ne
+  rattachent pas l'entrée à un reading.
 
 Fichiers : `notes/corpus/<id>/entree.json` (type, titre, auteurs), `<prénom>.typ` (la version),
 `<prénom>.hypotheses.typ` et `<prénom>.limites.typ` (une formule), `<prénom>.py` (le code d'une simulation
@@ -193,6 +196,10 @@ tools/vendor_codemirror/      regroupement de CodeMirror (npm + esbuild, mainten
 - **✓ Traitée** : une question déjà exploitée (fiche, corpus). Dans le bilan d'une série : compteur,
   « Masquer les traitées », « Suivante non traitée ». Compte par reading sur la page Reading et au
   dashboard. Ce n'est pas une marque : une question traitée n'est pas « marquée ».
+- **📚 Corpus**, sous chaque question : la relier à des entrées du corpus (« Lier » / « Délier »,
+  serveur nécessaire). Les entrées liées s'affichent en pastilles sous la question. « Nouvelle série »
+  propose « Questions liées à des entrées du corpus » : cocher des entrées, puis « Au moins une »
+  (union) ou « Toutes » (croisement).
 - Repère de temps : 100 questions en 4 h, soit 2 min 24 par question (compte à rebours de l'examen).
 - Une série en cours se reprend après un rechargement (elle n'est pas dans la sauvegarde).
 

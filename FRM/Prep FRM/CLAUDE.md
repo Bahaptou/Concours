@@ -93,7 +93,7 @@ sont dans `../CLAUDE.md`.
   importé en `/_gabarit.typ` (`notes/` = racine Typst) ; `notes/index.js`
   (généré) liste les fiches pour les pages ouvertes en `file://`.
 - **Corpus** : `notes/corpus/<id>/entree.json` (type, titre, auteurs avec
-  `valide`), `<auteur>.typ`, `<auteur>.hypotheses.typ` et `<auteur>.limites.typ`
+  `valide`, `questions` liées : identifiant et reading), `<auteur>.typ`, `<auteur>.hypotheses.typ` et `<auteur>.limites.typ`
   (formule), `<auteur>.py` (simulation, brique),
   `<auteur>-<page>.svg`. Régénérés à chaque écriture du corpus, à chaque
   enregistrement de fiche et au démarrage :
@@ -158,7 +158,8 @@ sont dans `../CLAUDE.md`.
   de compilation Typst est une erreur métier : 422 `TYPST_COMPILE_ERROR`,
   avec `line`, `hints`, `explanation`, `saved` en extensions, jamais 200.
 - **Le front construit les URL `/api/notes/<reading>/<author>`,
-  `/api/corpus`, `/api/corpus/<id>`, `/api/corpus/<id>/<author>` et `/api/images`** (le
+  `/api/corpus`, `/api/corpus/<id>`, `/api/corpus/<id>/<author>`,
+  `/api/corpus/<id>/questions/<q>` et `/api/images`** (le
   reste vient des `links`) : si une route change, changer aussi
   `assets/js/editor/api.js`.
 - **Une fiche par personne**, nommée d'après le prénom du profil ; la
@@ -214,6 +215,12 @@ sont dans `../CLAUDE.md`.
   (`strip_references`). Fiches puis entrées réécrites et recompilées, sans
   plafond, avant l'effacement du dossier. Une brique importée est refusée
   (409 `BRICK_IN_USE`). Le gestionnaire lit le corps des DELETE (JSON exigé).
+- **Questions liées au corpus, dans `entree.json`** (choix de Baptiste le
+  2026-10-06) : partagées, écrites par PUT/DELETE
+  `/api/corpus/<id>/questions/<q>`, lues par le manifeste. Distinctes de
+  « Traitée ». Elles ne donnent pas de reading à l'entrée. La page Questions
+  importe le menu Corpus des éditeurs (modules ES) à la demande, serveur seul.
+  Séries : portée « entries », « Au moins une » (union) ou « Toutes » (croisement).
 
 ## Pièges rencontrés
 
