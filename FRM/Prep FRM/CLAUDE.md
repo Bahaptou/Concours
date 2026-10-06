@@ -76,7 +76,8 @@ sont dans `../CLAUDE.md`.
   WorldTradeFinance4 : `errors.py` (hiérarchie `AppError`, sans HTTP),
   services `compiler.py`, `notes.py`, `corpus.py` (un verrou chacun,
   jamais imbriqués ; écritures atomiques via `files.py`) et
-  `simulations.py` (sous-processus, au plus 2 en parallèle), `images.py`, puis
+  `simulations.py` (sous-processus, au plus 2 en parallèle), `images.py`,
+  `math_tools.py` (boutons de maths ajoutés, `notes/_outils-maths.json`), puis
   `http/` : `guard.py` (seul le site servi passe), `payload.py`
   (validation), `routes.py` (une fonction par route), `context.py`,
   `presenter.py` (enveloppe `{data, links}`), `problem.py` (RFC 9457,
@@ -159,7 +160,7 @@ sont dans `../CLAUDE.md`.
   avec `line`, `hints`, `explanation`, `saved` en extensions, jamais 200.
 - **Le front construit les URL `/api/notes/<reading>/<author>`,
   `/api/corpus`, `/api/corpus/<id>`, `/api/corpus/<id>/<author>`,
-  `/api/corpus/<id>/questions/<q>` et `/api/images`** (le
+  `/api/corpus/<id>/questions/<q>`, `/api/images` et `/api/math-tools`** (le
   reste vient des `links`) : si une route change, changer aussi
   `assets/js/editor/api.js`.
 - **Une fiche par personne**, nommée d'après le prénom du profil ; la
@@ -221,6 +222,10 @@ sont dans `../CLAUDE.md`.
   « Traitée ». Elles ne donnent pas de reading à l'entrée. La page Questions
   importe le menu Corpus des éditeurs (modules ES) à la demande, serveur seul.
   Séries : portée « entries », « Au moins une » (union) ou « Toutes » (croisement).
+- **Boutons de maths ajoutés depuis les éditeurs, partagés** (choix de
+  Baptiste le 2026-10-07) : `notes/_outils-maths.json`, sans notion
+  d'auteur, tout le monde ajoute et retire. Les boutons de base restent dans
+  `toolbar.js` ; `Var` et `Cov` y insèrent `op("…")` (Typst n'en a pas).
 
 ## Pièges rencontrés
 

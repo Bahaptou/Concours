@@ -599,12 +599,14 @@ fieldset.field legend{padding:0; margin-bottom:4px;}
 .treated-bar label{display:inline-flex; align-items:center; gap:6px;}
 /* Corpus entries linked to a question (chips), and the "corpus entries" scope of a new series */
 .q-links{display:inline-flex; flex-wrap:wrap; gap:6px;}
-.q-link-chip{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink); text-decoration:none; padding:2px 8px 2px 2px; border:1px solid var(--line); border-radius:999px; background:var(--surface);}
+.q-link-chip{display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--ink); text-decoration:none; padding:2px 8px 2px 2px; border:1px solid var(--line); border-radius:999px; background:var(--surface);}
 .q-link-chip:hover{border-color:var(--primary-soft);}
 .entries-field{grid-column:1 / -1;}
 .entries-match{display:flex; flex-wrap:wrap; gap:4px 18px;}
 .entries-list{max-height:220px; overflow:auto; margin-top:6px; padding:4px 8px; border:1px solid var(--line); border-radius:8px;}
 .entry-choice[hidden]{display:none;}
+.entry-choice > span{font-weight:600;}
+.entry-choice .muted{font-weight:400;}
 
 /* Things to Remember et calculs (page reading) */
 .fiche{margin-top:10px; border:1px solid var(--line); border-radius:10px; background:var(--surface);}
@@ -653,6 +655,16 @@ body.wide main, body.wide .crumb{max-width:1440px;}
 .tool:hover{border-color:var(--primary-soft);}
 .tool.primary{background:var(--viz-conf); border-color:var(--viz-conf); color:#ffffff; font-weight:600;}
 select.tool{padding:4px 6px;}
+/* Math buttons added from the editors (shared): "×" shows on hover, "＋" opens the form */
+.custom-math, .custom-math-buttons{display:inline-flex; flex-wrap:wrap; align-items:center; gap:4px;}
+.mt-tool{position:relative; display:inline-flex;}
+.mt-remove{display:none; position:absolute; top:-7px; right:-7px; width:17px; height:17px; padding:0; border-radius:50%; font:inherit; font-size:11px; line-height:15px; cursor:pointer; color:var(--ink-soft); background:var(--surface); border:1px solid var(--line);}
+.mt-tool:hover .mt-remove, .mt-remove:focus-visible{display:block;}
+.mt-remove:hover{color:var(--bad); border-color:var(--bad);}
+.picker-panel.mt-panel{width:min(440px, calc(100vw - 32px));}
+.mt-panel .field{margin-top:6px;}
+.mt-preview{min-height:44px; margin:10px 0 4px; padding:6px; overflow:auto; background:#ffffff; border:1px dashed var(--line); border-radius:8px;}
+.mt-preview svg{max-width:100%; height:auto;}
 .math-badge{font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#ffffff; background:var(--viz-conf); padding:4px 8px; border-radius:6px; margin-right:4px;}
 
 .editor-grid{display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:12px;}
@@ -695,6 +707,11 @@ select.tool{padding:4px 6px;}
 }
 .etype{display:inline-flex; align-items:center; gap:5px; flex:0 0 auto; font-size:11px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; padding:2px 7px; border-radius:6px; color:var(--ink-soft); background:var(--surface-2); border:1px solid var(--line);}
 .etype::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--etype);}
+/* Type and title side by side (lists, chips, menus): the title leads, the type tag recedes */
+:is(.entry-row, .entry-chip, .q-link-chip, .picker-item, .entry-choice, .links-grid li) .etype{font-size:9.5px; font-weight:600; letter-spacing:0.03em; padding:1px 5px; gap:4px; border-radius:4px;}
+:is(.entry-row, .entry-chip, .q-link-chip, .picker-item, .entry-choice, .links-grid li) .etype::before{width:6px; height:6px;}
+/* In lists (one entry per line), a common tag width keeps the titles aligned */
+:is(.entry-row, .picker-item) .etype{min-width:82px;}
 .etype-formule{--etype:var(--etype-formule);}
 .etype-definition{--etype:var(--etype-definition);}
 .etype-propriete{--etype:var(--etype-propriete);}
@@ -714,7 +731,8 @@ select.search{min-width:0;}
 .entry-list{display:flex; flex-direction:column; gap:6px;}
 .entry-row{display:flex; align-items:center; gap:10px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--surface); color:var(--ink); text-decoration:none;}
 .entry-row:hover{border-color:var(--primary-soft);}
-.entry-row .etitle{flex:1; min-width:0; font-weight:600; font-size:14px;}
+.entry-row .etitle{flex:1; min-width:0; font-weight:700; font-size:15px;}
+.entry-row .etitle .entry-id{font-weight:400;}
 .entry-row .ereadings{font-size:12px; color:var(--muted); white-space:nowrap;}
 .entry-row .eauthors{display:flex; gap:4px;}
 @media (max-width:640px){.entry-row{flex-wrap:wrap;} .entry-row .etitle{flex-basis:100%; order:-1;}}
@@ -728,12 +746,14 @@ select.search{min-width:0;}
 .version:last-child{border-bottom:none; padding-bottom:0;}
 .version-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px;}
 .version-head .who{font-weight:600;}
+.version-head .small-btn{margin-left:auto; padding:4px 10px; font-size:12px;}
 .version .note-pages{margin:10px 0 0 0;}
 .links-grid{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px;}
 @media (max-width:760px){.links-grid{grid-template-columns:1fr;}}
 .links-grid h3{font-size:14px; margin-bottom:6px;}
 .links-grid ul{margin:0; padding-left:18px; font-size:13px; color:var(--ink-soft);}
 .links-grid li{margin-bottom:4px;}
+.links-grid li > a{font-weight:600; color:var(--ink);}
 
 /* Corpus picker in the editors */
 .picker{position:relative;}
@@ -743,7 +763,8 @@ select.search{min-width:0;}
 .picker-list{max-height:320px; overflow:auto; margin:8px 0 0 0; padding:0; list-style:none;}
 .picker-item{display:flex; align-items:center; gap:8px; padding:6px 4px; border-bottom:1px solid var(--line); font-size:13px;}
 .picker-item:last-child{border-bottom:none;}
-.picker-item .ptitle{flex:1; min-width:0;}
+.picker-item .ptitle{flex:1; min-width:0; font-weight:600; font-size:13.5px;}
+.picker-item .ptitle .entry-id{font-weight:400;}
 .picker-foot{display:flex; justify-content:space-between; gap:8px; margin-top:8px; font-size:12px; color:var(--muted);}
 /* Corpus menu: the filters of the corpus page, hence a wider panel */
 .picker-panel.corpus-panel{width:min(720px, calc(100vw - 32px));}
@@ -788,6 +809,29 @@ select.search{min-width:0;}
    counts a neutral fill (light and lighter for the two halves of "most used", with a legend);
    versions that do not compile the error colour, always next to a ⚠ label. */
 .etype-bar{background:var(--etype);}
+/* Kinds of use of a corpus entry: one slate hue, 4 steps (dataviz validator, --ordinal, light #ffffff
+   and dark #1b2238 surfaces: all checks pass). Not a type colour, so never read as a type. */
+:root{--use-1:#1f2a4a; --use-2:#4a5a8c; --use-3:#7d8bbd; --use-4:#aab4d8;}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--use-1:#e3e7f6; --use-2:#b6bfe4; --use-3:#8a97cc; --use-4:#5d6cad;}
+}
+:root[data-theme="dark"]{--use-1:#e3e7f6; --use-2:#b6bfe4; --use-3:#8a97cc; --use-4:#5d6cad;}
+.use-notes{background:var(--use-1);}
+.use-questions{background:var(--use-2);}
+.use-citedBy{background:var(--use-3);}
+.use-cites{background:var(--use-4);}
+/* Bricks used by a simulation: the brick type's colour, hatched when reached through another brick */
+.brick-direct{background:var(--etype-brique);}
+.type-dot{flex:0 0 auto; width:9px; height:9px; border-radius:2px; background:var(--etype);}
+.brick-indirect{background:repeating-linear-gradient(135deg, var(--etype-brique) 0 2px, transparent 2px 5px); box-shadow:inset 0 0 0 1px var(--etype-brique);}
+/* Sortable table of the corpus stats: clickable headers, a type-coloured edge on each row */
+table.sortable .th-sort{all:unset; cursor:pointer; display:inline-flex; gap:4px; align-items:center;}
+table.sortable .th-sort:hover, table.sortable .th-sort:focus-visible{color:var(--ink); text-decoration:underline;}
+table.sortable th[aria-sort="ascending"], table.sortable th[aria-sort="descending"]{color:var(--ink);}
+table.sortable .sort-arrow{font-size:10px;}
+table.sortable tbody tr:hover{background:var(--surface-2);}
+table.sortable tr.etype-row td:first-child{box-shadow:inset 3px 0 0 var(--etype); padding-left:10px;}
+table.sortable td .initials{margin-right:3px;}
 .count-bar{background:var(--primary-soft);}
 .count-bar-alt{background:color-mix(in srgb, var(--primary-soft) 40%, var(--surface));}
 .invalid-bar{background:var(--bad);}
@@ -803,7 +847,7 @@ select.search{min-width:0;}
 
 /* Notes portal (fiches.html): corpus entries used by a reading's notes */
 .entry-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
-.entry-chip{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink); text-decoration:none;}
+.entry-chip{display:inline-flex; align-items:center; gap:6px; font-size:13.5px; font-weight:600; color:var(--ink); text-decoration:none;}
 .entry-chip:hover{text-decoration:underline;}
 
 .list-head{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px;}

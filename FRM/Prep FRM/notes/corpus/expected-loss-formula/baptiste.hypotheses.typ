@@ -1,0 +1,2 @@
+#import "/_corpus-titres.typ": voir
+#voir("expected-loss") se base sur l'idée qu'au global d'un portefeuille, en cumulant les pertes attendues de chaque titre soumis à une probabilté de défaut, on obtient en moyenne ce que ce portefeuille va perdre avec quelques événements de défaut.

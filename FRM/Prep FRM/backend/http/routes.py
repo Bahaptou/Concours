@@ -14,6 +14,7 @@ from backend.compiler import TypstCompiler
 from backend.errors import RouteNotFoundError
 from backend.corpus import CorpusService
 from backend.images import ImagesService
+from backend.math_tools import MathToolsService
 from backend.http.context import (
     CompileContext,
     CorpusContext,
@@ -31,6 +32,7 @@ from backend.http.payload import (
     parse_entry_id,
     parse_entry_preview,
     parse_image_payload,
+    parse_math_tool,
     parse_meta_payload,
     parse_new_entry,
     parse_note_target,
@@ -48,6 +50,7 @@ from backend.http.presenter import (
     EntryPreviewPresenter,
     HealthPresenter,
     ImagePresenter,
+    MathToolsPresenter,
     ImagesPresenter,
     NotePresenter,
     RootPresenter,
@@ -66,6 +69,7 @@ class Services:
     corpus: CorpusService
     simulations: SimulationRunner
     images: ImagesService
+    math_tools: MathToolsService
     static_root: Path  # to turn files on disk into URLs
 
 
@@ -236,6 +240,28 @@ def add_image(request: ApiRequest, services: Services) -> ApiResponse:
     return ApiResponse(HTTPStatus.CREATED, ImagePresenter().present(ImageContext(image, url_of(image.path, services))))
 
 
+# ---------------------------------------------------------------- math buttons
+
+
+def math_tools_response(status: HTTPStatus, services: Services) -> ApiResponse:
+    return ApiResponse(status, MathToolsPresenter().present(services.math_tools.list()))
+
+
+def list_math_tools(request: ApiRequest, services: Services) -> ApiResponse:
+    return math_tools_response(HTTPStatus.OK, services)
+
+
+def add_math_tool(request: ApiRequest, services: Services) -> ApiResponse:
+    payload = parse_math_tool(request.body)
+    services.math_tools.add(payload.label, payload.typst, payload.select)
+    return math_tools_response(HTTPStatus.CREATED, services)
+
+
+def delete_math_tool(request: ApiRequest, services: Services) -> ApiResponse:
+    services.math_tools.delete(request.params["id"])
+    return math_tools_response(HTTPStatus.OK, services)
+
+
 # ---------------------------------------------------------------- routing table
 
 NOTE = r"^/api/notes/(?P<reading>[^/]+)/(?P<author>[^/]+)$"
@@ -255,6 +281,9 @@ ROUTES = [
     Route("POST", re.compile(r"^/api/run$"), "run", run_code),
     Route("GET", re.compile(r"^/api/images$"), "images", list_images),
     Route("POST", re.compile(r"^/api/images$"), "add_image", add_image),
+    Route("GET", re.compile(r"^/api/math-tools$"), "math_tools", list_math_tools),
+    Route("POST", re.compile(r"^/api/math-tools$"), "add_math_tool", add_math_tool),
+    Route("DELETE", re.compile(r"^/api/math-tools/(?P<id>[A-Za-z0-9]+)$"), "delete_math_tool", delete_math_tool),
     Route("GET", re.compile(ENTRY), "entry", get_entry),
     Route("PUT", re.compile(ENTRY), "update_entry", update_entry),
     Route("DELETE", re.compile(ENTRY), "delete_entry", delete_entry),

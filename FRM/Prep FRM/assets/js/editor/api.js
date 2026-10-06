@@ -60,6 +60,13 @@ export const saveVersion = (link, version) => request(link.method, link.href, ve
 /** draft: { type, titre, initials, source, hypotheses?, limites? } */
 export const previewEntry = (link, draft) => request(link.method, link.href, draft);
 
+// Math buttons added from the editors (notes/_outils-maths.json), shared by everyone.
+export const MATH_TOOLS_URL = "/api/math-tools";
+export const listMathTools = () => request("GET", MATH_TOOLS_URL);
+/** tool: { label, typst, select? } */
+export const addMathTool = (tool) => request("POST", MATH_TOOLS_URL, tool);
+export const deleteMathTool = (id) => request("DELETE", `${MATH_TOOLS_URL}/${encodeURIComponent(id)}`, {});
+
 // Shared images (notes/images/).
 export const listImages = () => request("GET", IMAGES_URL);
 /** image: { name, format, data } with data in base64 */

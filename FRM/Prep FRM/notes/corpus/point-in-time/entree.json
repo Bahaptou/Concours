@@ -1,0 +1,12 @@
+{
+  "type": "definition",
+  "titre": "Point in Time",
+  "auteurs": {
+    "baptiste": {
+      "nom": "Baptiste Durand",
+      "initiales": "BD",
+      "updatedAt": 1791327648154,
+      "valide": true
+    }
+  }
+}

@@ -47,6 +47,13 @@ class RunPayload:
 
 
 @dataclass(frozen=True)
+class MathToolPayload:
+    label: str
+    typst: str
+    select: str | None
+
+
+@dataclass(frozen=True)
 class ImagePayload:
     name: str
     format: str
@@ -199,6 +206,12 @@ def parse_image_payload(body: bytes) -> ImagePayload:
     except (binascii.Error, ValueError):
         raise InvalidRequestError("data", "base64 attendu") from None
     return ImagePayload(_text(data, "name").strip(), _text(data, "format").strip().lower(), decoded)
+
+
+def parse_math_tool(body: bytes) -> MathToolPayload:
+    """{"label", "typst", "select"?}: lengths and select checked by backend/math_tools.py."""
+    data = _json_object(body)
+    return MathToolPayload(_text(data, "label"), _text(data, "typst"), _text(data, "select", required=False))
 
 
 def parse_entry_preview(body: bytes) -> EntryPreviewPayload:

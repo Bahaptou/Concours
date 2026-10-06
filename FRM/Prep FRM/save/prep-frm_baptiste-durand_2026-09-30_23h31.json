@@ -1,7 +1,7 @@
 {
   "app": "prep-frm",
   "version": 1,
-  "exportedAt": "2026-10-06T14:39:57.940Z",
+  "exportedAt": "2026-10-06T21:24:09.372Z",
   "profile": {
     "firstName": "Baptiste",
     "lastName": "Durand"
@@ -484,7 +484,25 @@
       "session": "smuomfgns"
     }
   ],
-  "flags": {},
+  "flags": {
+    "5298": {
+      "review": true
+    }
+  },
+  "treated": {
+    "3": {
+      "at": 1791321773778,
+      "reading": 1
+    },
+    "9": {
+      "at": 1791321422446,
+      "reading": 1
+    },
+    "33": {
+      "at": 1791321843036,
+      "reading": 1
+    }
+  },
   "sessions": [
     {
       "id": "smuohhbgz",

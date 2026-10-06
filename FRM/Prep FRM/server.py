@@ -21,6 +21,8 @@ API, under ``/api`` (responses ``{"data", "links"}``, errors as RFC 9457 problem
     POST /api/run                        {"code", "author", "timeout"}: runs simulation or brick code
     GET  /api/images                     shared images (notes/images/)
     POST /api/images                     {"name", "format", "data" (base64)}: adds an image, never replaces one
+    GET|POST /api/math-tools             math buttons added from the editors ({"label", "typst", "select"?})
+    DELETE /api/math-tools/<id>          removes one of them
 """
 from __future__ import annotations
 
@@ -38,6 +40,7 @@ from backend.corpus import CorpusService
 from backend.http.handler import make_handler
 from backend.http.routes import Services
 from backend.images import ImagesService
+from backend.math_tools import MathToolsService
 from backend.notes import NotesService
 from backend.simulations import SimulationRunner
 
@@ -55,7 +58,10 @@ def build_services(static_root: Path, notes_root: Path) -> Services:
     notes.on_saved = corpus.regenerate
     simulations = SimulationRunner(corpus)
     images = ImagesService(notes_root)
-    return Services(notes=notes, compiler=compiler, corpus=corpus, simulations=simulations, images=images, static_root=static_root)
+    math_tools = MathToolsService(notes_root)
+    return Services(
+        notes=notes, compiler=compiler, corpus=corpus, simulations=simulations, images=images, math_tools=math_tools, static_root=static_root
+    )
 
 
 def running_instance() -> str | None:

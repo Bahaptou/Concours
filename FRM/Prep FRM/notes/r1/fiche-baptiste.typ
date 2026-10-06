@@ -59,6 +59,8 @@ Ici nous parlons de
 
 #voir("credit-risk") #voir("default-risk")
 
+#voir("bankruptcy-risk")
+
 #voir("foreign-exchange-risk") #voir("currency-risk")
 
 #voir("equity-risk")
@@ -69,19 +71,23 @@ Ici nous parlons de
 
 #voir("business-risk")
 
-#voir("operational-risk")
+#voir("operational-risk") #voir("cyber-risk") #voir("legal-risk") #voir("anti-money-laundering-risk") #voir("compliance-risk")
 
 #voir("strategic-risk")
 
 #voir("liquidity-risk")#voir("funding-liquidity-risk")#voir("case-northern-rock")
 
+#voir("entreprise-risk-management")
+
 #voir("trading-liquidity-risk")#voir("market-liquidity-risk")
 
-#voir("market-risk")#voir("commodity-price-risk")
+#voir("market-risk")#voir("systematic-risk")#voir("commodity-price-risk")
 
 #voir("risk-reward-tradeoff-principle")
 
 #voir("tail-loss")
+
+#voir("risk-appetite")
 
 
 #retenir[…]

@@ -1,5 +1,22 @@
 {
   "type": "definition",
   "titre": "Unexpected Loss",
-  "auteurs": {}
+  "auteurs": {
+    "baptiste": {
+      "nom": "Baptiste Durand",
+      "initiales": "BD",
+      "updatedAt": 1791328050177,
+      "valide": true
+    }
+  },
+  "questions": [
+    {
+      "id": "8",
+      "reading": 1
+    },
+    {
+      "id": "33",
+      "reading": 1
+    }
+  ]
 }

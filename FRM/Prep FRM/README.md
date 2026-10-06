@@ -62,6 +62,9 @@ Chaque personne écrit sa propre fiche par reading, en **Typst**, dans l'éditeu
   taper sa valeur (`14pt`, `1.1em`). Sans effet sur les titres, dont la taille est fixée par le gabarit ;
 - **∑ Maths** (Ctrl+M) entoure la sélection de `$…$` ; dès que le curseur est dans une formule, une
   barre « Mode maths » propose fraction, racine, exposant, indice, somme, lettres grecques… ;
+- **＋ dans la barre « Mode maths »** : ajouter un bouton (libellé, Typst inséré, partie à sélectionner,
+  aperçu). Les boutons ajoutés sont partagés (`notes/_outils-maths.json`) ; « × » au survol les retire,
+  pour tout le monde ;
 - **📚 Corpus** cherche une entrée du corpus (filtres type, livre, reading, auteur, comme sur la page
   Corpus) et la **cite** (`#voir("bayes")` : son titre, en couleur)
   ou l'**insère** (`#entree("bayes")` : l'entrée entière, toutes versions) ; la ligne `#import` nécessaire
@@ -93,6 +96,9 @@ formules y sont, signées BD).
   fiche de ce reading s'en sert. Une citation par une autre entrée ne rattache pas.
 - Chacun écrit **sa version** de l'entrée, signée de ses initiales (tirées du profil 👤) ; le corpus
   affiche toutes les versions côte à côte.
+- **Partir de la version d'un autre** : bouton sur la page de l'entrée (ou lien dans l'éditeur). Son
+  texte, ses hypothèses, ses limites et son code sont repris dans l'éditeur ; enregistrer en fait ta
+  version, la sienne ne change pas.
 - Une entrée peut en **citer** une autre (`#voir`), jamais l'insérer : c'est ce qui rend les boucles
   impossibles (A cite B, B cite A : aucun problème). Le serveur refuse une entrée qui tente d'insérer.
 - Une version qui ne compile pas est enregistrée quand même, mais retirée des fiches jusqu'à correction

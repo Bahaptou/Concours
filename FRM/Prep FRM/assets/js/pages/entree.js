@@ -12,6 +12,7 @@ import { baseExtensions, showProblem, setErrorLine } from "../editor/setup.js";
 import { renderToolbar, formattingKeys, insert, ENTRY_TOOLS } from "../editor/toolbar.js";
 import { corpusPicker, ensureImport } from "../editor/corpus-picker.js";
 import { imageMenu, attachImageInput } from "../editor/images.js";
+import { customMathTools } from "../editor/math-tools.js";
 import * as api from "../editor/api.js";
 
 const { FRM } = window;
@@ -262,9 +263,34 @@ async function start() {
 
   function showOthers() {
     const others = entry ? entry.data.versions.filter((v) => v.author !== author) : [];
+    const other = (v) =>
+      `<span class="initials" title="${esc(v.name)}">${esc(v.initials)}</span> ${esc(v.name)} (<button type="button" class="link-btn" data-copy-from="${esc(v.author)}" title="Reprendre son texte dans ton éditeur, pour en faire ta version">partir de sa version</button>)`;
     $("[data-others]").innerHTML = others.length
-      ? `Autres versions : ${others.map((v) => `<span class="initials" title="${esc(v.name)}">${esc(v.initials)}</span> ${esc(v.name)}`).join(" · ")} · <a href="${ui.entryHref(entry.data)}">les voir</a>`
+      ? `Autres versions : ${others.map(other).join(" · ")} · <a href="${ui.entryHref(entry.data)}">les voir</a>`
       : "";
+  }
+
+  /** Puts another author's version (text, sections, code) in this editor: a starting point for
+   *  one's own version. Theirs never changes; nothing is written until "Enregistrer". */
+  async function copyFrom(otherAuthor) {
+    const other = entry && entry.data.versions.find((v) => v.author === otherAuthor);
+    if (!other) return;
+    const replacing = savedSource !== null || isDirty();
+    if (replacing && !confirm(`Remplacer le texte de ton éditeur par la version de ${other.name} ?\nTa version enregistrée ne change qu'au moment où tu enregistres.`)) return;
+    let copied;
+    try {
+      copied = (await api.getVersion(entry.data.id, otherAuthor)).data;
+    } catch (error) {
+      return formError(esc(error.message));
+    }
+    const fill = (field, text) => field.dispatch({ changes: { from: 0, to: field.state.doc.length, insert: text } });
+    fill(view, copied.source ?? NEW_VERSION);
+    for (const section of SECTIONS) fill(sectionViews[section.id], copied[section.id] || "");
+    if (hasCode() && copied.code !== null) fill(codeView, copied.code);
+    markDirty();
+    schedulePreview();
+    status(`Texte repris de la version de ${other.name} : modifie-le, puis enregistre pour en faire ta version`, "warn");
+    view.focus();
   }
 
   // ---------------------------------------------------------- errors and reports
@@ -523,7 +549,7 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
   });
   const images = imageMenu(() => active);
   for (const field of [view, ...Object.values(sectionViews)]) attachImageInput(field, images.open);
-  toggleMath = renderToolbar({ textRow: $("[data-text-tools]"), mathRow: $("[data-math-tools]") }, () => active, { tools: ENTRY_TOOLS, extras: [picker, images.element] });
+  toggleMath = renderToolbar({ textRow: $("[data-text-tools]"), mathRow: $("[data-math-tools]") }, () => active, { tools: ENTRY_TOOLS, extras: [picker, images.element], mathExtras: [customMathTools(() => active)] });
 
   // Python pane: import a brick, run the code being written (with this author's bricks).
   const brickPicker = corpusPicker(codeView, {
@@ -587,11 +613,18 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     event.returnValue = ""; // the browser asks before leaving: nothing is saved behind your back here
   });
 
+  $("[data-others]").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-copy-from]");
+    if (button) copyFrom(button.dataset.copyFrom);
+  });
+
   refreshMetaDisplay();
   showOthers();
   status(entry ? (savedSource === null ? "Pas encore de version de toi : écris-la puis enregistre" : "✓ À jour") : "Nouvelle entrée : titre, type, puis ta version", entry && savedSource !== null ? "ok" : "");
   refreshPreview();
   (entry ? view : form.titre).focus();
+  // ?depuis=<author>: opened from the corpus page's "Partir de cette version".
+  if (entry && params.get("depuis") && params.get("depuis") !== author) copyFrom(params.get("depuis"));
 }
 
 start();

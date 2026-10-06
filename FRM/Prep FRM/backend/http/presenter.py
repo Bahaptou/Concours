@@ -194,6 +194,20 @@ class EntryPreviewPresenter:
         return envelope({"pages": ctx.pages}, Link("self", ENTRY_PREVIEW, "Aperçu d'une version", "POST"))
 
 
+# ---------------------------------------------------------------- math buttons
+
+MATH_TOOLS = "/api/math-tools"
+
+
+class MathToolsPresenter:
+    def present(self, tools) -> dict:
+        return envelope(
+            {"tools": [tool.to_dict() for tool in tools]},
+            Link("self", MATH_TOOLS, "Boutons de maths ajoutés"),
+            Link("create", MATH_TOOLS, "Ajouter un bouton", "POST"),
+        )
+
+
 # ---------------------------------------------------------------- images
 
 IMAGES = "/api/images"

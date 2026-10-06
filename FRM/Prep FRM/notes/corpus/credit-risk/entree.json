@@ -1,5 +1,15 @@
 {
   "type": "definition",
   "titre": "Credit Risk",
-  "auteurs": {}
+  "auteurs": {},
+  "questions": [
+    {
+      "id": "8",
+      "reading": 1
+    },
+    {
+      "id": "10",
+      "reading": 1
+    }
+  ]
 }

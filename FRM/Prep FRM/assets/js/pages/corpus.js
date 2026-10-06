@@ -229,6 +229,7 @@
     <span class="who">${esc(version.name)}${version.author === me ? " (moi)" : ""}</span>
     <span class="muted">· ${ui.dateTime(version.updatedAt)}</span>
     ${invalid}
+    ${withServer && me && version.author !== me ? `<a class="btn ghost small-btn" href="entree.html?id=${encodeURIComponent(entry.id)}&amp;depuis=${encodeURIComponent(version.author)}" title="Ouvrir l'éditeur avec son texte, pour en faire ta version">Partir de cette version</a>` : ""}
   </div>
   ${pages.length ? `<div class="note-pages">${pages.join("")}</div>` : ""}
   ${code}

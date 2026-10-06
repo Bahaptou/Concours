@@ -40,6 +40,24 @@ export function prefixLines(view, prefix) {
   view.focus();
 }
 
+/** Inserts a snippet at each cursor. `select`, a part of the snippet: left selected so that typing
+ *  replaces it, or replaced by the text selected before (like wrap). */
+export function insertSnippet(view, snippet, select = null) {
+  const at = select ? snippet.indexOf(select) : -1;
+  view.dispatch(
+    view.state.changeByRange((range) => {
+      if (at < 0) {
+        return { changes: { from: range.from, to: range.to, insert: snippet }, range: EditorSelection.cursor(range.from + snippet.length) };
+      }
+      const inner = range.empty ? select : view.state.sliceDoc(range.from, range.to);
+      const text = snippet.slice(0, at) + inner + snippet.slice(at + select.length);
+      const start = range.from + at;
+      return { changes: { from: range.from, to: range.to, insert: text }, range: EditorSelection.range(start, start + inner.length) };
+    })
+  );
+  view.focus();
+}
+
 /** Inserts a block (equation, formula) on its own lines. */
 export function insertBlock(view, text) {
   const { from } = view.state.selection.main;
@@ -112,7 +130,9 @@ export const MATH_TOOLS = [
   { label: "xᵢ", title: "Indice : x_(i)", run: (v) => wrap(v, "_(", ")", "i") },
   { label: "Σ", title: "Somme : sum_(i=1)^n", run: (v) => insert(v, " sum_(i=1)^n ") },
   { label: "E[ ]", title: "Espérance : E[X]", run: (v) => wrap(v, "E[", "]", "X") },
-  { label: "Var", title: 'Variance : "Var"(X)', run: (v) => wrap(v, '"Var"(', ")", "X") },
+  // op(…): an upright operator with the spacing of ln or max (Typst has no built-in Var or Cov).
+  { label: "Var", title: 'Variance : op("Var")(X)', run: (v) => wrap(v, 'op("Var")(', ")", "X") },
+  { label: "Cov", title: 'Covariance : op("Cov")(X, Y)', run: (v) => wrap(v, 'op("Cov")(', ")", "X, Y") },
   { label: "texte", title: 'Texte dans une formule : "…"', run: (v) => wrap(v, '"', '"', "texte") },
   symbol("≈", "approx"),
   symbol("≤", "<="),
@@ -163,10 +183,10 @@ function controls(tools, view) {
 /** Fills the two toolbar rows and returns a function that shows the math row or not.
  *  view: the editor, or a function returning the one that has the focus (see controls).
  *  extras: elements appended to the text row (e.g. the corpus picker). */
-export function renderToolbar({ textRow, mathRow }, view, { tools = TEXT_TOOLS, extras = [] } = {}) {
+export function renderToolbar({ textRow, mathRow }, view, { tools = TEXT_TOOLS, extras = [], mathExtras = [] } = {}) {
   textRow.replaceChildren(...controls(tools, view), ...extras);
   const badge = Object.assign(document.createElement("span"), { className: "math-badge", textContent: "Mode maths" });
-  mathRow.replaceChildren(badge, ...controls(MATH_TOOLS, view));
+  mathRow.replaceChildren(badge, ...controls(MATH_TOOLS, view), ...mathExtras);
   return (inMath) => {
     mathRow.hidden = !inMath;
   };
