@@ -1,12 +1,5 @@
 {
   "type": "brique",
   "titre": "Trajectoires de prix (mouvement brownien géométrique)",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1790873914301,
-      "valide": true
-    }
-  }
+  "valide": true
 }

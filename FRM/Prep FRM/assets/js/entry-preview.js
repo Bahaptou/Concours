@@ -1,5 +1,4 @@
-/* Preview card of a corpus entry: the start of its rendering (the current profile's version, else
- * the first valid one) and a link to it, shown when the pointer rests on an element naming the
+/* Preview card of a corpus entry: the start of its rendering (the last one that compiled) and a link to it, shown when the pointer rests on an element naming the
  * entry. Slow to come (SHOW_DELAY), quick to go (HIDE_DELAY: just the time to reach the card);
  * placed above the element (below when the window has no room above), never over it, so the
  * element stays clickable. Fixed height (style.css), so the position holds before the image loads.
@@ -20,7 +19,6 @@
   function create(host) {
     host.classList.add("preview-host");
     const card = Object.assign(document.createElement("div"), { className: "entry-preview", hidden: true });
-    const me = FRM.store.profile.authorSlug();
     let shown = null; // id on the card
     let pending = null; // id waiting for SHOW_DELAY
     let silenced = null;
@@ -52,14 +50,10 @@
       clearTimeout(hideTimer);
       const entry = FRM.findEntry(id);
       if (!entry || !el.isConnected) return;
-      const version =
-        entry.versions.find((v) => v.author === me && v.pages.length) ||
-        entry.versions.find((v) => v.valid && v.pages.length) ||
-        entry.versions.find((v) => v.pages.length);
       card.innerHTML = `
 <div class="ep-head">${ui.typeTag(entry.type)}<strong>${esc(entry.titre)}</strong></div>
-${version ? `<div class="ep-render"><img src="${esc(`${version.pages[0]}?v=${version.updatedAt}`)}" alt="${esc(`Début de « ${entry.titre} », version ${version.initials}`)}"></div>` : `<div class="ep-render ep-empty muted small">Pas encore de rendu.</div>`}
-<div class="ep-foot">${version ? `<span class="muted small">Version ${esc(version.initials)}</span>` : "<span></span>"}<a class="btn" href="${ui.entryHref(entry)}">Ouvrir l'entrée →</a></div>`;
+${entry.pages.length ? `<div class="ep-render"><img src="${esc(`${entry.pages[0]}?v=${entry.updatedAt}`)}" alt="${esc(`Début de « ${entry.titre} »`)}"></div>` : `<div class="ep-render ep-empty muted small">Pas encore de rendu.</div>`}
+<div class="ep-foot"><span class="eauthors">${ui.contributorBadges(entry.journal)}</span><a class="btn" href="${ui.entryHref(entry)}">Ouvrir l'entrée →</a></div>`;
       if (!card.isConnected) host.appendChild(card); // the host's content may have been re-rendered
       card.hidden = false;
       shown = id;

@@ -1,14 +1,6 @@
 {
   "type": "definition",
   "titre": "Foreign Exchange Risk",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791308676013,
-      "valide": true
-    }
-  },
   "questions": [
     {
       "id": "3",
@@ -18,5 +10,6 @@
       "id": "10",
       "reading": 1
     }
-  ]
+  ],
+  "valide": true
 }

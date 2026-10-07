@@ -146,10 +146,10 @@
     },
     /** « Prénom Nom », ou "" sans profil. */
     displayName: (value = state.profile) => (value ? `${value.firstName} ${value.lastName}`.trim() : ""),
-    /** Initials shown next to corpus versions ("Baptiste Durand" -> "BD"), "" without a profile. */
+    /** Initials shown in the journals of the notes and entries ("Baptiste Durand" -> "BD"), "" without a profile. */
     initials: (value = state.profile) =>
       value ? [value.firstName, value.lastName].map((part) => part.trim().charAt(0)).join("").toUpperCase() : "",
-    /** Author slug used in note file names ("Baptiste" -> "baptiste"), "" without a profile. */
+    /** Slug identifying the person in the journals ("Baptiste" -> "baptiste"), "" without a profile. */
     authorSlug(value = state.profile) {
       const name = value ? value.firstName || value.lastName : "";
       return name
@@ -159,6 +159,12 @@
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "")
         .slice(0, 40);
+    },
+    /** Who writes, sent with every write to the server for the journal of the note or entry
+     *  (backend/journal.py): { author, name, initials }, or null without a profile. */
+    contributor(value = state.profile) {
+      const author = profile.authorSlug(value);
+      return author ? { author, name: profile.displayName(value), initials: profile.initials(value) } : null;
     },
   };
 

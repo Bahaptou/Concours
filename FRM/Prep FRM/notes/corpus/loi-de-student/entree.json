@@ -1,12 +1,5 @@
 {
   "type": "formule",
   "titre": "Loi de Student",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1790874059931,
-      "valide": true
-    }
-  }
+  "valide": true
 }

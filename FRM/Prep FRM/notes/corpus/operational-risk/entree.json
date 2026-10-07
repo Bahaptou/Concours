@@ -1,14 +1,6 @@
 {
   "type": "definition",
   "titre": "Operational Risk",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791362531956,
-      "valide": true
-    }
-  },
   "questions": [
     {
       "id": "4",
@@ -18,5 +10,6 @@
       "id": "5300",
       "reading": 1
     }
-  ]
+  ],
+  "valide": true
 }

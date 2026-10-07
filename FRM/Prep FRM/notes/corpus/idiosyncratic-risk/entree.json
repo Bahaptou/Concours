@@ -1,12 +1,5 @@
 {
   "type": "definition",
   "titre": "Idiosyncratic Risk",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791329497556,
-      "valide": true
-    }
-  }
+  "valide": true
 }

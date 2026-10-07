@@ -1,10 +1,11 @@
 // Corpus entry editor: entree.html creates an entry (optionally ?type=… to prefill),
-// entree.html?id=bayes edits one. On top, the metadata shared by every version (identifier,
-// type, title); below, the current profile's version in CodeMirror with a live preview in its
-// box, the assumptions and limits of a formula, and the Python code of a simulation. Readings
-// are not chosen here: they come from the notes citing or inserting the entry.
-// Saved on demand (button or Ctrl+S), not while typing: a saved version is shared at once and
-// recompiles the notes that insert it, so it should be a deliberate act.
+// entree.html?id=bayes edits one. An entry belongs to everyone: on top its metadata (identifier,
+// type, title) and who created and changed it; below, its one shared text in CodeMirror with a
+// live preview in its box, the assumptions and limits of a formula, and the Python code of a
+// simulation. The profile only says who writes, for the entry's journal. Readings are not chosen
+// here: they come from the notes citing or inserting the entry and the questions linked to it.
+// Saved on demand (button or Ctrl+S), not while typing: a saved text replaces everyone's at once
+// and recompiles the notes that insert it, so it should be a deliberate act.
 // Loaded as an ES module after the classic scripts, which provide window.FRM.
 import { EditorState, EditorView } from "../../vendor/codemirror/codemirror.js";
 import { isInMath } from "../editor/typst-language.js";
@@ -21,8 +22,8 @@ const { esc } = ui;
 
 const PREVIEW_DELAY = 400;
 const params = new URLSearchParams(location.search);
-const NEW_VERSION = "// Ta version de cette entrée. Pour citer une autre entrée : menu « 📚 Corpus », puis Citer.\n";
-// Starting code of a new version, by type. A brick's demo runs with ▶ Exécuter on the brick
+const NEW_TEXT = "// Texte de l'entrée, commun à tous. Pour citer une autre entrée : menu « 📚 Corpus », puis Citer.\n";
+// Starting code of a new entry, by type. A brick's demo runs with ▶ Exécuter on the brick
 // itself, never when a simulation imports it.
 const CODE_TEMPLATES = {
   simulation: "# Simulation : importe des briques (menu « 🧱 Briques »), puis ▶ Exécuter.\n",
@@ -52,17 +53,15 @@ const SECTIONS = [
 const SECTION_TYPES = ["formule"];
 const moduleName = (entryId) => entryId.replace(/-/g, "_");
 
-/** Line importing a brick into Python code: its public functions, from the given author's
- *  version if there is one (the one the run will use). */
-function brickImportLine(brick, author) {
-  const version = brick.versions.find((v) => v.author === author && v.code) || brick.versions.find((v) => v.code);
-  const names = version ? [...version.code.matchAll(/^def ([A-Za-z]\w*)\(/gm)].map((m) => m[1]) : [];
+/** Line importing a brick into Python code: its public functions. */
+function brickImportLine(brick) {
+  const names = brick.code ? [...brick.code.matchAll(/^def ([A-Za-z]\w*)\(/gm)].map((m) => m[1]) : [];
   const module = `briques.${moduleName(brick.id)}`;
   return names.length ? `from ${module} import ${names.join(", ")}` : `import ${module}`;
 }
 
 /** Adds the import line after the last import at the top of the code (or first), unless present. */
-function addBrickImport(view, brick, author) {
+function addBrickImport(view, brick) {
   const { doc } = view.state;
   const module = `briques.${moduleName(brick.id)}`;
   if (new RegExp(`^\\s*(from|import)\\s+${module.replace(".", "\\.")}\\b`, "m").test(doc.toString())) return view.focus();
@@ -70,7 +69,7 @@ function addBrickImport(view, brick, author) {
   for (let number = 1; number <= doc.lines; number += 1) {
     if (/^(import|from)\s/.test(doc.line(number).text)) after = doc.line(number);
   }
-  const line = brickImportLine(brick, author);
+  const line = brickImportLine(brick);
   view.dispatch({ changes: after ? { from: after.to, insert: `\n${line}` } : { from: 0, insert: `${line}\n` } });
   view.focus();
 }
@@ -78,15 +77,14 @@ function addBrickImport(view, brick, author) {
 /** Readable identifier from a title: "Règle de Bayes" -> "regle-de-bayes". */
 const slugify = (text) => ui.fold(text).replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 50).replace(/-+$/, "");
 
-/** "notes/r12/fiche-baptiste" -> "Fiche QA-1 de Baptiste"; "corpus/bayes/marie" -> "« Bayes », version de marie". */
+/** "notes/r12/fiche" -> "Fiche QA-1"; "corpus/bayes" -> "Entrée « bayes »". */
 function targetLabel(target) {
-  const note = /^notes\/r(\d+)\/fiche-(.+)$/.exec(target);
+  const note = /^notes\/r(\d+)\/fiche$/.exec(target);
   if (note) {
     const reading = FRM.findReading(note[1]);
-    return `Fiche ${reading ? reading.tag : `R${note[1]}`} de ${note[2].charAt(0).toUpperCase()}${note[2].slice(1)}`;
+    return `Fiche ${reading ? reading.tag : `R${note[1]}`}`;
   }
-  const [, entryId, author] = target.split("/");
-  return `Entrée « ${entryId} », version de ${author}`;
+  return `Entrée « ${target.split("/")[1]} »`;
 }
 
 // ---------------------------------------------------------------- page skeleton
@@ -110,7 +108,7 @@ function typeOptions(selected) {
   return FRM.ENTRY_TYPES.map((t) => `<option value="${t.id}"${t.id === selected ? " selected" : ""}>${esc(t.label)}</option>`).join("");
 }
 
-/** Readings of an entry, read-only: those of the notes using it. */
+/** Readings of an entry, read-only: those of the notes using it and of the questions linked to it. */
 function readingsLine(entry) {
   const uses = entry ? entry.data.usedBy : [];
   const questionReadings = entry ? entry.data.questionReadings || [] : [];
@@ -118,18 +116,18 @@ function readingsLine(entry) {
     return "Readings : aucun pour l'instant. Cite ou insère l'entrée dans une fiche (menu « 📚 Corpus »), ou lie-la à une question (page Questions), pour la rattacher à un reading.";
   }
   const tag = (id) => FRM.findReading(id)?.tag || `R${id}`;
-  const fromNotes = uses.map((use) => `${tag(use.reading)} (fiche de ${use.author.charAt(0).toUpperCase()}${use.author.slice(1)})`);
+  const fromNotes = uses.map((use) => `${tag(use.reading)} (fiche)`);
   const fromQuestions = questionReadings.map((id) => `${tag(id)} (questions)`);
   return `Readings, d'après les fiches et les questions liées : ${[...fromNotes, ...fromQuestions].join(", ")}`;
 }
 
-function layout({ creating, meta, author }) {
+function layout({ creating, meta }) {
   return `
 <div class="editor-head">
-  <div><div class="kicker">Corpus · <span data-kicker>${creating ? "Nouvelle entrée" : esc(FRM.entryType(meta.type).label)}</span> · version de ${esc(store.profile.displayName())}</div><h2 data-heading>${esc(meta.titre || "Nouvelle entrée")}</h2></div>
+  <div><div class="kicker">Corpus · <span data-kicker>${creating ? "Nouvelle entrée" : esc(FRM.entryType(meta.type).label)}</span> · entrée commune · tu écris en tant que ${esc(store.profile.displayName())}</div><h2 data-heading>${esc(meta.titre || "Nouvelle entrée")}</h2></div>
   <div class="editor-actions">
     <span class="save-status" data-save-status></span>
-    <button type="button" class="btn ghost danger" data-delete${creating ? " hidden" : ""} title="Supprime l'entrée et toutes ses versions, et retire ses références des fiches et des autres entrées">Supprimer l'entrée</button>
+    <button type="button" class="btn ghost danger" data-delete${creating ? " hidden" : ""} title="Supprime l'entrée (texte, code, historique) et retire ses références des fiches et des autres entrées">Supprimer l'entrée</button>
     <a class="btn ghost" data-entry-link href="corpus.html"${creating ? " hidden" : ""}>Voir dans le corpus</a>
     <button type="button" class="btn" data-save title="Ctrl+S">${creating ? "Créer l'entrée" : "Enregistrer"}</button>
   </div>
@@ -141,8 +139,7 @@ function layout({ creating, meta, author }) {
     <label class="field" data-field="id">Identifiant <span class="hint">pour citer : #voir("…") · fixé à la création</span><input name="id" maxlength="50" value="${esc(meta.id)}"${creating ? "" : " readonly"}></label>
   </form>
   <p class="small" data-readings></p>
-  <p class="small muted">Titre et type sont communs à toutes les versions de l'entrée. Le texte ci-dessous est ta version, signée ${esc(store.profile.initials())}.</p>
-  <div class="small muted" data-others></div>
+  <p class="small muted"><span data-journal></span> Le texte est commun : ce que tu enregistres remplace celui de tout le monde (git garde les anciens textes).</p>
   <div class="form-error" data-form-error hidden></div>
   <div class="rebuild-report" data-report hidden></div>
 </div>
@@ -170,7 +167,7 @@ ${SECTIONS.map(
     <div class="preview-pages" data-preview></div>
   </div>
 </div>
-<p class="src">Fichier : <code data-file>notes/corpus/${esc(meta.id || "…")}/${author}.typ</code> · Ctrl+S pour enregistrer.</p>`;
+<p class="src">Fichier : <code data-file>notes/corpus/${esc(meta.id || "…")}/texte.typ</code> · Ctrl+S pour enregistrer.</p>`;
 }
 
 // ---------------------------------------------------------------- editor
@@ -180,9 +177,8 @@ async function start() {
   if (location.protocol === "file:") {
     return mountPage(title, notice("L'éditeur a besoin du serveur", "Lance <code>Lancer Prep FRM.bat</code> (double-clic), puis rouvre cette page depuis le navigateur qui s'ouvre."));
   }
-  const author = store.profile.authorSlug();
-  if (!author) {
-    mountPage(title, notice("Qui écrit cette version ?", `Chaque version est signée de tes initiales, tirées de ton profil. <button type="button" class="btn" data-profile>Indiquer mon prénom et mon nom</button>`));
+  if (!store.profile.authorSlug()) {
+    mountPage(title, notice("Qui modifie cette entrée ?", `L'entrée est commune : ton profil sert seulement à noter qui la crée et qui la modifie. <button type="button" class="btn" data-profile>Indiquer mon prénom et mon nom</button>`));
     document.addEventListener("frm:change", () => store.profile.authorSlug() && location.reload(), { once: true });
     return;
   }
@@ -191,12 +187,12 @@ async function start() {
 
   let corpus;
   let entry = null; // the entry resource ({data, links}) once it exists on the server
-  let version = null;
+  let text = null; // the entry's shared text ({data, links})
   try {
     corpus = await api.listCorpus();
     if (params.has("id")) {
       entry = await api.getEntry(params.get("id"));
-      version = await api.getVersion(entry.data.id, author);
+      text = await api.getText(entry.data.id);
     }
   } catch (error) {
     if (error instanceof api.ApiProblem && error.title === "ENTRY_NOT_FOUND") return ui.mountNotFound(`L'entrée « ${params.get("id")} » du corpus`);
@@ -207,7 +203,7 @@ async function start() {
   const initialMeta = entry
     ? { id: entry.data.id, type: entry.data.type, titre: entry.data.titre }
     : { id: "", type: prefillType, titre: "" };
-  mountPage(entry ? entry.data.titre : title, layout({ creating: !entry, meta: initialMeta, author }));
+  mountPage(entry ? entry.data.titre : title, layout({ creating: !entry, meta: initialMeta }));
   document.body.classList.add("wide");
 
   const $ = (selector) => document.querySelector(selector);
@@ -215,9 +211,9 @@ async function start() {
 
   // What the server has: to know what to send on save, and to warn before leaving.
   let savedMeta = entry ? JSON.stringify(metaOf()) : null;
-  let savedSource = version && version.data.exists ? version.data.source : null;
-  let savedCode = version ? version.data.code : null;
-  const savedSections = Object.fromEntries(SECTIONS.map((section) => [section.id, (version && version.data[section.id]) || ""]));
+  let savedSource = text && text.data.exists ? text.data.source : null;
+  let savedCode = text ? text.data.code : null;
+  const savedSections = Object.fromEntries(SECTIONS.map((section) => [section.id, (text && text.data[section.id]) || ""]));
 
   // ---------------------------------------------------------- metadata form
 
@@ -239,8 +235,8 @@ async function start() {
     $("[data-code-title]").textContent = form.type.value === "brique"
       ? `Code de la brique · une simulation l'importe avec : from briques.${moduleName(form.id.value || "identifiant")} import …`
       : "Code Python de la simulation";
-    const extraFiles = hasCode() ? " + .py" : hasSections() ? ` + ${SECTIONS.map((section) => `.${section.id}.typ`).join(" + ")}` : "";
-    $("[data-file]").textContent = `notes/corpus/${form.id.value || "…"}/${author}.typ${extraFiles}`;
+    const extraFiles = hasCode() ? " + code.py" : hasSections() ? ` + ${SECTIONS.map((section) => `${section.id}.typ`).join(" + ")}` : "";
+    $("[data-file]").textContent = `notes/corpus/${form.id.value || "…"}/texte.typ${extraFiles}`;
   }
 
   // While creating, the identifier follows the title until it is edited by hand.
@@ -263,36 +259,11 @@ async function start() {
     }
   });
 
-  function showOthers() {
-    const others = entry ? entry.data.versions.filter((v) => v.author !== author) : [];
-    const other = (v) =>
-      `<span class="initials" title="${esc(v.name)}">${esc(v.initials)}</span> ${esc(v.name)} (<button type="button" class="link-btn" data-copy-from="${esc(v.author)}" title="Reprendre son texte dans ton éditeur, pour en faire ta version">partir de sa version</button>)`;
-    $("[data-others]").innerHTML = others.length
-      ? `Autres versions : ${others.map(other).join(" · ")} · <a href="${ui.entryHref(entry.data)}">les voir</a>`
-      : "";
-  }
-
-  /** Puts another author's version (text, sections, code) in this editor: a starting point for
-   *  one's own version. Theirs never changes; nothing is written until "Enregistrer". */
-  async function copyFrom(otherAuthor) {
-    const other = entry && entry.data.versions.find((v) => v.author === otherAuthor);
-    if (!other) return;
-    const replacing = savedSource !== null || isDirty();
-    if (replacing && !confirm(`Remplacer le texte de ton éditeur par la version de ${other.name} ?\nTa version enregistrée ne change qu'au moment où tu enregistres.`)) return;
-    let copied;
-    try {
-      copied = (await api.getVersion(entry.data.id, otherAuthor)).data;
-    } catch (error) {
-      return formError(esc(error.message));
-    }
-    const fill = (field, text) => field.dispatch({ changes: { from: 0, to: field.state.doc.length, insert: text } });
-    fill(view, copied.source ?? NEW_VERSION);
-    for (const section of SECTIONS) fill(sectionViews[section.id], copied[section.id] || "");
-    if (hasCode() && copied.code !== null) fill(codeView, copied.code);
-    markDirty();
-    schedulePreview();
-    status(`Texte repris de la version de ${other.name} : modifie-le, puis enregistre pour en faire ta version`, "warn");
-    view.focus();
+  /** Who created and changed the entry, from its journal. */
+  function showJournal() {
+    const line = entry ? ui.journalLine(entry.data.journal) : "";
+    $("[data-journal]").textContent = "";
+    $("[data-journal]").insertAdjacentHTML("beforeend", line ? `${line}.` : "");
   }
 
   // ---------------------------------------------------------- errors and reports
@@ -337,7 +308,7 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
       case "CORPUS_IMPORT_FORBIDDEN":
         return showCompileError({ explanation: "Import interdit dans une entrée", detail: reason }, "Une entrée cite les autres avec #voir, jamais en les insérant : ça évite les boucles.");
       case "INVALID_REQUEST_PAYLOAD":
-        if (problem.field === "name" || problem.field === "initials") return formError(`Profil incomplet pour signer ta version (${esc(reason)}). <button type="button" class="link-btn" data-profile>Modifier le profil</button>`);
+        if (["author", "name", "initials"].includes(problem.field)) return formError(`Profil incomplet pour noter qui modifie l'entrée (${esc(reason)}). <button type="button" class="link-btn" data-profile>Modifier le profil</button>`);
         return formError(`${esc(reason)}`, problem.field);
       default:
         return formError(esc(problem.detail || error.message));
@@ -376,7 +347,6 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
       const result = await api.previewEntry(corpus.links.preview, {
         type: meta.type,
         titre: meta.titre || "Sans titre",
-        initials: store.profile.initials(),
         source: view.state.doc.toString(),
         ...sectionTexts(),
       });
@@ -400,8 +370,8 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     el.dataset.kind = kind;
   };
 
-  // Without a version yet, the starting text counts as "nothing written": no empty version is created.
-  const sourceChanged = () => view.state.doc.toString() !== (savedSource ?? NEW_VERSION);
+  // Without a text yet, the starting text counts as "nothing written": no empty text is created.
+  const sourceChanged = () => view.state.doc.toString() !== (savedSource ?? NEW_TEXT);
   const codeChanged = () => hasCode() && codeView.state.doc.toString() !== (savedCode ?? codeTemplate(form.type.value));
   const sectionsChanged = () => hasSections() && SECTIONS.some((section) => sectionViews[section.id].state.doc.toString() !== savedSections[section.id]);
   const metaChanged = () => JSON.stringify(metaOf()) !== savedMeta;
@@ -426,12 +396,12 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     const link = $("[data-entry-link]");
     link.href = ui.entryHref(entry.data);
     link.hidden = false;
-    showOthers();
+    showJournal();
     refreshMetaDisplay();
   }
 
-  /** Recompiled notes and other entries; the entry's own versions re-rendered do not count. */
-  const dependentsIn = (rebuild) => rebuild.rebuilt.filter((target) => !target.startsWith(`corpus/${entry.data.id}/`)).length;
+  /** Recompiled notes and other entries; the entry itself re-rendered does not count. */
+  const dependentsIn = (rebuild) => rebuild.rebuilt.filter((target) => target !== `corpus/${entry.data.id}`).length;
 
   const savedAt = () => new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
@@ -460,9 +430,8 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
           if (code !== undefined) savedCode = code;
           Object.assign(savedSections, sections);
         };
-        const href = api.versionUrl(entry.data.id, author);
         try {
-          const saved = await api.saveVersion({ method: "PUT", href }, { source, name: store.profile.displayName(), initials: store.profile.initials(), code, ...sections });
+          const saved = await api.saveText({ method: "PUT", href: api.textUrl(entry.data.id) }, { source, code, ...sections });
           written();
           adopt(saved);
           showReport(saved.data.rebuild);
@@ -480,14 +449,14 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     } catch (error) {
       saving = false;
       if (error instanceof api.ApiProblem && error.title === "TYPST_COMPILE_ERROR" && error.problem.saved) {
-        status(`✓ Texte enregistré à ${savedAt()} · ne compile pas : ta version est absente des fiches jusqu'à correction`, "warn");
-        showCompileError(error.problem, "Corrige puis enregistre : ta version reviendra dans les fiches.");
+        status(`✓ Texte enregistré à ${savedAt()} · ne compile pas : les fiches gardent le dernier texte qui compilait`, "warn");
+        showCompileError(error.problem, "Corrige puis enregistre : les fiches reprendront ce texte.");
         showReport(error.problem.rebuild);
         api.getEntry(entry.data.id).then(adopt, () => {});
         return;
       }
       if (error instanceof api.ApiProblem && error.title === "TYPST_COMPILE_ERROR") {
-        // Not saved: only the version's source can fail to compile before being written.
+        // Not saved: only the entry's text can fail to compile before being written.
         showCompileError(error.problem);
       } else {
         explainFailure(error);
@@ -519,7 +488,7 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
       state: EditorState.create({ doc, extensions: baseExtensions({ keys: [saveKey, ...formattingKeys], onUpdate: onFieldUpdate }) }),
     });
 
-  const view = typstField($("[data-editor]"), savedSource ?? NEW_VERSION);
+  const view = typstField($("[data-editor]"), savedSource ?? NEW_TEXT);
   active = view;
   const sectionViews = Object.fromEntries(SECTIONS.map((section) => [section.id, typstField($(`[data-section="${section.id}"]`), savedSections[section.id])]));
   for (const field of [view, ...Object.values(sectionViews)]) {
@@ -553,17 +522,17 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
   for (const field of [view, ...Object.values(sectionViews)]) attachImageInput(field, images.open);
   toggleMath = renderToolbar({ textRow: $("[data-text-tools]"), mathRow: $("[data-math-tools]") }, () => active, { tools: ENTRY_TOOLS, extras: [picker, images.element], mathExtras: [customMathTools(() => active)] });
 
-  // Python pane: import a brick, run the code being written (with this author's bricks).
+  // Python pane: import a brick, run the code being written.
   const brickPicker = corpusPicker(codeView, {
     load: async () => (await api.listCorpus()).data.entries.filter((e) => e.type === "brique"),
-    actions: [{ label: "Importer", title: "Ajoute la ligne from briques.… import … en tête du code", run: (v, brick) => addBrickImport(v, brick, author) }],
+    actions: [{ label: "Importer", title: "Ajoute la ligne from briques.… import … en tête du code", run: (v, brick) => addBrickImport(v, brick) }],
     exclude: () => (entry ? entry.data.id : null),
     label: "🧱 Briques",
     title: "Importer une brique de code du corpus",
   });
   $("[data-code-tools]").replaceChildren(brickPicker);
   $("[data-run]").replaceChildren(
-    FRM.runner.panel({ code: () => codeView.state.doc.toString(), author, readings: () => (entry ? entry.data.readings : []) })
+    FRM.runner.panel({ code: () => codeView.state.doc.toString(), readings: () => (entry ? entry.data.readings : []) })
   );
 
   // ---------------------------------------------------------- delete
@@ -572,10 +541,10 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
 
   /** Confirmation text: what goes, and where references are removed (the server does it). */
   function deletionSummary() {
-    const { titre, versions, usedBy, citedBy } = entry.data;
-    const lines = [`Supprimer « ${titre} » et ${versions.length > 1 ? `ses ${versions.length} versions` : "sa version"} ? C'est définitif (sauf retour par git).`];
+    const { titre, usedBy, citedBy } = entry.data;
+    const lines = [`Supprimer « ${titre} » pour tout le monde (texte, code, historique) ? C'est définitif (sauf retour par git).`];
     const places = [
-      ...usedBy.map((use) => targetLabel(`notes/r${use.reading}/fiche-${use.author}`)),
+      ...usedBy.map((use) => targetLabel(`notes/r${use.reading}/fiche`)),
       ...citedBy.map((id) => `Entrée « ${corpus.data.entries.find((e) => e.id === id)?.titre || id} »`),
     ];
     if (places.length) {
@@ -615,18 +584,11 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     event.returnValue = ""; // the browser asks before leaving: nothing is saved behind your back here
   });
 
-  $("[data-others]").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-copy-from]");
-    if (button) copyFrom(button.dataset.copyFrom);
-  });
-
   refreshMetaDisplay();
-  showOthers();
-  status(entry ? (savedSource === null ? "Pas encore de version de toi : écris-la puis enregistre" : "✓ À jour") : "Nouvelle entrée : titre, type, puis ta version", entry && savedSource !== null ? "ok" : "");
+  showJournal();
+  status(entry ? (savedSource === null ? "Pas encore de texte : écris-le puis enregistre" : "✓ À jour") : "Nouvelle entrée : titre, type, puis son texte", entry && savedSource !== null ? "ok" : "");
   refreshPreview();
   (entry ? view : form.titre).focus();
-  // ?depuis=<author>: opened from the corpus page's "Partir de cette version".
-  if (entry && params.get("depuis") && params.get("depuis") !== author) copyFrom(params.get("depuis"));
 }
 
 start();

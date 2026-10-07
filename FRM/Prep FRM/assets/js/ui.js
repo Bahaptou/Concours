@@ -348,6 +348,33 @@
     });
   }
 
+  // ------------------------------------------------------------------ journals of the shared notes and entries
+
+  const day = (ms) => new Date(ms).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+
+  /** "Créée par Baptiste Durand le 7 oct. 2026 · modifiée par Marie Martin (3 séances, la dernière
+   *  le 9 oct. 2026)": who created and changed a shared note or entry (both feminine), from its
+   *  journal. The creation session does not count as a change. "" without a journal. */
+  function journalLine(journal) {
+    const { creator, contributors } = FRM.journalSummary(journal);
+    if (!creator) return "";
+    const changes = contributors
+      .map((c) => ({ ...c, sessions: c.sessions - (c.creator ? 1 : 0) }))
+      .filter((c) => c.sessions > 0)
+      .map((c) => `${esc(c.name)} (${c.sessions > 1 ? `${c.sessions} séances, la dernière` : "1 séance,"} le ${day(c.last)})`);
+    return `Créée par ${esc(creator.name)} le ${day(creator.at)}${changes.length ? ` · modifiée par ${changes.join(", ")}` : ""}`;
+  }
+
+  /** Initials of everyone who created or changed it, the creator first; the title says who did what. */
+  function contributorBadges(journal) {
+    return FRM.journalSummary(journal)
+      .contributors.map((c) => {
+        const what = c.creator ? `créée par ${c.name}${c.sessions > 1 ? `, puis ${c.sessions - 1} séance${c.sessions > 2 ? "s" : ""}` : ""}` : `${c.name} : ${plural(c.sessions, "séance")}`;
+        return `<span class="initials${c.creator ? " is-creator" : ""}" title="${esc(what)}">${esc(c.initials)}</span>`;
+      })
+      .join("");
+  }
+
   // ------------------------------------------------------------------ comportements globaux
 
   document.addEventListener("change", (event) => {
@@ -419,5 +446,7 @@
     watchLinkedControl,
     choiceToggles,
     watchChoiceToggles,
+    journalLine,
+    contributorBadges,
   };
 })(window.FRM);

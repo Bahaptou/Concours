@@ -1,12 +1,5 @@
 {
   "type": "formule",
   "titre": "Expected Loss",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791327687895,
-      "valide": true
-    }
-  }
+  "valide": true
 }

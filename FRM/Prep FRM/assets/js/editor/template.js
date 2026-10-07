@@ -5,7 +5,7 @@ const typstString = (text) => `"${String(text).replace(/\\/g, "\\\\").replace(/"
 
 export const SECTIONS = ["Intuition", "Formules", "Exemple chiffré", "Pièges", "Lien avec les learning objectives"];
 
-export function noteTemplate(reading, authorName) {
+export function noteTemplate(reading) {
   const objectives = reading.objectives.items.map((item, index) => `// LO ${index + 1} : ${item.text}`);
   const sections = SECTIONS.map((title) => `= ${title}\n`);
   sections[sections.length - 1] += objectives.join("\n") + "\n";
@@ -15,7 +15,6 @@ export function noteTemplate(reading, authorName) {
     "#show: fiche.with(",
     `  reading: ${typstString(reading.tag)},`,
     `  titre: ${typstString(reading.title)},`,
-    `  auteur: ${typstString(authorName)},`,
     ")",
     "",
     sections.join("\n"),

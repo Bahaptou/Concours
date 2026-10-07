@@ -12,14 +12,16 @@
   /** How much an entry is used: entries citing it plus notes citing or inserting it (list sort). */
   const usesOf = (entry) => (entry.citedBy || []).length + (entry.usedBy || []).length;
 
-  /** {author slug: { initials, name, valid, invalid }} over the versions of the entries. */
+  /** {author slug: { initials, name, entries, created }}: everyone in the entries' journals, with
+   *  the number of entries they contributed to (created or changed) and created. */
   function authorsOf(entries) {
     const authors = new Map();
     for (const entry of entries) {
-      for (const v of entry.versions) {
-        const a = authors.get(v.author) || { initials: v.initials, name: v.name, valid: 0, invalid: 0 };
-        a[v.valid ? "valid" : "invalid"] += 1;
-        authors.set(v.author, a);
+      for (const c of FRM.journalSummary(entry.journal).contributors) {
+        const a = authors.get(c.author) || { initials: c.initials, name: c.name, entries: 0, created: 0 };
+        a.entries += 1;
+        a.created += c.creator ? 1 : 0;
+        authors.set(c.author, a);
       }
     }
     return authors;
@@ -28,14 +30,14 @@
   // ------------------------------------------------------------------ tiles
 
   function tiles(entries) {
-    const versions = entries.reduce((sum, e) => sum + e.versions.length, 0);
+    const contributors = authorsOf(entries).size;
     const links = entries.reduce((sum, e) => sum + e.cites.length + (e.usedBy || []).length, 0);
     const readings = new Set(entries.flatMap((e) => e.readings));
     const questions = new Set(entries.flatMap((e) => (e.questions || []).map((q) => q.id)));
     const tile = (value, label, sub) =>
       `<div class="stat"><div class="num">${ui.number(value)}</div><div class="lbl">${label}</div><div class="sub">${sub}</div></div>`;
     return `<div class="stat-row">
-  ${tile(entries.length, "Entrées", `${ui.plural(versions, "version")}`)}
+  ${tile(entries.length, "Entrées", `écrites par ${ui.plural(contributors, "contributeur")}`)}
   ${tile(links, "Liens", "citations entre entrées et usages en fiche")}
   ${tile(questions.size, "Questions liées", "questions AnalystPrep reliées")}
   ${tile(readings.size, "Readings", `sur ${FRM.readings.length}, via les fiches et les questions`)}
@@ -107,8 +109,8 @@
     return `<ul class="watch-list">
   ${item(isolated.length, "Isolées : liées à aucune autre entrée (ni citation ni import)", `${names(isolated)}${isolatedNoReading.length ? `<div class="muted">dont ${isolatedNoReading.length} sans reading non plus : ${names(isolatedNoReading, 6)}</div>` : ""}`)}
   ${item(floatingCount, `Non rattachées : ${floating.length > 1 ? `${floating.length} groupes` : "un groupe"} d'entrées liées entre elles dont aucune n'appartient à un reading (ni fiche ni question liée)`, `<ul class="watch-groups">${groupLines}</ul>${moreGroups}<div class="muted">Citer une seule entrée d'un groupe dans une fiche, ou la lier à une question, rattache tout le groupe.</div>`)}
-  ${item(entries.filter((e) => e.versions.some((v) => !v.valid)).length, "Une version ne compile pas : absente des fiches", names(entries.filter((e) => e.versions.some((v) => !v.valid))))}
-  ${item(entries.filter((e) => !e.versions.length).length, "Aucune version écrite", names(entries.filter((e) => !e.versions.length)))}
+  ${item(entries.filter((e) => e.hasText && !e.valid).length, "Ne compile pas : les fiches gardent le dernier texte qui compilait", names(entries.filter((e) => e.hasText && !e.valid)))}
+  ${item(entries.filter((e) => !e.hasText).length, "Pas encore de texte", names(entries.filter((e) => !e.hasText)))}
 </ul>`;
   }
 
@@ -336,10 +338,10 @@ ${bars(
     { key: "titre", label: "Entrée", value: (e) => e.titre, cell: (e) => `<a href="${ui.entryHref(e)}" data-entry-preview="${esc(e.id)}">${esc(e.titre)}</a>` },
     { key: "type", label: "Type", value: (e) => FRM.ENTRY_TYPES.findIndex((t) => t.id === e.type), cell: (e) => ui.typeTag(e.type), nowrap: true },
     {
-      key: "versions",
-      label: "Versions",
-      value: (e) => e.versions.length,
-      cell: (e) => e.versions.map((v) => `<span class="initials${v.valid ? "" : " is-invalid"}" title="${esc(v.name)}">${esc(v.initials)}</span>`).join("") || "—",
+      key: "contributors",
+      label: "Contributeurs",
+      value: (e) => FRM.contributorsOf(e.journal).length,
+      cell: (e) => ui.contributorBadges(e.journal) || "—",
     },
     {
       key: "readings",
@@ -395,7 +397,7 @@ ${bars(
     const key = button.dataset.sortCol;
     const column = COLUMNS.find((c) => c.key === key);
     // Same column: reverse. New column: numbers from the largest, text from A.
-    sort.dir = sort.key === key ? -sort.dir : column.num || key === "versions" || key === "readings" ? -1 : 1;
+    sort.dir = sort.key === key ? -sort.dir : column.num || key === "contributors" || key === "readings" ? -1 : 1;
     sort.key = key;
     const table = button.closest("[data-corpus-table]");
     table.querySelector("thead tr").innerHTML = tableHead();

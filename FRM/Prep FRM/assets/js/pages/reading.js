@@ -165,7 +165,7 @@ ${objectives()}
 <div class="card"><h2>Things to Remember · AnalystPrep</h2><div id="remember"><div class="placeholder">Chargement…</div></div></div>
 <div class="card"><h2>Questions AnalystPrep</h2><div id="questions"><div class="placeholder">Chargement des questions…</div></div></div>
 <div class="card"><h2>Simulation Python</h2><div id="simulations"><div class="placeholder">Chargement…</div></div></div>
-<div class="card" id="notes-card"><h2>Nos fiches</h2><div id="notes"><div class="placeholder">Chargement…</div></div></div>
+<div class="card" id="notes-card"><h2>Notre fiche</h2><div id="notes"><div class="placeholder">Chargement…</div></div></div>
 <div class="card" id="corpus-card"><h2>Corpus de ce reading</h2><div id="corpus"><div class="placeholder">Chargement…</div></div></div>
 ${pager()}`,
   });
@@ -177,48 +177,31 @@ ${pager()}`,
   // ------------------------------------------------------------------ our notes (Typst, step 4)
 
   const withServer = location.protocol.startsWith("http");
-  // ?auteur=x opens on that author's note (links from the notes portal and the corpus).
-  let shownAuthor = new URLSearchParams(location.search).get("auteur");
 
-  function editButton() {
-    if (withServer) return `<a class="btn" href="editeur.html?reading=${reading.id}">✎ Éditer ma fiche</a>`;
-    return `<span class="small muted">Pour écrire ou modifier une fiche, lance <code>Lancer Prep FRM.bat</code>.</span>`;
+  function editButton(exists) {
+    if (withServer) return `<a class="btn" href="editeur.html?reading=${reading.id}">✎ ${exists ? "Modifier la fiche" : "Écrire la fiche"}</a>`;
+    return `<span class="small muted">Pour écrire ou modifier la fiche, lance <code>Lancer Prep FRM.bat</code>.</span>`;
   }
 
-  /** Compiled notes listed in notes/index.js, one tab per author (the current profile first). */
+  /** The reading's shared note (notes/index.js), with who created and changed it. */
   function renderNotes() {
-    const notes = FRM.notesOf(reading.id);
-    const me = FRM.store.profile.authorSlug();
-    const authors = Object.keys(notes).sort((a, b) => (b === me) - (a === me) || a.localeCompare(b));
+    const note = FRM.noteOf(reading.id);
     const container = document.getElementById("notes");
-    if (!authors.length) {
-      container.innerHTML = `<div class="placeholder">Aucune fiche pour ce reading.</div><div class="save-actions">${editButton()}</div>`;
+    if (!note) {
+      container.innerHTML = `<div class="placeholder">Pas encore de fiche pour ce reading : elle est commune, la première personne qui l'écrit la crée.</div><div class="save-actions">${editButton(false)}</div>`;
       return;
     }
-    if (!authors.includes(shownAuthor)) shownAuthor = authors[0];
-    const note = notes[shownAuthor];
-    const base = `notes/r${reading.id}/fiche-${shownAuthor}`;
+    const base = `notes/r${reading.id}/fiche`;
     const version = `?v=${note.updatedAt}`; // the browser must not show a cached older rendering
-    const tabs = authors
-      .map((a) => `<button type="button" class="toggle" data-note-author="${esc(a)}" aria-pressed="${a === shownAuthor}">${esc(a.charAt(0).toUpperCase() + a.slice(1))}${a === me ? " (moi)" : ""}</button>`)
-      .join("");
     const pages = Array.from({ length: note.pages }, (_, i) => `<img class="note-page" src="${base}-${i + 1}.svg${version}" alt="Fiche ${esc(reading.tag)}, page ${i + 1}">`);
     container.innerHTML = `
-<div class="filter-group">${tabs}</div>
-<div class="note-pages">${pages.join("")}</div>
+${pages.length ? `<div class="note-pages">${pages.join("")}</div>` : `<div class="placeholder">La fiche ne compile pas encore : ouvre-la dans l'éditeur pour voir l'erreur.</div>`}
 <div class="save-actions">
-  <a class="btn ghost" href="${base}.pdf${version}" target="_blank" rel="noopener">PDF</a>
-  ${editButton()}
-  <span class="small muted">Mise à jour : ${ui.dateTime(note.updatedAt)}</span>
+  ${note.pdf ? `<a class="btn ghost" href="${base}.pdf${version}" target="_blank" rel="noopener">PDF</a>` : ""}
+  ${editButton(true)}
+  <span class="small muted">${ui.journalLine(note.journal) || `Mise à jour : ${ui.dateTime(note.updatedAt)}`}</span>
 </div>`;
   }
-
-  document.addEventListener("click", (event) => {
-    const tab = event.target.closest("[data-note-author]");
-    if (!tab) return;
-    shownAuthor = tab.dataset.noteAuthor;
-    renderNotes();
-  });
 
   ui.loadScript("notes/index.js")
     .catch(() => {
@@ -240,7 +223,7 @@ ${pager()}`,
   function renderCorpus() {
     const entries = FRM.corpusOf(reading.id);
     const actions = withServer
-      ? `<a class="btn" href="editeur.html?reading=${reading.id}">✎ Citer une entrée dans ma fiche</a>`
+      ? `<a class="btn" href="editeur.html?reading=${reading.id}">✎ Citer une entrée dans la fiche</a>`
       : `<span class="small muted">Pour écrire une entrée, lance <code>Lancer Prep FRM.bat</code>.</span>`;
     const toggle = (mode, label) => `<button type="button" class="toggle" data-corpus-mode="${mode}" aria-pressed="${corpusView.mode === mode}">${label}</button>`;
     const tools = entries.length
@@ -271,7 +254,7 @@ ${tools}
     });
     const body = document.querySelector("[data-corpus-body]");
     if (!all.length) {
-      body.innerHTML = `<div class="placeholder">Aucune entrée du corpus n'est citée ou insérée dans une fiche de ce reading, ni liée à une de ses questions.</div>`;
+      body.innerHTML = `<div class="placeholder">Aucune entrée du corpus n'est citée ou insérée dans la fiche de ce reading, ni liée à une de ses questions.</div>`;
       return;
     }
     if (!entries.length) {
@@ -288,7 +271,7 @@ ${tools}
   ${ui.typeTag(entry.type)}
   <span class="etitle">${esc(entry.titre)} <span class="entry-id">${esc(entry.id)}</span>${via ? `<span class="elinked">${esc(FRM.linkedLabel(via, FRM.corpusEntries()))}</span>` : ""}</span>
   ${originBadges(entry)}
-  <span class="eauthors">${entry.versions.map((v) => `<span class="initials" title="${esc(v.name)}">${esc(v.initials)}</span>`).join("")}</span>
+  <span class="eauthors">${ui.contributorBadges(entry.journal)}</span>
 </a>`;
     body.innerHTML = `<div class="entry-list">${entries.map((entry) => row(entry)).join("")}${linked.map((l) => row(l.entry, l.via)).join("")}</div>`;
   }
@@ -297,7 +280,7 @@ ${tools}
   function originBadges(entry) {
     const { note, question } = FRM.attachmentOf(entry, reading.id);
     const badge = (on, label, title) => (on ? `<span class="origin-badge" title="${title}">${label}</span>` : "");
-    return `<span class="origin-badges">${badge(note, "fiche", "Citée ou insérée dans une fiche de ce reading")}${badge(question, "questions", "Liée à des questions de ce reading")}</span>`;
+    return `<span class="origin-badges">${badge(note, "fiche", "Citée ou insérée dans la fiche de ce reading")}${badge(question, "questions", "Liée à des questions de ce reading")}</span>`;
   }
 
   document.addEventListener("input", (event) => {
@@ -327,18 +310,14 @@ ${tools}
 
   function renderSimulations() {
     const simulations = FRM.corpusOf(reading.id)
-      .filter((entry) => entry.type === "simulation")
-      .flatMap((entry) =>
-        entry.versions
-          .filter((v) => v.code)
-          .map(
-            (v) => `
-<h3><a href="${ui.entryHref(entry)}">${esc(entry.titre)}</a> <span class="initials" title="${esc(v.name)}">${esc(v.initials)}</span></h3>
-${ui.codeBlock(v.code)}
-${FRM.runner.slot(entry, v)}`
-          )
+      .filter((entry) => entry.type === "simulation" && entry.code)
+      .map(
+        (entry) => `
+<h3><a href="${ui.entryHref(entry)}">${esc(entry.titre)}</a> ${ui.contributorBadges(entry.journal)}</h3>
+${ui.codeBlock(entry.code)}
+${FRM.runner.slot(entry)}`
       );
-    const create = withServer ? ` <a href="${newEntryHref("simulation")}">Crée une simulation</a> dans le corpus, puis cite-la ou insère-la dans ta fiche de ce reading.` : "";
+    const create = withServer ? ` <a href="${newEntryHref("simulation")}">Crée une simulation</a> dans le corpus, puis cite-la ou insère-la dans la fiche de ce reading.` : "";
     const container = document.getElementById("simulations");
     container.innerHTML = simulations.length
       ? simulations.join("")

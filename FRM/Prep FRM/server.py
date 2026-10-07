@@ -7,18 +7,19 @@ API, under ``/api`` (responses ``{"data", "links"}``, errors as RFC 9457 problem
     GET  /api                            root, links to the other resources
     GET  /api/health                     server status
     POST /api/compile                    {"source"}: live preview, SVG pages, nothing written
-    GET  /api/notes/<reading>/<author>   a note's source and compiled files
-    PUT  /api/notes/<reading>/<author>   {"source"}: saves, then writes SVG pages and PDF if it compiles
+    GET  /api/notes/<reading>            the reading's shared note: source, compiled files, journal
+    PUT  /api/notes/<reading>            {"source", who}: saves, then writes SVG pages and PDF if it compiles
     GET  /api/corpus                     corpus entries (formulas, definitions, properties, theorems, simulations)
-    POST /api/corpus                     {"id", "type", "titre"}: creates an entry
-    GET  /api/corpus/<id>                an entry, its versions, who cites it
-    PUT  /api/corpus/<id>                {"type", "titre"}: updates it, recompiles dependents
-    DELETE /api/corpus/<id>              deletes it and removes its references from notes and entries
+    POST /api/corpus                     {"id", "type", "titre", who}: creates an entry
+    GET  /api/corpus/<id>                an entry, its journal, who cites it
+    PUT  /api/corpus/<id>                {"type", "titre", who}: updates it, recompiles dependents
+    DELETE /api/corpus/<id>              {who}: deletes it and removes its references from notes and entries
     PUT|DELETE /api/corpus/<id>/questions/<q>  {"reading"} / {}: links or unlinks an AnalystPrep question
-    GET  /api/corpus/<id>/<author>       a version's source (and Python code, assumptions, limits)
-    PUT  /api/corpus/<id>/<author>       {"source", "name", "initials", "code"?, "hypotheses"?, "limites"?}: saves a version
-    POST /api/compile/entry              {"type", "titre", "initials", "source", "hypotheses"?, "limites"?}: preview of a version
-    POST /api/run                        {"code", "author", "timeout"}: runs simulation or brick code
+    GET  /api/corpus/<id>/texte          the entry's shared text (and Python code, assumptions, limits)
+    PUT  /api/corpus/<id>/texte          {"source", "code"?, "hypotheses"?, "limites"?, who}: saves it
+    POST /api/compile/entry              {"type", "titre", "source", "hypotheses"?, "limites"?}: preview of an entry
+    POST /api/run                        {"code", "timeout"}: runs simulation or brick code
+"who" is the profile of the person writing, for the journal: "author" (slug), "name", "initials".
     GET  /api/images                     shared images (notes/images/)
     POST /api/images                     {"name", "format", "data" (base64)}: adds an image, never replaces one
     GET|POST /api/math-tools             math buttons added from the editors ({"label", "typst", "select"?})

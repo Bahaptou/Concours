@@ -1,18 +1,11 @@
 {
   "type": "definition",
   "titre": "Bankruptcy risk",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791308916835,
-      "valide": true
-    }
-  },
   "questions": [
     {
       "id": "5298",
       "reading": 1
     }
-  ]
+  ],
+  "valide": true
 }

@@ -812,12 +812,6 @@ select.search{min-width:0;}
 .entry-meta{display:flex; flex-wrap:wrap; align-items:center; gap:8px;}
 .snippets{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; font-size:12.5px; color:var(--muted);}
 .snippets code{font-size:12px; padding:2px 6px; border-radius:5px; background:var(--surface-2); color:var(--ink);}
-.version{padding:14px 0; border-bottom:1px solid var(--line);}
-.version:last-child{border-bottom:none; padding-bottom:0;}
-.version-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px;}
-.version-head .who{font-weight:600;}
-.version-head .small-btn{margin-left:auto; padding:4px 10px; font-size:12px;}
-.version .note-pages{margin:10px 0 0 0;}
 .links-grid{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px;}
 @media (max-width:760px){.links-grid{grid-template-columns:1fr;}}
 .links-grid h3{font-size:14px; margin-bottom:6px;}
@@ -955,3 +949,5 @@ table.sortable td .initials{margin-right:3px;}
 .run-keep code{font-size:11.5px;}
 .run-keep-name{font:inherit; font-size:13px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); min-width:240px;}
 .code-pane .toolbar{margin-bottom:6px;}
+/* Shared notes and entries: the creator's initials come first, with a darker border. */
+.initials.is-creator{border-color:var(--ink-soft);}

@@ -13,6 +13,7 @@ import pytest
 from PIL import Image as PilImage
 
 from backend.corpus import EntryMeta
+from backend.journal import Contributor
 from backend.errors import ImageExistsError, InvalidRequestError
 from backend.images import MAX_IMAGE_BYTES
 
@@ -121,9 +122,10 @@ def test_une_fiche_affiche_l_image_et_son_svg_la_contient(services):
 def test_une_entree_inseree_dans_une_fiche_affiche_son_image(services):
     # Le chemin part de la racine : il marche depuis corpus/<id>/ comme depuis la fiche.
     services.images.save("courbe", "png", png())
-    services.corpus.create("taux", EntryMeta("definition", "Courbe des taux"))
-    services.corpus.save_version("taux", "baptiste", "Baptiste Durand", "BD", '#image("/images/courbe.png", width: 50%)', None)
-    assert services.corpus.get("taux").versions[0].valid is True
+    baptiste = Contributor("baptiste", "Baptiste Durand", "BD")
+    services.corpus.create("taux", EntryMeta("definition", "Courbe des taux"), baptiste)
+    services.corpus.save_text("taux", baptiste, '#image("/images/courbe.png", width: 50%)', None)
+    assert services.corpus.get("taux").valid is True
     pages = services.compiler.svg_pages(FICHE + '#entree("taux")')
     assert "data:image/png;base64," in pages[0]
 

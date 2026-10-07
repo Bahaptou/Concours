@@ -17,8 +17,9 @@ from backend.http.context import (
     NoteContext,
     RunContext,
     SavedNoteContext,
-    VersionContext,
+    TextContext,
 )
+from backend.journal import as_dicts
 from backend.notes import NoteTarget
 
 API_ROOT = "/api"
@@ -27,7 +28,7 @@ COMPILE = "/api/compile"
 
 
 def note_href(target: NoteTarget) -> str:
-    return f"/api/notes/{target.reading}/{target.author}"
+    return f"/api/notes/{target.reading}"
 
 
 @dataclass(frozen=True)
@@ -73,11 +74,11 @@ class NotePresenter:
             links.append(Link("pdf", ctx.pdf, "Fiche en PDF"))
         data = {
             "reading": ctx.target.reading,
-            "author": ctx.target.author,
             "exists": ctx.source is not None,
             "source": ctx.source,
             "pages": ctx.pages,
             "pdf": ctx.pdf,
+            "journal": as_dicts(ctx.journal),
         }
         return envelope(data, *links)
 
@@ -92,10 +93,10 @@ class SavedNotePresenter:
         href = note_href(ctx.target)
         data = {
             "reading": ctx.target.reading,
-            "author": ctx.target.author,
             "pages": ctx.pages,
             "pdf": ctx.pdf,
             "savedAt": ctx.saved_at,
+            "journal": as_dicts(ctx.journal),
         }
         return envelope(data, Link("self", href, "Fiche"), Link("pdf", ctx.pdf, "Fiche en PDF"))
 
@@ -110,8 +111,8 @@ def entry_href(entry_id: str) -> str:
     return f"{CORPUS}/{entry_id}"
 
 
-def version_href(entry_id: str, author: str) -> str:
-    return f"{CORPUS}/{entry_id}/{author}"
+def text_href(entry_id: str) -> str:
+    return f"{CORPUS}/{entry_id}/texte"
 
 
 class CorpusPresenter:
@@ -120,7 +121,7 @@ class CorpusPresenter:
             {"entries": [entry_to_dict(e, notes_root) for e in ctx.entries]},
             Link("self", CORPUS, "Corpus"),
             Link("create", CORPUS, "Créer une entrée", "POST"),
-            Link("preview", ENTRY_PREVIEW, "Aperçu d'une version", "POST"),
+            Link("preview", ENTRY_PREVIEW, "Aperçu d'une entrée", "POST"),
         )
 
 
@@ -128,7 +129,7 @@ class EntryPresenter:
     def present(self, ctx: EntryContext, notes_root) -> dict:
         entry, deps = ctx.entry, ctx.dependents
         data = entry_to_dict(entry, notes_root) | {
-            "citedBy": sorted({entry_id for entry_id, _ in deps.entries}),
+            "citedBy": sorted(deps.entries),
             "importedBy": list(ctx.imported_by),
         }
         if ctx.report is not None:
@@ -136,10 +137,10 @@ class EntryPresenter:
         links = [
             Link("self", entry_href(entry.id), entry.meta.titre),
             Link("update", entry_href(entry.id), "Modifier l'entrée", "PUT"),
-            Link("preview", ENTRY_PREVIEW, "Aperçu d'une version", "POST"),
+            Link("preview", ENTRY_PREVIEW, "Aperçu de l'entrée", "POST"),
+            Link("text", text_href(entry.id), "Texte de l'entrée"),
             Link("corpus", CORPUS, "Corpus"),
         ]
-        links += [Link(f"version:{v.author}", version_href(entry.id, v.author), f"Version de {v.name}") for v in entry.versions]
         return envelope(data, *links)
 
 
@@ -148,13 +149,12 @@ class DeletedEntryPresenter:
         return envelope({"deleted": entry_id, "rebuild": report.to_dict()}, Link("corpus", CORPUS, "Corpus"))
 
 
-class VersionPresenter:
-    def present(self, ctx: VersionContext) -> dict:
-        href = version_href(ctx.entry_id, ctx.author)
+class TextPresenter:
+    def present(self, ctx: TextContext) -> dict:
+        href = text_href(ctx.entry_id)
         data = {
             "entry": ctx.entry_id,
             "type": ctx.entry_type,
-            "author": ctx.author,
             "exists": ctx.source is not None,
             "source": ctx.source,
             "code": ctx.code,
@@ -163,9 +163,9 @@ class VersionPresenter:
         }
         return envelope(
             data,
-            Link("self", href, "Version"),
-            Link("save", href, "Enregistrer la version", "PUT"),
-            Link("preview", ENTRY_PREVIEW, "Aperçu de la version", "POST"),
+            Link("self", href, "Texte de l'entrée"),
+            Link("save", href, "Enregistrer le texte", "PUT"),
+            Link("preview", ENTRY_PREVIEW, "Aperçu de l'entrée", "POST"),
             Link("entry", entry_href(ctx.entry_id), "Entrée"),
         )
 
@@ -184,14 +184,14 @@ class RunPresenter:
             "figures": r.figures,
             "durationMs": r.duration_ms,
             "timedOut": r.timed_out,
-            "bricks": [{"id": b.entry_id, "module": b.module, "author": b.author} for b in r.bricks],
+            "bricks": [{"id": b.entry_id, "module": b.module} for b in r.bricks],
         }
         return envelope(data, Link("self", RUN, "Exécuter du code Python", "POST"))
 
 
 class EntryPreviewPresenter:
     def present(self, ctx: EntryPreviewContext) -> dict:
-        return envelope({"pages": ctx.pages}, Link("self", ENTRY_PREVIEW, "Aperçu d'une version", "POST"))
+        return envelope({"pages": ctx.pages}, Link("self", ENTRY_PREVIEW, "Aperçu d'une entrée", "POST"))
 
 
 # ---------------------------------------------------------------- math buttons

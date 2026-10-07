@@ -36,7 +36,8 @@ Pour passer de l'un à l'autre : 💾 Sauvegarder d'un côté, 📂 Charger de l
   en fait une série d'une question, enregistrée.
 - **Livre** (`livre.html?id=N`) et **Reading** (`reading.html?id=N`) : programme, étapes à cocher, note de
   confiance sur 4 par learning objective, « Things to Remember » et calculs des corrigés AnalystPrep
-  (avec lien vers la page du PDF), suivi des questions, simulations Python, nos fiches, entrées du
+  (avec lien vers la page du PDF), suivi des questions, simulations Python, notre fiche (commune, avec qui
+  l'a créée et modifiée), entrées du
   corpus rattachées au reading. La carte « Corpus de ce reading » a une recherche, le filtre de
   rattachement et le réglage « Entrées liées » (voir Corpus), et une vue Graphe ; chaque entrée dit si
   elle vient d'une fiche, de questions, ou des deux.
@@ -45,7 +46,8 @@ Pour passer de l'un à l'autre : 💾 Sauvegarder d'un côté, 📂 Charger de l
   (les entrées et leurs citations en flèches, livres de chaque entrée) et vue **Stats**
   (chiffres clés, entrées à surveiller, répartition par type, les plus utilisées avec une légende
   cliquable, code le plus complexe, tableau triable), avec les mêmes filtres :
-  - **type, livre (ou « sans reading ») et auteur**, à choix multiples : « Tous » sélectionne tout ; un
+  - **type, livre (ou « sans reading ») et contributeur** (qui a créé ou modifié l'entrée), à choix
+    multiples : « Tous » sélectionne tout ; un
     clic quand tout est sélectionné ne garde que ce bouton, les suivants ajoutent ou retirent ;
   - **reading** : la liste ne propose que les readings des livres choisis ;
   - **rattachement** : Tout, Fiche ou questions, Fiche et questions, Pas encore dans une question, Pas
@@ -59,7 +61,7 @@ Pour passer de l'un à l'autre : 💾 Sauvegarder d'un côté, 📂 Charger de l
   Au survol d'une bulle du graphe ou d'un nom dans les Stats, un aperçu montre le début de l'entrée,
   avec un bouton pour l'ouvrir. Un clic sur une bulle la sélectionne, un clic à côté la relâche.
 - **Fiches** (`fiches.html`) : les 62 readings avec leurs étapes, leurs fiches et les entrées du corpus
-  qu'elles citent ou insèrent ; filtres par livre, auteur et type d'entrée (choix multiples, comme sur
+  qu'elles citent ou insèrent ; filtres par livre, contributeur et type d'entrée (choix multiples, comme sur
   la page Corpus), état de la fiche (dont « fiche écrite mais ④ non cochée » et « ④ cochée sans
   fiche »), recherche d'un chapitre (« 10 » donne
   FRM-10, QA-10, FMP-10, VRM-10 ; ou un nom) et d'une entrée. Les pastilles ①②③④ en haut à droite
@@ -74,7 +76,8 @@ des corrigés, repris tels quels dans la carte « Things to Remember » de chaqu
 
 ## Fiches (étape ④)
 
-Chaque personne écrit sa propre fiche par reading, en **Typst**, dans l'éditeur du site :
+Chaque reading a **une fiche, commune** : chacun l'écrit et la modifie, en **Typst**, dans l'éditeur du
+site (le profil 👤 sert seulement à dire qui l'a créée et qui l'a modifiée) :
 
 - à gauche le texte, à droite l'aperçu, mis à jour pendant la frappe ;
 - **Taille** (menu à côté de Italique, aussi dans l'éditeur d'entrée) entoure la sélection de
@@ -87,7 +90,7 @@ Chaque personne écrit sa propre fiche par reading, en **Typst**, dans l'éditeu
   pour tout le monde ;
 - **📚 Corpus** cherche une entrée du corpus (mêmes filtres que la page Corpus, entrées liées
   comprises) et la **cite** (`#voir("bayes")` : son titre, en couleur)
-  ou l'**insère** (`#entree("bayes")` : l'entrée entière, toutes versions) ; la ligne `#import` nécessaire
+  ou l'**insère** (`#entree("bayes")` : l'entrée entière) ; la ligne `#import` nécessaire
   est ajoutée toute seule ;
 - **🖼 Images** : colle une capture (Ctrl+V), glisse un fichier ou choisis-le ; l'image est compressée,
   nommée (nom obligatoire, commun à tous) et rangée dans `notes/images/`, puis `#image(…)` est inséré.
@@ -98,16 +101,16 @@ Chaque personne écrit sa propre fiche par reading, en **Typst**, dans l'éditeu
 - enregistrement automatique (Ctrl+S pour tout de suite), même si la fiche contient une erreur : le
   texte n'est jamais perdu.
 
-Fichiers : `notes/r<N>/fiche-<prénom>.typ` (la source), avec son rendu `fiche-<prénom>-<page>.svg` et
-`fiche-<prénom>.pdf`. Le prénom vient du profil (👤). La page Reading affiche les fiches de tout le
-monde (un onglet par personne), même sans serveur. Pour fusionner deux fiches : les renommer pareil et
-passer par git.
+Fichiers : `notes/r<N>/fiche.typ` (la source), avec son rendu `fiche-<page>.svg` et `fiche.pdf`, et
+`journal.jsonl` (qui l'a créée et modifiée, quand). La page Reading l'affiche, même sans serveur, avec
+« Créée par … · modifiée par … ». Deux personnes qui modifient la même fiche sur deux machines auront un
+conflit git en fusionnant : récupérer les changements de l'autre avant d'écrire.
 
 ## Corpus
 
 Une bibliothèque commune que nous construisons nous-mêmes : **formules, définitions, propriétés,
 théorèmes, simulations et briques de code**. Elle remplace l'ancien menu « Formules FRM » (ses 6
-formules y sont, signées BD).
+formules y sont, créées par BD). Tout y est commun : chacun crée, modifie et supprime les entrées.
 
 - Chaque entrée a un **identifiant lisible** (`bayes`, fixé à la création), un type et un titre,
   communs à tous.
@@ -115,36 +118,36 @@ formules y sont, signées BD).
   des questions qui lui sont liées. Une entrée apparaît sur la page d'un reading dès qu'une fiche de ce
   reading s'en sert ou qu'elle est liée à une question de ce reading. Une citation par une autre entrée
   ne rattache pas.
-- Chacun écrit **sa version** de l'entrée, signée de ses initiales (tirées du profil 👤) ; le corpus
-  affiche toutes les versions côte à côte.
-- **Partir de la version d'un autre** : bouton sur la page de l'entrée (ou lien dans l'éditeur). Son
-  texte, ses hypothèses, ses limites et son code sont repris dans l'éditeur ; enregistrer en fait ta
-  version, la sienne ne change pas.
+- Une entrée a **un seul texte**, que chacun modifie. Son **historique** dit qui l'a créée et qui l'a
+  modifiée, quand (« Créée par … · modifiée par … », et les initiales des contributeurs, le créateur
+  d'abord) ; git garde les anciens textes.
 - Une entrée peut en **citer** une autre (`#voir`), jamais l'insérer : c'est ce qui rend les boucles
   impossibles (A cite B, B cite A : aucun problème). Le serveur refuse une entrée qui tente d'insérer.
-- Une version qui ne compile pas est enregistrée quand même, mais retirée des fiches jusqu'à correction
-  (initiales en rouge dans le corpus) : elle ne casse jamais la fiche de quelqu'un d'autre.
-- Enregistrement **à la demande** (bouton ou Ctrl+S), pas pendant la frappe : une version enregistrée
-  est aussitôt partagée et recompile les fiches qui l'insèrent. Le navigateur prévient avant de quitter
+- Un texte qui ne compile pas est enregistré quand même (« ! » rouge dans le corpus), et les fiches
+  gardent le **dernier texte qui compilait** jusqu'à correction : l'erreur de l'un ne bloque personne.
+- Enregistrement **à la demande** (bouton ou Ctrl+S), pas pendant la frappe : le texte enregistré
+  remplace celui de tout le monde et recompile les fiches qui l'insèrent. Le navigateur prévient avant de quitter
   une page non enregistrée. Si une fiche ou une entrée liée ne compile plus après un changement, l'éditeur
   le signale (son dernier rendu reste affiché).
 - **Simulations et briques** : en plus de leur texte, elles ont une section de code Python à part (voir
   « Python » ci-dessous).
 - **Hypothèses et limites des formules** : une formule a deux champs de plus sous son texte, écrits en
-  Typst comme le reste, propres à chaque version. Ils s'affichent en deux petits blocs sous la formule,
+  Typst comme le reste. Ils s'affichent en deux petits blocs sous la formule,
   dans son encadré (hypothèses en cadre plein, limites en tirets), sur la page du corpus et dans les
   fiches qui insèrent la formule. Un champ vide n'affiche rien. Les autres types n'en ont pas.
 - **Supprimer une entrée** : bouton dans l'éditeur d'entrée. Ses références sont retirées des fiches et
-  des autres entrées (`#voir` devient son titre en texte simple, `#entree` disparaît). Une brique encore
+  des autres entrées (`#voir` devient son titre en texte simple, `#entree` disparaît) ; ces réécritures
+  comptent comme des modifications de la personne qui supprime. Une brique encore
   importée par une simulation ne se supprime pas : retirer l'import d'abord.
 - **Questions liées** : la page d'une entrée liste les questions qui lui sont liées (lien vers chacune)
   et propose une série sur ces questions. Les liens sont partagés comme le reste du corpus ; chacun
   rattache l'entrée au reading de la question.
 
-Fichiers : `notes/corpus/<id>/entree.json` (type, titre, auteurs), `<prénom>.typ` (la version),
-`<prénom>.hypotheses.typ` et `<prénom>.limites.typ` (une formule), `<prénom>.py` (le code d'une simulation
-ou d'une brique), `<prénom>-<page>.svg` (le rendu). Le serveur génère
-`notes/_corpus-titres.typ` (titres, pour `#voir`), `notes/_corpus.typ` (versions valides, pour
+Fichiers : `notes/corpus/<id>/entree.json` (type, titre, questions liées), `texte.typ` (le texte),
+`hypotheses.typ` et `limites.typ` (une formule), `code.py` (le code d'une simulation ou d'une brique),
+`page-<n>.svg` (le rendu), `journal.jsonl` (l'historique), `valide/` (le dernier texte qui compilait,
+tant que le texte ne compile pas). Le serveur génère
+`notes/_corpus-titres.typ` (titres, pour `#voir`), `notes/_corpus.typ` (textes qui compilent, pour
 `#entree`) et `notes/corpus/index.js` (le corpus pour les pages ouvertes sans serveur) : ne pas les
 modifier à la main.
 
@@ -161,8 +164,7 @@ modifier à la main.
 - **Briques de code** : des fonctions réutilisables, entrées du corpus de type « Brique de code ». La
   brique `donnees-aleatoires` est le module `briques.donnees_aleatoires` :
   `from briques.donnees_aleatoires import generate_random_data`. Dans l'éditeur, le menu **🧱 Briques**
-  du panneau de code ajoute la ligne d'import. À l'exécution, chaque brique prend la version de l'auteur
-  du code s'il en a une, sinon une autre (la sortie dit laquelle). Le bloc
+  du panneau de code ajoute la ligne d'import. Chaque brique a un seul code, commun. Le bloc
   `if __name__ == "__main__":` d'une brique est sa démonstration, lancée par ▶ Exécuter sur la brique
   elle-même. Briques de départ : données aléatoires, trajectoires de prix,
   rendements de portefeuille, histogramme avec quantile, Monte-Carlo.
@@ -236,11 +238,13 @@ tools/vendor_codemirror/      regroupement de CodeMirror (npm + esbuild, mainten
 
 ## Sauvegarde
 
-Tout vit dans le `localStorage` du navigateur (clé `frm-part1.state.v1`) : vider les données du site
-l'efface. D'où les boutons de l'en-tête de chaque page :
+Ce qui est **commun** (fiches, corpus, liens entre questions et corpus, images, boutons de maths) vit dans
+`notes/` et passe par git. Ce qui est **à chacun** (réponses, séries, marques, questions traitées,
+confiance, étapes cochées) vit dans le `localStorage` du navigateur (clé `frm-part1.state.v1`) : vider
+les données du site l'efface. D'où les boutons de l'en-tête de chaque page :
 
 - **👤 Profil** : prénom et nom, un simple repère écrit dans la sauvegarde et dans le nom du fichier ;
-  le prénom nomme aussi ta fiche.
+  il dit aussi qui crée et modifie les fiches et les entrées (il en faut un pour écrire).
 - **💾 Sauvegarder** : un fichier par export, `prep-frm_prenom-nom_AAAA-MM-JJ_HHhMM.json`.
   Chrome / Edge ouvrent « Enregistrer sous » : choisir `save/` la première fois, il est reproposé ensuite.
   Autres navigateurs : le fichier arrive dans Téléchargements, à ranger dans `save/`.

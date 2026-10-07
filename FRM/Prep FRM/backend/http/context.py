@@ -12,6 +12,7 @@ class NoteContext:
     source: str | None
     pages: list[str]  # URLs of the compiled SVG pages, empty if never compiled
     pdf: str | None  # URL of the compiled PDF
+    journal: list  # list[backend.journal.Session]: who created and changed the note, when
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class SavedNoteContext:
     pages: list[str]
     pdf: str
     saved_at: int
+    journal: list  # list[backend.journal.Session]
 
 
 @dataclass(frozen=True)
@@ -46,10 +48,9 @@ class EntryContext:
 
 
 @dataclass(frozen=True)
-class VersionContext:
+class TextContext:
     entry_id: str
     entry_type: str
-    author: str
     source: str | None
     code: str | None
     hypotheses: str | None

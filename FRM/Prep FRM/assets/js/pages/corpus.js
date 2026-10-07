@@ -2,7 +2,7 @@
  *
  * corpus.html shows the entries as a list or as statistics (corpus-stats.js), with the same
  * filters (type, book, reading, author, search) and a sort for the list; corpus.html?id=bayes
- * shows one entry: every author's version, its links, and the Python code of a simulation.
+ * shows one entry: its shared text, who created and changed it, its links, and the Python code of a simulation.
  * Everything comes from notes/corpus/index.js, written by the server: the page also works
  * without it (file://), only writing needs it. */
 (function (FRM, ui) {
@@ -15,20 +15,18 @@
 
   const editorHref = (entry) => (entry ? `entree.html?id=${encodeURIComponent(entry.id)}` : "entree.html");
   const readingLabel = (reading) => `${reading.tag} · ${reading.title}`;
-  const versionUrl = (path, version) => `${path}?v=${version.updatedAt}`; // never show a cached older rendering
+  const pageUrl = (path, entry) => `${path}?v=${entry.updatedAt}`; // never show a cached older rendering
 
   function serverHint(what) {
     return `<span class="small muted">Pour ${what}, lance <code>Lancer Prep FRM.bat</code>.</span>`;
   }
 
-  /** Initials badges of an entry's versions; an invalid version (does not compile) shows in red. */
-  function initialsOf(entry) {
-    return entry.versions
-      .map((v) => {
-        const title = `${v.name}${v.valid ? "" : " · ne compile pas : absente des fiches"}`;
-        return `<span class="initials${v.valid ? "" : " is-invalid"}" title="${esc(title)}">${esc(v.initials)}</span>`;
-      })
-      .join("");
+  /** Initials of whoever created and changed the entry; a red "!" when its text does not compile. */
+  function badgesOf(entry) {
+    const broken = entry.hasText && !entry.valid
+      ? `<span class="initials is-invalid" title="Ne compile pas : les fiches gardent le dernier texte qui compilait">!</span>`
+      : "";
+    return ui.contributorBadges(entry.journal) + broken;
   }
 
   const readingRefs = (entry) =>
@@ -56,7 +54,7 @@
   let view = ["stats", "graphe"].includes(params.get("vue")) ? params.get("vue") : "list";
 
   const booksOf = (entry) => new Set(entry.readings.map((r) => FRM.findReading(r)).filter(Boolean).map((r) => FRM.bookOf(r).id));
-  const lastUpdate = (entry) => Math.max(0, ...entry.versions.map((v) => v.updatedAt));
+  const lastUpdate = (entry) => entry.updatedAt || 0;
 
   function matchesBook(entry) {
     if (filters.books === null) return true;
@@ -94,7 +92,7 @@
 
   /** What to show, as opposed to where to look: linked entries obey these filters too. */
   const matchesWhat = (entry) =>
-    FRM.isChosen(filters.types, entry.type) && (filters.authors === null || entry.versions.some((v) => filters.authors.has(v.author)));
+    FRM.isChosen(filters.types, entry.type) && (filters.authors === null || FRM.contributorsOf(entry.journal).some((a) => filters.authors.has(a)));
 
   /** The entries the filters keep; without the attachment filter for its counts. */
   function visibleEntries({ attach = true } = {}) {
@@ -135,7 +133,7 @@
   ${ui.typeTag(entry.type)}
   <span class="etitle">${esc(entry.titre)} <span class="entry-id">${esc(entry.id)}</span>${via ? `<span class="elinked">${esc(FRM.linkedLabel(via, FRM.corpusEntries()))}</span>` : ""}</span>
   ${refs ? `<span class="ereadings">${esc(refs)}</span>` : ""}
-  <span class="eauthors">${initialsOf(entry)}</span>
+  <span class="eauthors">${badgesOf(entry)}</span>
 </a>`;
   }
 
@@ -183,8 +181,8 @@
   function authorFilters() {
     const authors = [...FRM.corpusStats.authorsOf(FRM.corpusEntries()).entries()].sort((a, b) => a[1].name.localeCompare(b[1].name, "fr"));
     return ui.choiceToggles("authors", filters.authors, [
-      { value: "all", label: `Tous les auteurs (${FRM.corpusEntries().length})` },
-      ...authors.map(([slug, a]) => ({ value: slug, label: `${a.name} · ${a.initials} (${a.valid + a.invalid})` })),
+      { value: "all", label: `Tous les contributeurs (${FRM.corpusEntries().length})` },
+      ...authors.map(([slug, a]) => ({ value: slug, label: `${a.name} · ${a.initials} (${a.entries})`, title: `A créé ${a.created}, a contribué à ${a.entries}` })),
     ]);
   }
 
@@ -219,7 +217,7 @@
       body: `
 <div class="card">
   <h2>Corpus</h2>
-  <p>Nos formules, définitions, propriétés, théorèmes et simulations, écrits par nous. Chaque entrée a un identifiant lisible, un titre et une version par personne, signée de ses initiales. Ses readings sont ceux des fiches qui la citent ou l'insèrent, et des questions qui lui sont liées.</p>
+  <p>Nos formules, définitions, propriétés, théorèmes et simulations, écrits par nous. Chaque entrée a un identifiant lisible, un titre et un texte commun, que chacun peut modifier ; son historique dit qui l'a créée et qui l'a modifiée. Ses readings sont ceux des fiches qui la citent ou l'insèrent, et des questions qui lui sont liées.</p>
   <p class="small muted">Dans une fiche : <code>#voir("id")</code> cite une entrée (son titre), <code>#entree("id")</code> l'insère en entier. Une entrée peut en citer une autre.</p>
   <div class="save-actions">${withServer ? `<a class="btn" href="${editorHref()}">+ Nouvelle entrée</a>` : serverHint("créer ou modifier une entrée")}</div>
 </div>
@@ -232,7 +230,7 @@
   <div class="filters" data-corpus-filters>
     <div class="filter-group"><span class="filter-label">Type</span>${typeFilters()}</div>
     <div class="filter-group"><span class="filter-label">Livre</span>${bookFilters()}</div>
-    <div class="filter-group"><span class="filter-label">Auteur</span>${authorFilters()}</div>
+    <div class="filter-group" title="A créé ou modifié l'entrée"><span class="filter-label">Contributeur</span>${authorFilters()}</div>
     <div class="filter-group" title="Dans le reading choisi, sinon dans les livres choisis, sinon dans n'importe quel reading"><span class="filter-label">Rattachement</span>${toggles("attach", FRM.ATTACHMENTS.map((a) => ({ value: a.id, label: a.label, title: a.title })))}</div>
     <div class="filter-group" data-linked-group>${ui.linkedControl(filters.linked)}</div>
     <div class="filter-group">${readingSelect()}<input type="search" class="search" data-search placeholder="Titre ou identifiant…" aria-label="Rechercher">
@@ -286,28 +284,15 @@
 
   // ------------------------------------------------------------------ one entry
 
-  function versionBlock(entry, version, me) {
-    const pages = version.pages.map(
-      (path, i) => `<img class="note-page" src="${versionUrl(path, version)}" alt="${esc(`${entry.titre}, version ${version.initials}, page ${i + 1}`)}">`
-    );
-    const invalid = version.valid
-      ? ""
-      : `<span class="tag accent">Ne compile pas : absente des fiches jusqu'à correction</span>`;
-    const code = version.code
-      ? `<h3>Code Python</h3>${ui.codeBlock(version.code)}${FRM.runner.slot(entry, version)}`
+  /** The entry's shared text: its rendering (the last that compiled) and its code. */
+  function textBlock(entry) {
+    const pages = entry.pages.map((path, i) => `<img class="note-page" src="${pageUrl(path, entry)}" alt="${esc(`${entry.titre}, page ${i + 1}`)}">`);
+    const broken = entry.hasText && !entry.valid
+      ? `<p><span class="tag accent">Ne compile pas : les fiches gardent le dernier texte qui compilait, jusqu'à correction</span></p>`
       : "";
-    return `
-<div class="version">
-  <div class="version-head">
-    <span class="initials${version.valid ? "" : " is-invalid"}">${esc(version.initials)}</span>
-    <span class="who">${esc(version.name)}${version.author === me ? " (moi)" : ""}</span>
-    <span class="muted">· ${ui.dateTime(version.updatedAt)}</span>
-    ${invalid}
-    ${withServer && me && version.author !== me ? `<a class="btn ghost small-btn" href="entree.html?id=${encodeURIComponent(entry.id)}&amp;depuis=${encodeURIComponent(version.author)}" title="Ouvrir l'éditeur avec son texte, pour en faire ta version">Partir de cette version</a>` : ""}
-  </div>
-  ${pages.length ? `<div class="note-pages">${pages.join("")}</div>` : ""}
-  ${code}
-</div>`;
+    const code = entry.code ? `<h3>Code Python</h3>${ui.codeBlock(entry.code)}${FRM.runner.slot(entry)}` : "";
+    const empty = entry.hasText ? "" : `<div class="placeholder">Pas encore de texte.</div>`;
+    return `${broken}${pages.length ? `<div class="note-pages">${pages.join("")}</div>` : empty}${code}`;
   }
 
   function entryLinks(ids) {
@@ -322,8 +307,7 @@
     const items = uses.map((use) => {
       const reading = FRM.findReading(use.reading);
       if (!reading) return "";
-      const author = use.author.charAt(0).toUpperCase() + use.author.slice(1);
-      return `<li><a href="${ui.readingHref(reading)}#notes-card">${esc(reading.tag)}</a> · fiche de ${esc(author)}</li>`;
+      return `<li><a href="${ui.readingHref(reading)}#notes-card">${esc(reading.tag)}</a> · ${esc(reading.title)}</li>`;
     });
     return items.length ? `<ul>${items.join("")}</ul>` : `<p class="small muted">Aucune.</p>`;
   }
@@ -341,10 +325,6 @@
   }
 
   function mountEntry(entry) {
-    const me = store.profile.authorSlug();
-    const mine = entry.versions.some((v) => v.author === me);
-    // The current profile's version first, then the others by name.
-    const versions = [...entry.versions].sort((a, b) => (b.author === me) - (a.author === me) || a.name.localeCompare(b.name, "fr"));
     // Each reading says where it comes from: a note citing the entry, questions linked to it, or both.
     const readings = entry.readings
       .map(FRM.findReading)
@@ -355,8 +335,8 @@
         return `<a class="tag" href="${ui.readingHref(r)}" title="${esc(`${r.title} — via ${origin}`)}">${esc(r.tag)} <span class="tag-src">${esc(origin)}</span></a>`;
       });
     const actions = withServer
-      ? `<a class="btn" href="${editorHref(entry)}">${mine ? "✎ Modifier ma version" : "+ Ajouter ma version"}</a>`
-      : serverHint("écrire ta version");
+      ? `<a class="btn" href="${editorHref(entry)}">${entry.hasText ? "✎ Modifier l'entrée" : "✎ Écrire le texte"}</a>`
+      : serverHint("modifier l'entrée");
 
     ui.mount({
       active: "corpus",
@@ -371,6 +351,7 @@
   <div class="entry-meta">${ui.typeTag(entry.type)} <span class="entry-id">${esc(entry.id)}</span></div>
   <h2>${esc(entry.titre)}</h2>
   <div class="entry-meta">${readings.join("") || `<span class="small muted">Aucun reading : ni une fiche ni une question liée ne la rattache.</span>`}</div>
+  ${entry.journal.length ? `<p class="small muted">${ui.journalLine(entry.journal)}</p>` : ""}
   <div class="snippets">
     <span>Citer : <code>#voir("${esc(entry.id)}")</code></span>
     <span>Insérer dans une fiche : <code>#entree("${esc(entry.id)}")</code></span>
@@ -378,8 +359,8 @@
   <div class="save-actions">${actions}${(entry.questions || []).length ? `<a class="btn ghost" href="quiz.html?entries=${encodeURIComponent(entry.id)}">Série sur ses questions (${entry.questions.length})</a>` : ""}</div>
 </div>
 <div class="card">
-  <h2>${entry.versions.length > 1 ? `${entry.versions.length} versions` : "Version"}</h2>
-  ${versions.map((v) => versionBlock(entry, v, me)).join("") || `<div class="placeholder">Pas encore de version écrite.</div>`}
+  <h2>Texte</h2>
+  ${textBlock(entry)}
 </div>
 <div class="card">
   <h2>Liens</h2>

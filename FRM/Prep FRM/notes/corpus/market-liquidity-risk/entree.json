@@ -1,18 +1,11 @@
 {
   "type": "definition",
   "titre": "Market Liquidity Risk",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791299532365,
-      "valide": true
-    }
-  },
   "questions": [
     {
       "id": "7",
       "reading": 1
     }
-  ]
+  ],
+  "valide": true
 }

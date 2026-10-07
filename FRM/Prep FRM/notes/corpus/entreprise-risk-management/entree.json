@@ -1,18 +1,11 @@
 {
   "type": "definition",
   "titre": "Entreprise Risk Management",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791324418699,
-      "valide": true
-    }
-  },
   "questions": [
     {
       "id": "5",
       "reading": 1
     }
-  ]
+  ],
+  "valide": true
 }

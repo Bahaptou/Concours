@@ -1,6 +1,7 @@
 // Shared template for Prep FRM notes. Every note starts with:
 //   #import "/_gabarit.typ": *
-//   #show: fiche.with(reading: "QA-1", titre: "…", auteur: "…")
+//   #show: fiche.with(reading: "QA-1", titre: "…")
+// (auteur: "…", optional, was written by the notes made when each person had their own.)
 // "/" is the notes/ folder (the Typst root set by the server).
 
 #let couleurs = (
@@ -87,9 +88,9 @@
   #text(size: 0.92em)[#body]
 ]
 
-// Box of one version of an entry: type and title, author's initials as a badge.
+// Box of an entry: its type and title, then its text (entries belong to everyone: no author shown).
 // hypotheses / limites: optional content, shown as blocks under the body.
-#let bloc-entree(type, titre, initiales, body, hypotheses: none, limites: none) = {
+#let bloc-entree(type, titre, body, hypotheses: none, limites: none) = {
   let style = types-entree.at(type)
   block(
     width: 100%,
@@ -103,8 +104,6 @@
     #text(size: 8pt, weight: "bold", fill: style.couleur, tracking: 0.06em)[#upper(style.nom)]
     #h(0.4em)
     #text(weight: "bold")[#titre]
-    #h(1fr)
-    #box(fill: style.couleur, inset: (x: 4pt, y: 2pt), radius: 2pt)[#text(size: 7.5pt, weight: "bold", fill: white)[#initiales]]
     #v(0.2em)
     #body
     #if hypotheses != none { section-entree("Hypothèses", style.couleur, "solid", hypotheses) }

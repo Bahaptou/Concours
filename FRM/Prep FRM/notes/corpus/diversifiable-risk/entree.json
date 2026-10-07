@@ -1,12 +1,5 @@
 {
   "type": "definition",
   "titre": "Diversifiable Risk",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791329522899,
-      "valide": true
-    }
-  }
+  "valide": true
 }

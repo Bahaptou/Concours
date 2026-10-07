@@ -1,7 +1,7 @@
 """Runs simulation (and brick) code on this machine, in a separate Python process.
 
 Each run gets a fresh temporary folder: the code as ``main.py``, every brick of the corpus as
-``briques/<module>.py`` (the author's version, else another one: ``CorpusService.brick_sources``),
+``briques/<module>.py`` (each brick has one shared code: ``CorpusService.brick_sources``),
 and a small runner script. The child process uses the project's Python (numpy, scipy, pandas,
 matplotlib), in isolated mode, with a time limit; matplotlib draws without a window (Agg) and the
 runner saves the figures still open at the end.
@@ -85,7 +85,6 @@ finally:
 class UsedBrick:
     entry_id: str
     module: str
-    author: str
 
 
 @dataclass
@@ -110,7 +109,7 @@ def used_bricks(code: str, bricks) -> list[UsedBrick]:
             continue
         seen.add(entry_id)
         pending.extend(brick_imports(by_id[entry_id].code))
-    return [UsedBrick(b.entry_id, b.module, b.author) for b in bricks if b.entry_id in seen]
+    return [UsedBrick(b.entry_id, b.module) for b in bricks if b.entry_id in seen]
 
 
 def child_env() -> dict[str, str]:
@@ -139,8 +138,8 @@ class SimulationRunner:
         self.python = python
         self._slots = threading.BoundedSemaphore(PARALLEL_RUNS)
 
-    def run(self, code: str, author: str, timeout: float = DEFAULT_TIMEOUT) -> RunResult:
-        bricks = self.corpus.brick_sources(author)
+    def run(self, code: str, timeout: float = DEFAULT_TIMEOUT) -> RunResult:
+        bricks = self.corpus.brick_sources()
         with self._slots, tempfile.TemporaryDirectory(prefix="prep-frm-run-") as tmp:
             folder = Path(tmp)
             self._prepare(folder, code, bricks)

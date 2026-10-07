@@ -26,7 +26,7 @@ sont dans `../CLAUDE.md`.
 - **Dashboard** : avancement, confiance et réussite, filtrables par livre.
 - **Sauvegarde** : tout l'état en un fichier JSON, exporté dans `save/` et
   rechargeable.
-- **Fiches (étape 4)** : une fiche Typst par personne et par reading,
+- **Fiches (étape 4)** : une fiche Typst par reading, commune à tous,
   écrite dans `editeur.html` (CodeMirror 6, aperçu en direct, barre
   « Mode maths », menus « 📚 Corpus » et « 🖼 Images »), compilée en SVG et PDF par le
   serveur, affichée sur la page Reading.
@@ -36,19 +36,23 @@ sont dans `../CLAUDE.md`.
   mais ④ non cochée » et « ④ cochée sans fiche »), recherche de chapitre (un nombre = ce
   chapitre dans chaque livre) et d'entrée ; pastilles ①–④ pour trier
   par étape (cochés d'abord, non cochés d'abord, ordre officiel). Lien
-  vers `reading.html?id=N&auteur=x#notes-card`.
+  vers `reading.html?id=N#notes-card`.
 - **Corpus** (`corpus.html`, `entree.html`) : formules, définitions,
   propriétés, théorèmes, simulations et briques de code écrits par nous. Identifiant
-  lisible, titre et type communs, une version par personne signée de ses
-  initiales, readings tirés des fiches qui l'utilisent et des questions qui
-  lui sont liées. Les entrées se
+  lisible, titre, type et texte communs, readings tirés des fiches qui
+  l'utilisent et des questions qui lui sont liées. Les entrées se
   citent (`#voir`) ; les fiches citent ou insèrent (`#entree`). Simulations
   et briques ont une section de code Python séparée de leur description.
   Une formule a de même deux champs, Hypothèses et Limites, affichés en blocs sous elle.
   Vues Liste (tri titre / usage / date), Graphe et Stats
   (`corpus-stats.js`), mêmes filtres : type, livre ou « sans reading »,
-  auteur (choix multiples), reading, rattachement, entrées liées (sauf
+  contributeur (choix multiples), reading, rattachement, entrées liées (sauf
   Stats), recherche.
+- **Commun / propre au profil** (choix de Baptiste le 2026-10-07) : fiches,
+  entrées du corpus, liens question ↔ entrée, images et boutons de maths
+  sont communs (dans `notes/`, partagés par git) ; réponses, séries,
+  marques, « traitée », confiance et étapes restent dans la sauvegarde de
+  chacun. Le profil ne sert qu'à dire qui crée et qui modifie (journal).
 - **Python (étape 3)** : ▶ Exécuter via le serveur (`/api/run`), sortie,
   erreur et ligne, figures matplotlib ; limite de temps réglable (30 s,
   300 s max) ; étape ③ cochée après une exécution réussie, pour les
@@ -97,18 +101,25 @@ sont dans `../CLAUDE.md`.
   `setup.js` commun, `toolbar.js`, `corpus-picker.js`, `api.js`), donc
   uniquement via le serveur. CodeMirror est regroupé dans
   `assets/vendor/codemirror/` par `tools/vendor_codemirror/`.
-- **Fiches** : `notes/r<N>/fiche-<auteur>.typ`, rendus
-  `fiche-<auteur>-<page>.svg` et `.pdf` ; `notes/_gabarit.typ` est
+- **Fiches** : `notes/r<N>/fiche.typ`, rendus `fiche-<page>.svg` et
+  `fiche.pdf`, journal `journal.jsonl` ; `notes/_gabarit.typ` est
   importé en `/_gabarit.typ` (`notes/` = racine Typst) ; `notes/index.js`
-  (généré) liste les fiches pour les pages ouvertes en `file://`.
-- **Corpus** : `notes/corpus/<id>/entree.json` (type, titre, auteurs avec
-  `valide`, `questions` liées : identifiant et reading), `<auteur>.typ`, `<auteur>.hypotheses.typ` et `<auteur>.limites.typ`
-  (formule), `<auteur>.py` (simulation, brique),
-  `<auteur>-<page>.svg`. Régénérés à chaque écriture du corpus, à chaque
+  (généré) donne chaque fiche (pages, journal) aux pages ouvertes en `file://`.
+- **Corpus** : `notes/corpus/<id>/entree.json` (type, titre, `valide`,
+  `questions` liées : identifiant et reading), `texte.typ`,
+  `hypotheses.typ` et `limites.typ` (formule), `code.py` (simulation,
+  brique), `page-<n>.svg`, `journal.jsonl`, et `valide/` tant que le texte
+  ne compile pas. Régénérés à chaque écriture du corpus, à chaque
   enregistrement de fiche et au démarrage :
   `notes/_corpus-titres.typ` (titres + `voir`), `notes/_corpus.typ`
-  (versions valides + `entree`), `notes/corpus/index.js` (pour
+  (textes qui compilent + `entree`), `notes/corpus/index.js` (pour
   `file://`, avec `citedBy`, `usedBy`, `noteReadings` et `questionReadings`).
+- **Journal** (`backend/journal.py`) : une ligne JSON par séance (même
+  personne, enregistrements à moins de 30 min d'écart) : auteur, nom,
+  initiales, début, fin, nombre d'enregistrements, `creation` sur la
+  première. `notes/.gitattributes` le fusionne en `merge=union` ; doublons
+  et lignes abîmées sont ignorés à la lecture. Les recompilations et les
+  liens aux questions n'y entrent pas.
 
 ## Décisions et raisons
 
@@ -120,9 +131,8 @@ sont dans `../CLAUDE.md`.
 - **Une erreur du code exécuté est un résultat** : 200 avec `ok: false`
   et `error` (type, message, ligne). Seul l'échec de lancement est une
   erreur d'API (500 `RUNNER_ERROR`).
-- **Version d'une brique à l'exécution** : celle de l'auteur du code,
-  sinon la première autre par ordre alphabétique (choix de Baptiste) ;
-  la réponse liste les briques importées et leur version.
+- **Une brique a un seul code**, commun : la réponse d'une exécution
+  liste les briques importées.
 - **Garde des requêtes** (`guard.py`, relue par WTF4) : `Host` local pour
   tout (API et fichiers), `Origin` local s'il est présent, JSON exigé pour
   les écritures et `/api/run` (vérifié après le routage : une route
@@ -171,35 +181,44 @@ sont dans `../CLAUDE.md`.
   demande de Baptiste (relu par une session WTF4 le 2026-10-01). Un échec
   de compilation Typst est une erreur métier : 422 `TYPST_COMPILE_ERROR`,
   avec `line`, `hints`, `explanation`, `saved` en extensions, jamais 200.
-- **Le front construit les URL `/api/notes/<reading>/<author>`,
-  `/api/corpus`, `/api/corpus/<id>`, `/api/corpus/<id>/<author>`,
+- **Le front construit les URL `/api/notes/<reading>`,
+  `/api/corpus`, `/api/corpus/<id>`, `/api/corpus/<id>/texte`,
   `/api/corpus/<id>/questions/<q>`, `/api/images` et `/api/math-tools`** (le
   reste vient des `links`) : si une route change, changer aussi
-  `assets/js/editor/api.js`.
-- **Une fiche par personne**, nommée d'après le prénom du profil ; la
-  fusion éventuelle se fait à la main avec git.
+  `assets/js/editor/api.js`, qui joint le profil (`author`, `name`,
+  `initials`) à chaque écriture ; le serveur la refuse sans lui (422).
+- **Fiches et entrées communes, journal des modifications** (choix de
+  Baptiste le 2026-10-07) : un texte par fiche et par entrée, que chacun
+  modifie ; git garde les textes, le journal garde qui a créé et modifié
+  quoi, quand, pour étudier les interactions entre profils. Affiché sur
+  chaque fiche et entrée (« Créée par … · modifiée par … ») et en
+  initiales (le créateur d'abord) ; filtres « Contributeur ». Fichiers par
+  personne migrés le 2026-10-07 (tout était à Baptiste).
 - **Enregistrer n'échoue jamais sur le texte** : la source est écrite
   avant la compilation ; en cas d'erreur, l'ancien rendu reste.
 - **Aucune boucle d'import possible dans le corpus, par construction.**
   Une entrée n'importe que `_corpus-titres.typ` (titres seuls) ; le
   serveur refuse `_corpus.typ` ou `#entree(` dans une entrée (422
-  `CORPUS_IMPORT_FORBIDDEN`). `_corpus.typ` cache chaque version derrière
+  `CORPUS_IMPORT_FORBIDDEN`). `_corpus.typ` cache chaque texte derrière
   une closure et n'est importé que par les fiches.
-- **Une version qui ne compile pas est enregistrée mais exclue de
-  `_corpus.typ`** (`valide: false`) : elle ne casse jamais la fiche d'un
-  autre. 422 `TYPST_COMPILE_ERROR` avec `saved: true`, comme les fiches.
+- **Un texte d'entrée qui ne compile pas est enregistré, et les fiches
+  gardent le dernier qui compilait** (choix de Baptiste le 2026-10-07) :
+  copie dans `corpus/<id>/valide/` (texte et sections), vers laquelle
+  pointe `_corpus.typ`, supprimée dès que l'entrée recompile. Une entrée
+  qui n'a jamais compilé est absente de `_corpus.typ`. 422
+  `TYPST_COMPILE_ERROR` avec `saved: true`, comme les fiches.
 - **Changer une entrée recompile ses dépendants dans la requête**, hors
   du verrou du corpus, plafonné à `MAX_SYNC_REBUILDS` (20). Leurs échecs
-  sont rapportés dans `rebuild` (aussi dans le 422 d'une version cassée),
+  sont rapportés dans `rebuild` (aussi dans le 422 d'un texte cassé),
   jamais levés. Rétroliens trouvés par regex : affichage seulement.
   Relu par la session WTF4 le 2026-10-01.
 - **Entrées enregistrées à la demande** (bouton, Ctrl+S, alerte avant de
-  quitter), pas pendant la frappe comme les fiches : une version
-  enregistrée est aussitôt partagée et recompile les fiches qui
+  quitter), pas pendant la frappe comme les fiches : un texte enregistré
+  remplace celui de tous et recompile les fiches qui
   l'insèrent (choisi le 2026-10-01).
 - **Identifiant d'entrée fixé à la création** (proposé depuis le titre) ;
-  titre et type modifiables par tous. Initiales = premières
-  lettres du prénom et du nom du profil.
+  titre, type et texte modifiables par tous. Initiales (journal) =
+  premières lettres du prénom et du nom du profil.
 - **Readings d'une entrée = ceux des fiches qui la citent ou l'insèrent
   directement, et ceux des questions qui lui sont liées**, jamais saisis
   (choix de Baptiste le 2026-10-01 pour les fiches, le 2026-10-07 pour
@@ -211,8 +230,8 @@ sont dans `../CLAUDE.md`.
   la session WTF4 le 2026-10-01.
 - **Filtres du corpus** (choix de Baptiste le 2026-10-07) : page Corpus,
   barre `corpus-search.js` (menu Corpus, choix des entrées d'une série),
-  portail Fiches pour livre, auteur et type :
-  - type, livre et auteur à choix multiples (`FRM.toggleChoice` : `null`
+  portail Fiches pour livre, contributeur et type :
+  - type, livre et contributeur à choix multiples (`FRM.toggleChoice` : `null`
     = tout ; un clic quand tout est choisi ne garde que ce bouton, retirer
     le dernier revient à tout). Rattachement et état d'une fiche restent
     à choix unique ;
@@ -228,16 +247,16 @@ sont dans `../CLAUDE.md`.
     chaîne), citations et imports dans les deux sens (`FRM.linkedTo`, qui
     les recalcule depuis `cites` et `imports` : les entrées de l'API n'ont
     pas `citedBy`). Les ajoutées sont grisées et respectent type et
-    auteur. Un seul réglage pour la liste et le graphe, pas pour les Stats.
+    contributeur. Un seul réglage pour la liste et le graphe, pas pour les Stats.
 - **Le menu « Formules FRM » a été remplacé par le corpus** le 2026-10-01 :
   ses 6 formules sont des entrées signées BD, sans reading tant
   qu'aucune fiche ni question ne les rattache.
 - **Hypothèses et limites : formules seulement, dans l'encadré partout.**
-  Choix de Baptiste le 2026-10-02. Deux fichiers Typst par version, deux champs
+  Choix de Baptiste le 2026-10-02. Deux fichiers Typst par entrée, deux champs
   sous le texte dans `entree.html`, rendus par `bloc-entree` sur la page du corpus
   et dans les fiches (`_corpus.typ` les inclut). Un champ vide supprime son fichier,
   un champ non envoyé n'est pas touché. Ils comptent comme le texte pour les
-  citations, l'interdiction d'insérer et la validité d'une version.
+  citations, l'interdiction d'insérer et la validité de l'entrée.
 - **Une erreur dit quel texte la porte.** Trois textes, une seule boîte : en cas
   d'échec, le serveur compile chaque texte seul ; `part` et `line` (dans ce texte)
   vont dans le 422, et l'éditeur marque le bon champ.
@@ -249,7 +268,9 @@ sont dans `../CLAUDE.md`.
 - **Supprimer une entrée retire ses références** (choix de Baptiste le
   2026-10-06) : `#voir` devient le titre échappé, `#entree` disparaît
   (`strip_references`). Fiches puis entrées réécrites et recompilées, sans
-  plafond, avant l'effacement du dossier. Une brique importée est refusée
+  plafond, avant l'effacement du dossier (copies `valide/` comprises) ;
+  ces réécritures entrent au journal au nom de qui supprime (le DELETE
+  porte le profil). Une brique importée est refusée
   (409 `BRICK_IN_USE`). Le gestionnaire lit le corps des DELETE (JSON exigé).
 - **Questions liées au corpus, dans `entree.json`** (choix de Baptiste le
   2026-10-06) : partagées, écrites par PUT/DELETE
@@ -277,8 +298,8 @@ sont dans `../CLAUDE.md`.
   `--use-3` : le vert, essayé, échoue au validateur contre l'aqua du type
   Propriété (ΔE 11,9 < 15).
 - **Aperçu d'une entrée au survol** (`entry-preview.js`, choix de Baptiste
-  le 2026-10-07) : bulles du graphe, noms des Stats. Début du rendu (sa
-  version, sinon la première valide) et bouton « Ouvrir l'entrée ». Vient
+  le 2026-10-07) : bulles du graphe, noms des Stats. Début du rendu (le
+  dernier qui a compilé), initiales des contributeurs et bouton « Ouvrir l'entrée ». Vient
   après 0,6 s, part 0,15 s après la sortie (le temps de l'atteindre),
   au-dessus de l'élément sans le couvrir ; un clic le ferme jusqu'à la
   sortie de l'élément. Hauteur fixe : la position tient avant le
@@ -432,3 +453,10 @@ et attente (constaté en test le 2026-10-07).
 - **Aperçu qui évite les bulles voisines.** Large de 500 px, il peut
   couvrir une bulle ; il reste ouvert tant que la souris est dessus (pour
   atteindre son bouton) : en sortir le ferme en 0,15 s.
+- **Deux personnes sur le même texte en même temps.** Sur un même
+  serveur, le dernier enregistrement l'emporte, sans alerte ; sur deux
+  machines, git signale un conflit sur le texte et ses rendus (le journal
+  se fusionne seul). Récupérer les changements de l'autre avant d'écrire.
+- **Vue d'ensemble des interactions.** Le journal est enregistré mais
+  affiché seulement fiche par fiche et entrée par entrée (choix de
+  Baptiste le 2026-10-07 : la vue d'ensemble viendra plus tard).
