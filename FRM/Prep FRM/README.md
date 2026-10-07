@@ -37,18 +37,31 @@ Pour passer de l'un à l'autre : 💾 Sauvegarder d'un côté, 📂 Charger de l
 - **Livre** (`livre.html?id=N`) et **Reading** (`reading.html?id=N`) : programme, étapes à cocher, note de
   confiance sur 4 par learning objective, « Things to Remember » et calculs des corrigés AnalystPrep
   (avec lien vers la page du PDF), suivi des questions, simulations Python, nos fiches, entrées du
-  corpus rattachées au reading. La carte « Corpus de ce reading » a une recherche et une vue Graphe (avec,
-  au choix, les entrées liées hors du reading).
+  corpus rattachées au reading. La carte « Corpus de ce reading » a une recherche, le filtre de
+  rattachement et le réglage « Entrées liées » (voir Corpus), et une vue Graphe ; chaque entrée dit si
+  elle vient d'une fiche, de questions, ou des deux.
 - **Corpus** (`corpus.html`, une entrée : `corpus.html?id=bayes`) : nos formules, définitions,
   propriétés, théorèmes et simulations. Vue **Liste** (tri par titre, usage ou date), vue **Graphe**
-  (les entrées et leurs citations en flèches, livres de chaque entrée, entrées liées hors filtres en
-  pâle) et vue **Stats**
+  (les entrées et leurs citations en flèches, livres de chaque entrée) et vue **Stats**
   (chiffres clés, entrées à surveiller, répartition par type, les plus utilisées avec une légende
-  cliquable, code le plus complexe, tableau triable), avec les mêmes filtres : type, livre (ou « sans
-  reading »), reading, auteur, recherche.
+  cliquable, code le plus complexe, tableau triable), avec les mêmes filtres :
+  - **type, livre (ou « sans reading ») et auteur**, à choix multiples : « Tous » sélectionne tout ; un
+    clic quand tout est sélectionné ne garde que ce bouton, les suivants ajoutent ou retirent ;
+  - **reading** : la liste ne propose que les readings des livres choisis ;
+  - **rattachement** : Tout, Fiche ou questions, Fiche et questions, Pas encore dans une question, Pas
+    encore dans une fiche, Ni fiche ni question, avec le nombre d'entrées de chaque option ; dans le
+    reading choisi, sinon dans les livres choisis, sinon dans tout le programme (« Fiche ou questions »
+    et « Ni fiche ni question » sont grisés quand un reading ou un livre est choisi) ;
+  - **entrées liées** (Liste et Graphe) : ajoute, grisées, les entrées qui citent les résultats ou
+    qu'ils citent (imports de code compris), jusqu'à N liens de distance ou toute la chaîne (Max) ;
+  - recherche.
+
+  Au survol d'une bulle du graphe ou d'un nom dans les Stats, un aperçu montre le début de l'entrée,
+  avec un bouton pour l'ouvrir. Un clic sur une bulle la sélectionne, un clic à côté la relâche.
 - **Fiches** (`fiches.html`) : les 62 readings avec leurs étapes, leurs fiches et les entrées du corpus
-  qu'elles citent ou insèrent ; filtres par livre, état de la fiche (dont « fiche écrite mais ④ non
-  cochée » et « ④ cochée sans fiche »), auteur, type d'entrée, recherche d'un chapitre (« 10 » donne
+  qu'elles citent ou insèrent ; filtres par livre, auteur et type d'entrée (choix multiples, comme sur
+  la page Corpus), état de la fiche (dont « fiche écrite mais ④ non cochée » et « ④ cochée sans
+  fiche »), recherche d'un chapitre (« 10 » donne
   FRM-10, QA-10, FMP-10, VRM-10 ; ou un nom) et d'une entrée. Les pastilles ①②③④ en haut à droite
   trient par étape : cochés d'abord, puis non cochés d'abord, puis ordre officiel. Un clic ouvre la
   page du reading sur la fiche.
@@ -72,8 +85,8 @@ Chaque personne écrit sa propre fiche par reading, en **Typst**, dans l'éditeu
 - **＋ dans la barre « Mode maths »** : ajouter un bouton (libellé, Typst inséré, partie à sélectionner,
   aperçu). Les boutons ajoutés sont partagés (`notes/_outils-maths.json`) ; « × » au survol les retire,
   pour tout le monde ;
-- **📚 Corpus** cherche une entrée du corpus (filtres type, livre, reading, auteur, comme sur la page
-  Corpus) et la **cite** (`#voir("bayes")` : son titre, en couleur)
+- **📚 Corpus** cherche une entrée du corpus (mêmes filtres que la page Corpus, entrées liées
+  comprises) et la **cite** (`#voir("bayes")` : son titre, en couleur)
   ou l'**insère** (`#entree("bayes")` : l'entrée entière, toutes versions) ; la ligne `#import` nécessaire
   est ajoutée toute seule ;
 - **🖼 Images** : colle une capture (Ctrl+V), glisse un fichier ou choisis-le ; l'image est compressée,
@@ -98,9 +111,10 @@ formules y sont, signées BD).
 
 - Chaque entrée a un **identifiant lisible** (`bayes`, fixé à la création), un type et un titre,
   communs à tous.
-- **Ses readings ne se choisissent pas** : ce sont ceux des fiches qui la citent ou l'insèrent, mis à
-  jour à chaque enregistrement de fiche. Une entrée créée apparaît sur la page d'un reading dès qu'une
-  fiche de ce reading s'en sert. Une citation par une autre entrée ne rattache pas.
+- **Ses readings ne se choisissent pas** : ce sont ceux des fiches qui la citent ou l'insèrent, et ceux
+  des questions qui lui sont liées. Une entrée apparaît sur la page d'un reading dès qu'une fiche de ce
+  reading s'en sert ou qu'elle est liée à une question de ce reading. Une citation par une autre entrée
+  ne rattache pas.
 - Chacun écrit **sa version** de l'entrée, signée de ses initiales (tirées du profil 👤) ; le corpus
   affiche toutes les versions côte à côte.
 - **Partir de la version d'un autre** : bouton sur la page de l'entrée (ou lien dans l'éditeur). Son
@@ -124,8 +138,8 @@ formules y sont, signées BD).
   des autres entrées (`#voir` devient son titre en texte simple, `#entree` disparaît). Une brique encore
   importée par une simulation ne se supprime pas : retirer l'import d'abord.
 - **Questions liées** : la page d'une entrée liste les questions qui lui sont liées (lien vers chacune)
-  et propose une série sur ces questions. Les liens sont partagés comme le reste du corpus ; ils ne
-  rattachent pas l'entrée à un reading.
+  et propose une série sur ces questions. Les liens sont partagés comme le reste du corpus ; chacun
+  rattache l'entrée au reading de la question.
 
 Fichiers : `notes/corpus/<id>/entree.json` (type, titre, auteurs), `<prénom>.typ` (la version),
 `<prénom>.hypotheses.typ` et `<prénom>.limites.typ` (une formule), `<prénom>.py` (le code d'une simulation
@@ -143,7 +157,7 @@ modifier à la main.
 - **Limite de temps** réglable à côté du bouton (30 s par défaut, 300 s au plus), retenue par le
   navigateur. Au-delà, le calcul est arrêté, y compris les processus qu'il aurait lancés.
 - **L'étape ③ se coche toute seule** quand une simulation s'exécute sans erreur, pour les readings de la
-  simulation, c'est-à-dire ceux des fiches qui la citent ou l'insèrent.
+  simulation : ceux des fiches qui la citent ou l'insèrent, et ceux des questions qui lui sont liées.
 - **Briques de code** : des fonctions réutilisables, entrées du corpus de type « Brique de code ». La
   brique `donnees-aleatoires` est le module `briques.donnees_aleatoires` :
   `from briques.donnees_aleatoires import generate_random_data`. Dans l'éditeur, le menu **🧱 Briques**
@@ -214,8 +228,9 @@ tools/vendor_codemirror/      regroupement de CodeMirror (npm + esbuild, mainten
   restent au dashboard.
 - **📚 Corpus**, sous chaque question : la relier à des entrées du corpus (« Lier » / « Délier »,
   serveur nécessaire). Les entrées liées s'affichent en pastilles sous la question. « Nouvelle série »
-  propose « Questions liées à des entrées du corpus » : cocher des entrées, puis « Au moins une »
-  (union) ou « Toutes » (croisement).
+  propose « Questions liées à des entrées du corpus » : chercher les entrées avec la barre du corpus
+  (mêmes filtres que partout), les cocher ; les entrées choisies s'affichent en bas, avec × pour en
+  retirer une ; puis « Au moins une » (union) ou « Toutes » (croisement).
 - Repère de temps : 100 questions en 4 h, soit 2 min 24 par question (compte à rebours de l'examen).
 - Une série en cours se reprend après un rechargement (elle n'est pas dans la sauvegarde).
 

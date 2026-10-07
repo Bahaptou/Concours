@@ -254,7 +254,7 @@ ${pager()}`,
     document.getElementById("corpus").innerHTML = `
 ${tools}
 <div data-corpus-body></div>
-<p class="src">Une entrée rejoint ce reading dès qu'une fiche du reading la cite ou l'insère (menu « 📚 Corpus » de l'éditeur de fiche).</p>
+<p class="src">Une entrée rejoint ce reading dès qu'une fiche du reading la cite ou l'insère (menu « 📚 Corpus » de l'éditeur de fiche), ou qu'elle est liée à une question du reading (page Questions).</p>
 <div class="save-actions">${actions}<a class="btn ghost" href="corpus.html?reading=${reading.id}">Voir dans le corpus</a></div>`;
     renderCorpusBody();
   }
@@ -271,7 +271,7 @@ ${tools}
     });
     const body = document.querySelector("[data-corpus-body]");
     if (!all.length) {
-      body.innerHTML = `<div class="placeholder">Aucune entrée du corpus n'est citée ou insérée dans une fiche de ce reading.</div>`;
+      body.innerHTML = `<div class="placeholder">Aucune entrée du corpus n'est citée ou insérée dans une fiche de ce reading, ni liée à une de ses questions.</div>`;
       return;
     }
     if (!entries.length) {

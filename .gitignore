@@ -4,5 +4,7 @@
 **/ignore
 **/**/ignore
 **/**/**/ignore
+./CFA
+
 .cache
 .venv

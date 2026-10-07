@@ -32,21 +32,23 @@ sont dans `../CLAUDE.md`.
   serveur, affichée sur la page Reading.
 - **Portail des fiches** (`fiches.html`, onglet « Fiches ») : les 62
   readings avec étapes, fiches et entrées utilisées ; filtres livre,
-  état de la fiche (dont « écrite mais ④ non cochée » et « ④ cochée
-  sans fiche »), auteur, type, recherche de chapitre (un nombre = ce
+  auteur et type (choix multiples), état de la fiche (dont « écrite
+  mais ④ non cochée » et « ④ cochée sans fiche »), recherche de chapitre (un nombre = ce
   chapitre dans chaque livre) et d'entrée ; pastilles ①–④ pour trier
   par étape (cochés d'abord, non cochés d'abord, ordre officiel). Lien
   vers `reading.html?id=N&auteur=x#notes-card`.
 - **Corpus** (`corpus.html`, `entree.html`) : formules, définitions,
   propriétés, théorèmes, simulations et briques de code écrits par nous. Identifiant
   lisible, titre et type communs, une version par personne signée de ses
-  initiales, readings tirés des fiches qui l'utilisent. Les entrées se
+  initiales, readings tirés des fiches qui l'utilisent et des questions qui
+  lui sont liées. Les entrées se
   citent (`#voir`) ; les fiches citent ou insèrent (`#entree`). Simulations
   et briques ont une section de code Python séparée de leur description.
   Une formule a de même deux champs, Hypothèses et Limites, affichés en blocs sous elle.
-  Vues Liste (tri titre / usage / date) et Stats (`corpus-stats.js`),
-  mêmes filtres : type, livre ou « sans reading », reading, auteur,
-  recherche.
+  Vues Liste (tri titre / usage / date), Graphe et Stats
+  (`corpus-stats.js`), mêmes filtres : type, livre ou « sans reading »,
+  auteur (choix multiples), reading, rattachement, entrées liées (sauf
+  Stats), recherche.
 - **Python (étape 3)** : ▶ Exécuter via le serveur (`/api/run`), sortie,
   erreur et ligne, figures matplotlib ; limite de temps réglable (30 s,
   300 s max) ; étape ③ cochée après une exécution réussie, pour les
@@ -63,7 +65,11 @@ sont dans `../CLAUDE.md`.
   de la page. La page Corpus charge aussi `charts` puis `corpus-stats`
   (infobulles, barres et tableau partagés) ; `corpus-graph.js` (graphe des
   entrées, pages Reading et Corpus) dessine en SVG, disposition par forces
-  écrite à la main, par groupes.
+  écrite à la main, par groupes ; `entry-preview.js` (aperçu d'une entrée
+  au survol : graphe, noms des Stats) le précède. `corpus-search.js`
+  (barre de recherche du corpus : filtres, entrées liées, recherche) sert
+  au menu Corpus des éditeurs et au choix des entrées d'une série ; script
+  classique, pour que la page Questions marche sans serveur.
 - **Données générées, jamais éditées à la main** : `data/curriculum.js`
   (`tools/extract_curriculum.py`), `data/questions/rN.js`
   (`tools/extract_questions.py`), `save/exemple-demo.json`
@@ -102,7 +108,7 @@ sont dans `../CLAUDE.md`.
   enregistrement de fiche et au démarrage :
   `notes/_corpus-titres.typ` (titres + `voir`), `notes/_corpus.typ`
   (versions valides + `entree`), `notes/corpus/index.js` (pour
-  `file://`, avec `citedBy` et `usedBy`).
+  `file://`, avec `citedBy`, `usedBy`, `noteReadings` et `questionReadings`).
 
 ## Décisions et raisons
 
@@ -195,15 +201,37 @@ sont dans `../CLAUDE.md`.
   titre et type modifiables par tous. Initiales = premières
   lettres du prénom et du nom du profil.
 - **Readings d'une entrée = ceux des fiches qui la citent ou l'insèrent
-  directement**, jamais saisis ni stockés (choix de Baptiste le
-  2026-10-01 : on crée une entrée pour une fiche, et ça pousse à faire
-  les fiches). Une citation par une autre entrée ne rattache pas.
+  directement, et ceux des questions qui lui sont liées**, jamais saisis
+  (choix de Baptiste le 2026-10-01 pour les fiches, le 2026-10-07 pour
+  les questions). Les deux origines restent distinctes (`noteReadings`,
+  `questionReadings`) ; `readings` est leur union, celle que coche
+  l'étape ③. Une citation par une autre entrée ne rattache pas.
   Le service des fiches prévient le corpus après chaque enregistrement,
   même raté (`NotesService.on_saved`, câblé dans `server.py`) : relu par
   la session WTF4 le 2026-10-01.
+- **Filtres du corpus** (choix de Baptiste le 2026-10-07) : page Corpus,
+  barre `corpus-search.js` (menu Corpus, choix des entrées d'une série),
+  portail Fiches pour livre, auteur et type :
+  - type, livre et auteur à choix multiples (`FRM.toggleChoice` : `null`
+    = tout ; un clic quand tout est choisi ne garde que ce bouton, retirer
+    le dernier revient à tout). Rattachement et état d'une fiche restent
+    à choix unique ;
+  - la liste des readings ne propose que ceux des livres choisis ; un
+    reading hors de ces livres revient à « Tous les readings » ;
+  - « Rattachement » : six options, comptées avec les autres filtres
+    (`FRM.attachmentCounts`), dans le reading choisi, sinon les livres
+    choisis, sinon tout (`FRM.attachmentScope`). « Fiche ou questions » et
+    « Ni fiche ni question » sont grisés quand un reading ou un livre est
+    choisi, et absents de la carte d'un reading : ils y vaudraient « Tout »
+    et « rien » ;
+  - « Entrées liées » : 0 (défaut), N liens de distance ou Max (toute la
+    chaîne), citations et imports dans les deux sens (`FRM.linkedTo`, qui
+    les recalcule depuis `cites` et `imports` : les entrées de l'API n'ont
+    pas `citedBy`). Les ajoutées sont grisées et respectent type et
+    auteur. Un seul réglage pour la liste et le graphe, pas pour les Stats.
 - **Le menu « Formules FRM » a été remplacé par le corpus** le 2026-10-01 :
   ses 6 formules sont des entrées signées BD, sans reading tant
-  qu'aucune fiche ne les utilise.
+  qu'aucune fiche ni question ne les rattache.
 - **Hypothèses et limites : formules seulement, dans l'encadré partout.**
   Choix de Baptiste le 2026-10-02. Deux fichiers Typst par version, deux champs
   sous le texte dans `entree.html`, rendus par `bloc-entree` sur la page du corpus
@@ -226,25 +254,35 @@ sont dans `../CLAUDE.md`.
 - **Questions liées au corpus, dans `entree.json`** (choix de Baptiste le
   2026-10-06) : partagées, écrites par PUT/DELETE
   `/api/corpus/<id>/questions/<q>`, lues par le manifeste. Distinctes de
-  « Traitée ». Elles ne donnent pas de reading à l'entrée. La page Questions
+  « Traitée ». Elles donnent leur reading à l'entrée. La page Questions
   importe le menu Corpus des éditeurs (modules ES) à la demande, serveur seul.
-  Séries : portée « entries », « Au moins une » (union) ou « Toutes » (croisement).
+  Séries : portée « entries », « Au moins une » (union) ou « Toutes » (croisement) ;
+  entrées choisies par la barre `corpus-search.js`, affichées en blocs qui
+  portent les champs cachés du formulaire (une entrée filtrée reste choisie).
 - **« À surveiller » des stats du corpus** (choix de Baptiste le 2026-10-07) :
   ce qui flotte, pas l'absence de reading. Isolées : aucun lien avec une
   autre entrée. Non rattachées : groupes (liens de proche en proche) dont
-  aucune entrée n'est utilisée dans une fiche. Liens = citations + imports,
-  dans les deux sens, calculés sur tout le corpus (pas sur le filtre). Les
-  questions liées sont affichées, mais ne rattachent pas.
+  aucune entrée n'a de reading (ni fiche ni question liée). Liens =
+  citations + imports, dans les deux sens, calculés sur tout le corpus
+  (pas sur le filtre).
 - **Voir une question n'ouvre pas de série** (choix de Baptiste le 2026-10-07) :
   tous les liens mènent à `question.html` (essai libre non enregistré) ; seul
   « S'entraîner » / « refaire » lance une série. Le catalogue
   (`question-catalogue.js`) ne montre que des chiffres par question : les
   totaux sont au dashboard.
 - **Graphe du corpus** (choix de Baptiste le 2026-10-07) : sur la page d'un
-  reading et en vue de la page Corpus ; voisins hors sélection en pâle ;
-  imports en pointillés. Flèches « cite » / « citée par » en `--use-1` /
+  reading et en vue de la page Corpus ; entrées liées en pâle (réglage
+  « Entrées liées ») ; imports en pointillés ; un clic sur une bulle la
+  sélectionne, un clic à côté la relâche. Flèches « cite » / « citée par » en `--use-1` /
   `--use-3` : le vert, essayé, échoue au validateur contre l'aqua du type
   Propriété (ΔE 11,9 < 15).
+- **Aperçu d'une entrée au survol** (`entry-preview.js`, choix de Baptiste
+  le 2026-10-07) : bulles du graphe, noms des Stats. Début du rendu (sa
+  version, sinon la première valide) et bouton « Ouvrir l'entrée ». Vient
+  après 0,6 s, part 0,15 s après la sortie (le temps de l'atteindre),
+  au-dessus de l'élément sans le couvrir ; un clic le ferme jusqu'à la
+  sortie de l'élément. Hauteur fixe : la position tient avant le
+  chargement de l'image.
 - **Boutons de maths ajoutés depuis les éditeurs, partagés** (choix de
   Baptiste le 2026-10-07) : `notes/_outils-maths.json`, sans notion
   d'auteur, tout le monde ajoute et retire. Les boutons de base restent dans
@@ -354,6 +392,12 @@ instant. Toutes les écritures et suppressions du projet passent par
 `backend/files.py` (écriture atomique, réessais pendant ~3 s) (constaté et
 reproduit le 2026-10-07).
 
+**Les minuteries de l'aperçu au survol se gênaient.** `pointermove` arrive
+en continu : relancer le délai à chaque mouvement ne montrait l'aperçu
+que souris immobile, et fermer l'ancien aperçu annulait l'ouverture du
+suivant. `entry-preview.js` garde l'élément en attente et sépare fermeture
+et attente (constaté en test le 2026-10-07).
+
 ## Ce qui n'est pas en place
 
 - **Bac à sable.** Le code exécuté peut lire les fichiers et accéder au
@@ -385,3 +429,6 @@ reproduit le 2026-10-07).
 - **Suppression ou renommage d'une image.** Aucune route : à la main dans
   `notes/images/`, puis corriger les `#image` qui la citent.
 - **Suivi des usages d'une image.** Rien n'indique quelles fiches l'utilisent.
+- **Aperçu qui évite les bulles voisines.** Large de 500 px, il peut
+  couvrir une bulle ; il reste ouvert tant que la souris est dessus (pour
+  atteindre son bouton) : en sortir le ferme en 0,15 s.

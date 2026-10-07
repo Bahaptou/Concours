@@ -2,7 +2,8 @@
  * place that knows how code is executed. Today the local server runs it (POST /api/run);
  * another engine (e.g. Pyodide in the browser) would only replace `execute` below.
  *
- * A successful run ticks step ③ of the readings of the simulation (those of the notes using it). */
+ * A successful run ticks step ③ of the readings of the simulation (those of the notes using it
+ * and of its linked questions). */
 (function (FRM, ui) {
   "use strict";
 
