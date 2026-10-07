@@ -1,5 +1,18 @@
 {
   "type": "definition",
   "titre": "Specific Risk",
-  "auteurs": {}
+  "auteurs": {
+    "baptiste": {
+      "nom": "Baptiste Durand",
+      "initiales": "BD",
+      "updatedAt": 1791330171391,
+      "valide": true
+    }
+  },
+  "questions": [
+    {
+      "id": "36",
+      "reading": 1
+    }
+  ]
 }

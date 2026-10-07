@@ -259,7 +259,7 @@
     const items = (entry.questions || []).map((q) => {
       const reading = FRM.findReading(q.reading);
       if (!reading) return "";
-      return `<li><a href="quiz.html?reading=${reading.id}&amp;q=${encodeURIComponent(q.id)}" title="${esc(reading.title)}">${esc(reading.tag)} · Q.${esc(q.id)}</a></li>`;
+      return `<li><a href="question.html?reading=${reading.id}&amp;q=${encodeURIComponent(q.id)}" title="${esc(reading.title)}">${esc(reading.tag)} · Q.${esc(q.id)}</a></li>`;
     });
     return items.length
       ? `<ul>${items.join("")}</ul>`

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from backend.compiler import TypstCompiler
 from backend.errors import StorageError, TypstCompileError
-from backend.files import write_atomic
+from backend.files import remove, write_atomic
 
 PAGE_FILE = re.compile(r"^fiche-(?P<author>[a-z0-9-]+)-(?P<page>\d+)\.svg$")
 
@@ -88,7 +88,7 @@ class NotesService:
     def _save(self, target: NoteTarget, source: str) -> SavedNote:
         try:
             self.folder(target).mkdir(parents=True, exist_ok=True)
-            self.source_path(target).write_text(source, encoding="utf-8")
+            write_atomic(self.source_path(target), source)
         except OSError as error:
             raise StorageError(str(self.source_path(target)), str(error)) from error
         try:
@@ -120,10 +120,10 @@ class NotesService:
     def _write_renderings(self, target: NoteTarget, pages: list[str], pdf: bytes) -> None:
         try:
             for old in self.page_paths(target)[len(pages):]:
-                old.unlink()
+                remove(old)
             for number, page in enumerate(pages, 1):
-                (self.folder(target) / f"fiche-{target.author}-{number}.svg").write_text(page, encoding="utf-8")
-            self.pdf_path(target).write_bytes(pdf)
+                write_atomic(self.folder(target) / f"fiche-{target.author}-{number}.svg", page)
+            write_atomic(self.pdf_path(target), pdf)
         except OSError as error:
             raise StorageError(str(self.folder(target)), str(error)) from error
 

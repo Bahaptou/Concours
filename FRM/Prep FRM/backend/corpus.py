@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
 import threading
 import time
 from dataclasses import dataclass, field
@@ -45,7 +44,7 @@ from backend.errors import (
     TypstCompileError,
     UnknownEntryError,
 )
-from backend.files import write_atomic
+from backend.files import remove, remove_tree, write_atomic
 from backend.notes import NotesService, NoteTarget
 
 ENTRY_TYPES = ("formule", "definition", "propriete", "theoreme", "simulation", "brique")
@@ -440,17 +439,17 @@ class CorpusService:
                 if text is not None and text.strip() and not carries_sections:
                     raise InvalidRequestError(section, "les hypothèses et les limites sont réservées aux formules")
             try:
-                self.source_path(entry_id, author).write_text(source, encoding="utf-8")
+                write_atomic(self.source_path(entry_id, author), source)
                 if code is not None:
-                    self.code_path(entry_id, author).write_text(code, encoding="utf-8")
+                    write_atomic(self.code_path(entry_id, author), code)
                 for section, text in sections.items():
                     if text is None:
                         continue
                     path = self.section_path(entry_id, author, section)
                     if text.strip():
-                        path.write_text(text, encoding="utf-8")
+                        write_atomic(path, text)
                     else:
-                        path.unlink(missing_ok=True)
+                        remove(path)
             except OSError as error:
                 raise StorageError(str(self.folder(entry_id)), str(error)) from error
             raw.setdefault("auteurs", {})[author] = {"nom": name, "initiales": initials, "updatedAt": int(time.time() * 1000)}
@@ -501,7 +500,7 @@ class CorpusService:
                 new_text, count = strip_references(path.read_text(encoding="utf-8"), entry_id, raw["titre"])
                 if count:
                     try:
-                        path.write_text(new_text, encoding="utf-8")
+                        write_atomic(path, new_text)
                     except OSError as error:
                         raise StorageError(str(path), str(error)) from error
                     if (other, author) not in rewritten:
@@ -511,7 +510,7 @@ class CorpusService:
                 self._rerender_into(other, author, report)
         with self._writes:
             try:
-                shutil.rmtree(self.folder(entry_id))
+                remove_tree(self.folder(entry_id))
             except OSError as error:
                 raise StorageError(str(self.folder(entry_id)), str(error)) from error
             self._regenerate()
@@ -572,9 +571,9 @@ class CorpusService:
         pages = self._box_pages(raw["type"], raw["titre"], info["initiales"], source, sections)
         try:
             for old in self.page_paths(entry_id, author)[len(pages):]:
-                old.unlink()
+                remove(old)
             for number, page in enumerate(pages, 1):
-                (self.folder(entry_id) / f"{author}-{number}.svg").write_text(page, encoding="utf-8")
+                write_atomic(self.folder(entry_id) / f"{author}-{number}.svg", page)
         except OSError as error:
             raise StorageError(str(self.folder(entry_id)), str(error)) from error
 

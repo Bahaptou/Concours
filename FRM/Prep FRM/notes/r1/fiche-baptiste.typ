@@ -89,6 +89,9 @@ Ici nous parlons de
 
 #voir("risk-appetite")
 
+#voir("specific-risk")
+
+
 
 #retenir[…]
 

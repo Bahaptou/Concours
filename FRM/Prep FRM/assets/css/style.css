@@ -595,6 +595,13 @@ fieldset.field legend{padding:0; margin-bottom:4px;}
 .q-detail.is-treated .q-treated-badge{display:inline-block;}
 .q-detail.is-treated:not([open]) summary{color:var(--muted);}
 .hide-treated .q-detail.is-treated{display:none;}
+/* Question page and catalogue */
+.quiz-tabs{margin-bottom:12px;}
+.q-nav{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; font-size:13px;}
+.cat-table .cat-stem{min-width:220px; max-width:400px;}
+.cat-table .cat-stem a{color:var(--ink); text-decoration:none;}
+.cat-table .cat-stem a:hover{text-decoration:underline;}
+.cat-links{white-space:nowrap; font-size:12px; color:var(--ink-soft);}
 .treated-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin:10px 0 4px;}
 .treated-bar label{display:inline-flex; align-items:center; gap:6px;}
 /* Corpus entries linked to a question (chips), and the "corpus entries" scope of a new series */
@@ -822,6 +829,11 @@ select.search{min-width:0;}
 .use-cites{background:var(--use-4);}
 /* Bricks used by a simulation: the brick type's colour, hatched when reached through another brick */
 .brick-direct{background:var(--etype-brique);}
+.code-controls{display:flex; flex-direction:column; gap:6px; margin-bottom:10px;}
+/* A legend that sorts rather than hides: the active item is bold, the others stay readable */
+button.legend-sort[aria-pressed="false"]{opacity:1; text-decoration:none;}
+button.legend-sort[aria-pressed="true"]{font-weight:700; color:var(--ink);}
+button.legend-sort:hover{color:var(--ink); text-decoration:underline;}
 .type-dot{flex:0 0 auto; width:9px; height:9px; border-radius:2px; background:var(--etype);}
 .brick-indirect{background:repeating-linear-gradient(135deg, var(--etype-brique) 0 2px, transparent 2px 5px); box-shadow:inset 0 0 0 1px var(--etype-brique);}
 /* Sortable table of the corpus stats: clickable headers, a type-coloured edge on each row */
@@ -835,14 +847,21 @@ table.sortable td .initials{margin-right:3px;}
 .count-bar{background:var(--primary-soft);}
 .count-bar-alt{background:color-mix(in srgb, var(--primary-soft) 40%, var(--surface));}
 .invalid-bar{background:var(--bad);}
-.stats-grid{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px 24px; margin:14px 0;}
+.stats-grid{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px 24px; margin:14px 0; align-items:start;} /* real heights: the most used bars are fitted to the watch list */
 @media (max-width:760px){.stats-grid{grid-template-columns:1fr;}}
 .stats-grid h3{font-size:14px; margin-bottom:8px;}
 .stats-grid .bar-row{grid-template-columns:minmax(110px, 34%) minmax(0, 1fr) 76px;}
 .stats-grid .bar-label{display:flex; align-items:center; gap:6px;}
+.stats-grid .bar-row.value-at-end{grid-template-columns:minmax(110px, 34%) minmax(0, 1fr);}
+.bar-tip-value{align-self:center; margin-left:6px; font-size:12.5px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink-soft);}
+.value-at-end .seg:last-of-type{border-radius:0 4px 4px 0;}
+.value-at-end .seg:first-of-type{border-radius:4px 0 0 4px;}
+.value-at-end .seg:only-of-type{border-radius:4px;}
 .watch-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; font-size:13px; color:var(--ink-soft);}
 .watch-item{display:flex; gap:8px; align-items:flex-start;}
 .watch-mark{flex:0 0 auto; width:16px; text-align:center;}
+.watch-groups{margin:4px 0; padding-left:16px;}
+.watch-groups li{margin-bottom:3px;}
 .view-switch{display:flex; gap:6px; margin-bottom:12px;}
 
 /* Notes portal (fiches.html): corpus entries used by a reading's notes */

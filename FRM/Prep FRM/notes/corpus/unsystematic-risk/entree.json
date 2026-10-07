@@ -1,11 +1,11 @@
 {
-  "type": "formule",
-  "titre": "CAPM",
+  "type": "definition",
+  "titre": "Unsystematic Risk",
   "auteurs": {
     "baptiste": {
       "nom": "Baptiste Durand",
       "initiales": "BD",
-      "updatedAt": 1790857610917,
+      "updatedAt": 1791329469853,
       "valide": true
     }
   }

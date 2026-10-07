@@ -25,9 +25,6 @@
   "business-risk": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/business-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
-  "capm": (
-    "baptiste": (initiales: "BD", corps: () => include "corpus/capm/baptiste.typ", hypotheses: none, limites: none),
-  ),
   "case-northern-rock": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/case-northern-rock/baptiste.typ", hypotheses: none, limites: none),
   ),
@@ -48,6 +45,9 @@
   ),
   "default-risk": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/default-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "diversifiable-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/diversifiable-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
   "donnees-aleatoires": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/donnees-aleatoires/baptiste.typ", hypotheses: none, limites: none),
@@ -82,11 +82,11 @@
   "histogramme": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/histogramme/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "idiosyncratic-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/idiosyncratic-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "interest-rate-risk": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/interest-rate-risk/baptiste.typ", hypotheses: none, limites: none),
-  ),
-  "la-vie-n-a-pas-de-sens": (
-    "baptiste": (initiales: "BD", corps: () => include "corpus/la-vie-n-a-pas-de-sens/baptiste.typ", hypotheses: none, limites: none),
   ),
   "legal-risk": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/legal-risk/baptiste.typ", hypotheses: none, limites: none),
@@ -136,6 +136,9 @@
   "risk-reward-tradeoff-principle": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/risk-reward-tradeoff-principle/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "specific-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/specific-risk/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "strategic-risk": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/strategic-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
@@ -156,6 +159,9 @@
   ),
   "unexpected-loss": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/unexpected-loss/baptiste.typ", hypotheses: none, limites: none),
+  ),
+  "unsystematic-risk": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/unsystematic-risk/baptiste.typ", hypotheses: none, limites: none),
   ),
   "var-parametrique-normale": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/var-parametrique-normale/baptiste.typ", hypotheses: none, limites: none),

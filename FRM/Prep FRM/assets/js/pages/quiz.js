@@ -6,8 +6,10 @@
  * sauvegardée à chaque action et se reprend après un rechargement.
  *
  * Adresse : ?reading=12 ou ?book=2 (périmètre pré-rempli), &select=unseen|wrong|flagged|untreated,
- *           &q=315 (cette seule question, tout de suite), ?exam=1 (réglages d'examen blanc),
- *           ?session=s… (revoir le bilan d'une série terminée). */
+ *           &q=315 (s'entraîner sur cette seule question, tout de suite), ?exam=1 (réglages d'examen
+ *           blanc), ?session=s… (revoir le bilan d'une série terminée), ?vue=catalogue (onglet
+ *           Catalogue, question-catalogue.js ; &reading=12 ou &book=2 pour son périmètre).
+ * Voir une question sans lancer de série : question.html (page Question). */
 (function (FRM, ui, view) {
   "use strict";
 
@@ -232,11 +234,24 @@
     form.querySelectorAll("input[name='order']").forEach((input) => (input.disabled = options.weighted && options.scope === "all"));
   }
 
+  /** Onglets de la page : séries (réglage, historique) ou catalogue des questions. */
+  function tabs(active) {
+    const tab = (id, label) => `<button type="button" class="toggle" data-quiz-tab="${id}" aria-pressed="${active === id}">${label}</button>`;
+    return `<div class="view-switch quiz-tabs" role="group" aria-label="Vue">${tab("setup", "Séries")}${tab("catalogue", "Catalogue")}</div>`;
+  }
+
   function renderSetup() {
     screen = "setup";
     stopClock();
-    root().innerHTML = resumeCard() + setupCard() + historyCard();
+    root().innerHTML = tabs("setup") + resumeCard() + setupCard() + historyCard();
     refreshSetup();
+  }
+
+  function renderCatalogue(initial = {}) {
+    screen = "catalogue";
+    stopClock();
+    root().innerHTML = `${tabs("catalogue")}<div data-catalogue></div>`;
+    FRM.questionCatalogue.render(root().querySelector("[data-catalogue]"), initial);
   }
 
   // ------------------------------------------------------------------ lancement
@@ -627,7 +642,7 @@ ${shown.length ? `<div class="card"><h2>Par reading</h2>${byReadingTable(shown)}
 
   document.addEventListener("click", (event) => {
     const target = event.target.closest(
-      "[data-choice], [data-validate], [data-next], [data-prev], [data-goto], [data-finish], [data-resume], [data-abandon], [data-exam-preset], [data-retry], [data-new], [data-next-untreated]"
+      "[data-choice], [data-validate], [data-next], [data-prev], [data-goto], [data-finish], [data-resume], [data-abandon], [data-exam-preset], [data-retry], [data-new], [data-next-untreated], [data-quiz-tab]"
     );
     if (!target || !root().contains(target)) return;
     const d = target.dataset;
@@ -651,6 +666,13 @@ ${shown.length ? `<div class="card"><h2>Par reading</h2>${byReadingTable(shown)}
       launch(retry.map((r) => r.question), { ...summary.options, label: `${summary.label} · erreurs`, count: null });
     } else if ("new" in d) renderSetup();
     else if ("nextUntreated" in d) nextUntreated();
+    else if (d.quizTab === "catalogue") {
+      history.replaceState(null, "", "quiz.html?vue=catalogue");
+      renderCatalogue();
+    } else if (d.quizTab === "setup") {
+      history.replaceState(null, "", "quiz.html");
+      renderSetup();
+    }
   });
 
   document.addEventListener("input", (event) => {
@@ -719,8 +741,11 @@ ${shown.length ? `<div class="card"><h2>Par reading</h2>${byReadingTable(shown)}
     .then(() => {
       if (params.get("entries")) options = initialOptions(); // entries are known only now
       const singleReading = FRM.findReading(params.get("reading"));
+      const singleBook = FRM.findBook(params.get("book"));
       if (params.get("session")) review(params.get("session"));
-      else if (params.get("q") && singleReading) startSingle(singleReading.id, params.get("q"));
+      else if (params.get("vue") === "catalogue") {
+        renderCatalogue({ scope: singleReading ? `reading:${singleReading.id}` : singleBook ? `book:${singleBook.id}` : undefined });
+      } else if (params.get("q") && singleReading) startSingle(singleReading.id, params.get("q"));
       else renderSetup();
     });
 })(window.FRM, window.FRM.ui, window.FRM.quizView);

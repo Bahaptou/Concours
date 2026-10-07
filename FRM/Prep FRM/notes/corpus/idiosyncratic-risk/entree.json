@@ -1,18 +1,12 @@
 {
   "type": "definition",
-  "titre": "Systematic Risk",
+  "titre": "Idiosyncratic Risk",
   "auteurs": {
     "baptiste": {
       "nom": "Baptiste Durand",
       "initiales": "BD",
-      "updatedAt": 1791330400592,
+      "updatedAt": 1791329497556,
       "valide": true
     }
-  },
-  "questions": [
-    {
-      "id": "36",
-      "reading": 1
-    }
-  ]
+  }
 }

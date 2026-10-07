@@ -375,7 +375,7 @@
       return `
 <li class="weak-q">
   ${last}
-  <div><a href="quiz.html?reading=${r.id}&q=${rec.id}">Q.${esc(rec.id)}</a> · <span class="ref-tag">${esc(r.tag)}</span> ${esc(r.title)} ${FRM.quizView.flagIcons(rec.id)}
+  <div><a href="question.html?reading=${r.id}&q=${rec.id}">Q.${esc(rec.id)}</a> · <span class="ref-tag">${esc(r.tag)}</span> ${esc(r.title)} ${FRM.quizView.flagIcons(rec.id)}
   <div class="meta">${ui.plural(rec.count, "essai")} · ${rec.correctCount} ${rec.correctCount > 1 ? "justes" : "juste"} · dernier essai ${rec.lastCorrect ? "juste" : "faux"}</div></div>
 </li>`;
     });

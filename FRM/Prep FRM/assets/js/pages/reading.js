@@ -54,7 +54,7 @@
       const r = FRM.questions.recordOf(q.id);
       const avg = r && r.timedCount ? r.totalMs / r.timedCount : null;
       return `<tr>
-  <td class="nowrap"><a href="${quizHref(`&q=${q.id}`)}" title="Refaire cette question">Q.${esc(q.id)}</a></td>
+  <td class="nowrap"><a href="question.html?reading=${reading.id}&amp;q=${encodeURIComponent(q.id)}" title="Voir la question, sans lancer de série">Q.${esc(q.id)}</a></td>
   <td class="num">${r ? r.count : 0}</td><td class="num">${r ? r.correctCount : 0}</td>
   <td class="num">${mark(r ? r.firstCorrect : null)}</td><td class="num">${mark(r ? r.lastCorrect : null)}</td>
   <td class="num">${avg === null ? "—" : FRM.quizView.clock(avg)}</td><td>${FRM.quizView.flagIcons(q.id)}</td>
@@ -100,7 +100,7 @@
 
   function questionRef(q) {
     const page = ui.pdfLink(reading.questions.source, q.page, `p. ${q.page}`);
-    return `<div class="fiche-ref"><strong>Q.${esc(q.id)}</strong> · ${page} · <a href="${quizHref(`&q=${q.id}`)}">refaire</a></div>`;
+    return `<div class="fiche-ref"><a href="question.html?reading=${reading.id}&amp;q=${encodeURIComponent(q.id)}"><strong>Q.${esc(q.id)}</strong></a> · ${page} · <a href="${quizHref(`&q=${q.id}`)}" title="Une série d'une question, enregistrée">refaire</a></div>`;
   }
 
   /** Dernière phrase du paragraphe qui précède un bloc de calcul : elle dit ce qui est calculé. */

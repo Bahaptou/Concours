@@ -31,14 +31,18 @@ Pour passer de l'un à l'autre : 💾 Sauvegarder d'un côté, 📂 Charger de l
 - **Questions** (`quiz.html`) : séries de questions AnalystPrep, en entraînement (correction après chaque
   question) ou en examen (correction à la fin, compte à rebours possible), examen blanc réparti selon les
   poids d'examen, bilan et reprise des erreurs, historique des séries.
+- **Question** (`question.html?reading=N&q=ID`) : une question hors de toute série : essai libre non
+  enregistré, correction, marques, liens au corpus, historique (chaque essai et sa série). « S'entraîner »
+  en fait une série d'une question, enregistrée.
 - **Livre** (`livre.html?id=N`) et **Reading** (`reading.html?id=N`) : programme, étapes à cocher, note de
   confiance sur 4 par learning objective, « Things to Remember » et calculs des corrigés AnalystPrep
   (avec lien vers la page du PDF), suivi des questions, simulations Python, nos fiches, entrées du
   corpus rattachées au reading.
 - **Corpus** (`corpus.html`, une entrée : `corpus.html?id=bayes`) : nos formules, définitions,
   propriétés, théorèmes et simulations. Vue **Liste** (tri par titre, usage ou date) et vue **Stats**
-  (chiffres clés, entrées à surveiller, répartition par type et par auteur, les plus utilisées, vue
-  tableau), avec les mêmes filtres : type, livre (ou « sans reading »), reading, auteur, recherche.
+  (chiffres clés, entrées à surveiller, répartition par type, les plus utilisées avec une légende
+  cliquable, code le plus complexe, tableau triable), avec les mêmes filtres : type, livre (ou « sans
+  reading »), reading, auteur, recherche.
 - **Fiches** (`fiches.html`) : les 62 readings avec leurs étapes, leurs fiches et les entrées du corpus
   qu'elles citent ou insèrent ; filtres par livre, état de la fiche (dont « fiche écrite mais ④ non
   cochée » et « ④ cochée sans fiche »), auteur, type d'entrée, recherche d'un chapitre (« 10 » donne
@@ -202,6 +206,9 @@ tools/vendor_codemirror/      regroupement de CodeMirror (npm + esbuild, mainten
 - **✓ Traitée** : une question déjà exploitée (fiche, corpus). Dans le bilan d'une série : compteur,
   « Masquer les traitées », « Suivante non traitée ». Compte par reading sur la page Reading et au
   dashboard. Ce n'est pas une marque : une question traitée n'est pas « marquée ».
+- **Catalogue** (onglet de la page Questions) : toutes les questions avec leurs propres chiffres (faite,
+  justes, dernier essai, temps, séries, marques, liens au corpus), filtres, recherche et tri. Les totaux
+  restent au dashboard.
 - **📚 Corpus**, sous chaque question : la relier à des entrées du corpus (« Lier » / « Délier »,
   serveur nécessaire). Les entrées liées s'affichent en pastilles sous la question. « Nouvelle série »
   propose « Questions liées à des entrées du corpus » : cocher des entrées, puis « Au moins une »

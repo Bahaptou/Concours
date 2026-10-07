@@ -55,8 +55,8 @@ sont dans `../CLAUDE.md`.
 
 ## Architecture
 
-- **Pages HTML vides** (`index`, `dashboard`, `quiz`, `livre`, `reading`,
-  `corpus`, `fiches`),
+- **Pages HTML vides** (`index`, `dashboard`, `quiz`, `question`, `livre`,
+  `reading`, `corpus`, `fiches`),
   rendues par des scripts classiques qui remplissent un objet global `FRM`,
   dans l'ordre des balises : `data/curriculum.js` → `store` → `core` →
   `questions` → `ui` → `save` → `profile` → (`quiz-view`, `charts`) → script
@@ -142,6 +142,11 @@ sont dans `../CLAUDE.md`.
   pastille à côté d'un texte encre (jamais du texte coloré). Une seule
   source par support : `--etype-*` dans `style.css`, `types-entree` dans
   `notes/_gabarit.typ` (même ordre, mêmes valeurs claires).
+- **Couleurs des genres d'usage (stats du corpus)** validées le 2026-10-07 :
+  une rampe ardoise à 4 crans (`--use-1` à `--use-4`, script dataviz en
+  `--ordinal`, surfaces `#ffffff` et `#1b2238`), pour ne jamais se confondre
+  avec une couleur de type. Les briques gardent la couleur de leur type
+  (hachurée quand elles passent par une autre brique).
 - **Profil = simple repère**, pas de comptes. Pour regarder la sauvegarde
   de quelqu'un d'autre : fenêtre de navigation privée.
 - **Sauvegarde restée en version 1** malgré les champs ajoutés (profil,
@@ -222,6 +227,17 @@ sont dans `../CLAUDE.md`.
   « Traitée ». Elles ne donnent pas de reading à l'entrée. La page Questions
   importe le menu Corpus des éditeurs (modules ES) à la demande, serveur seul.
   Séries : portée « entries », « Au moins une » (union) ou « Toutes » (croisement).
+- **« À surveiller » des stats du corpus** (choix de Baptiste le 2026-10-07) :
+  ce qui flotte, pas l'absence de reading. Isolées : aucun lien avec une
+  autre entrée. Non rattachées : groupes (liens de proche en proche) dont
+  aucune entrée n'est utilisée dans une fiche. Liens = citations + imports,
+  dans les deux sens, calculés sur tout le corpus (pas sur le filtre). Les
+  questions liées sont affichées, mais ne rattachent pas.
+- **Voir une question n'ouvre pas de série** (choix de Baptiste le 2026-10-07) :
+  tous les liens mènent à `question.html` (essai libre non enregistré) ; seul
+  « S'entraîner » / « refaire » lance une série. Le catalogue
+  (`question-catalogue.js`) ne montre que des chiffres par question : les
+  totaux sont au dashboard.
 - **Boutons de maths ajoutés depuis les éditeurs, partagés** (choix de
   Baptiste le 2026-10-07) : `notes/_outils-maths.json`, sans notion
   d'auteur, tout le monde ajoute et retire. Les boutons de base restent dans
@@ -323,6 +339,13 @@ Les attributs des menus sont préfixés (`data-img-…`) (trouvé en test le 202
 **Insérer avec le curseur en tête de fiche sortait du gabarit.** Le contenu placé
 avant `#show: fiche.with(…)` échappe à la mise en page. Les menus Corpus et
 Images placent le curseur sous tout l'en-tête (trouvé en test le 2026-10-02).
+
+**Une écriture échouait par moments avec « [Errno 22] Invalid argument ».**
+Sous Windows, un fichier qu'un autre programme garde mappé en mémoire (git,
+lancé par l'éditeur après chaque changement) ne peut pas être réécrit à cet
+instant. Toutes les écritures et suppressions du projet passent par
+`backend/files.py` (écriture atomique, réessais pendant ~3 s) (constaté et
+reproduit le 2026-10-07).
 
 ## Ce qui n'est pas en place
 
