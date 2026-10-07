@@ -111,6 +111,12 @@ a:focus-visible, button:focus-visible, input:focus-visible + .chip{outline:2px s
 /* ---------------------------------------------------------------- en-tête et navigation */
 
 header.top{background:var(--primary); color:#fff; padding:14px 16px 0 16px;}
+/* Stuck to the top, it slides away when scrolling down and back when scrolling up (ui.js).
+   Under the tooltips, the flash and the open menus (z-index 30, 40), over the content. */
+header.top{position:sticky; top:0; z-index:25; transition:transform .25s ease, box-shadow .25s ease;}
+header.top.is-hidden{transform:translateY(-100%);}
+header.top.is-floating{box-shadow:0 2px 10px rgba(0, 0, 0, 0.18);}
+@media (prefers-reduced-motion: reduce){header.top{transition:none;}}
 .top-inner{max-width:920px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding-bottom:4px;}
 .brand{display:flex; flex-direction:column; gap:2px;}
 .brand .kicker{font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#c7cfe8;}
@@ -597,8 +603,14 @@ fieldset.field legend{padding:0; margin-bottom:4px;}
 .q-detail.is-treated:not([open]) summary{color:var(--muted);}
 .hide-treated .q-detail.is-treated{display:none;}
 /* Graph of corpus entries (corpus-graph.js): arrows "cite" / "citée par" in the slate ramp (--use-1 / --use-3) */
-.graph-wrap{overflow:auto; max-height:78vh; border:1px solid var(--line); border-radius:10px; background:var(--surface-2);}
-svg.corpus-graph{display:block; max-width:none; height:auto; margin:0 auto; touch-action:none; user-select:none;} /* real size: scroll rather than shrink */
+/* The frame of the graph: the view moves and zooms inside it like a map (corpus-graph.js). */
+.graph-wrap{position:relative; overflow:hidden; border:1px solid var(--line); border-radius:10px; background:var(--surface-2);}
+svg.corpus-graph{display:block; width:100%; height:100%; touch-action:none; user-select:none; cursor:grab;}
+svg.corpus-graph.is-panning{cursor:grabbing;}
+.graph-controls{position:absolute; top:8px; right:8px; z-index:1; display:flex; align-items:center; gap:4px;}
+.graph-controls button{font:inherit; font-size:12.5px; font-weight:700; min-width:30px; height:28px; padding:0 8px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--ink); cursor:pointer; box-shadow:var(--shadow);}
+.graph-controls button:hover{border-color:var(--primary-soft);}
+.graph-scale{font-size:11.5px; color:var(--muted); background:var(--surface); border:1px solid var(--line); border-radius:7px; padding:4px 7px;}
 .gnode{cursor:pointer;}
 .gnode:focus{outline:none;}
 .gbox{fill:var(--surface); stroke:var(--line); stroke-width:1;}
@@ -749,23 +761,25 @@ select.tool{padding:4px 6px;}
 
 /* ---------------------------------------------------------------- corpus */
 
-/* Entry types: categorical palette (reference slots 1, 2, 3, 7, 5, then dark yellow #c98500)
-   validated with the dataviz skill's script on adjacent pairs, light on #ffffff and dark on
-   #1b2238; some non-adjacent pairs are close, so a type colour is never shown without its name. Light values = types-entree in
+/* Entry types: categorical palette (reference slots 1, 2, 3, 7, then green #008300 for financial
+   products, 5, then dark yellow #c98500) validated with the dataviz skill's script on adjacent
+   pairs, light on #ffffff and dark on #1b2238 (2026-10-08: the product's green passes only between
+   théorème and simulation); some non-adjacent pairs are close (green / aqua), so a type colour is
+   never shown without its name. Light values = types-entree in
    notes/_gabarit.typ. Identity only: labels stay in ink, the colour sits next to them. */
 :root{
   --etype-formule:#2a78d6; --etype-definition:#eb6834; --etype-propriete:#199e70;
-  --etype-theoreme:#4a3aa7; --etype-simulation:#d55181; --etype-brique:#c98500;
+  --etype-theoreme:#4a3aa7; --etype-produit:#008300; --etype-simulation:#d55181; --etype-brique:#c98500;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --etype-formule:#3987e5; --etype-definition:#d95926; --etype-propriete:#199e70;
-    --etype-theoreme:#9085e9; --etype-simulation:#d55181; --etype-brique:#c98500;
+    --etype-theoreme:#9085e9; --etype-produit:#008300; --etype-simulation:#d55181; --etype-brique:#c98500;
   }
 }
 :root[data-theme="dark"]{
   --etype-formule:#3987e5; --etype-definition:#d95926; --etype-propriete:#199e70;
-  --etype-theoreme:#9085e9; --etype-simulation:#d55181; --etype-brique:#c98500;
+  --etype-theoreme:#9085e9; --etype-produit:#008300; --etype-simulation:#d55181; --etype-brique:#c98500;
 }
 .etype{display:inline-flex; align-items:center; gap:5px; flex:0 0 auto; font-size:11px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; padding:2px 7px; border-radius:6px; color:var(--ink-soft); background:var(--surface-2); border:1px solid var(--line);}
 .etype::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--etype);}
@@ -778,6 +792,7 @@ select.tool{padding:4px 6px;}
 .etype-definition{--etype:var(--etype-definition);}
 .etype-propriete{--etype:var(--etype-propriete);}
 .etype-theoreme{--etype:var(--etype-theoreme);}
+.etype-produit{--etype:var(--etype-produit);}
 .etype-simulation{--etype:var(--etype-simulation);}
 .etype-brique{--etype:var(--etype-brique);}
 .toggle.etype-filter::before{content:""; display:inline-block; width:8px; height:8px; margin-right:6px; border-radius:2px; background:var(--etype);}
@@ -951,3 +966,16 @@ table.sortable td .initials{margin-right:3px;}
 .code-pane .toolbar{margin-bottom:6px;}
 /* Shared notes and entries: the creator's initials come first, with a darker border. */
 .initials.is-creator{border-color:var(--ink-soft);}
+
+/* Variables declared by a financial product, in the top card of the entry editor (entree.js). */
+.variables-pane{margin-top:14px; padding-top:12px; border-top:1px solid var(--line);}
+.variables-pane h3{margin:0 0 4px 0;}
+.variables-table{width:100%; border-collapse:collapse; margin:6px 0 8px 0; font-size:13px;}
+.variables-table th{text-align:left; font-size:11px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--muted); padding:2px 4px;}
+.variables-table td{padding:3px 4px;}
+.variables-table th:nth-child(1){width:32%;} .variables-table th:last-child{width:28px;}
+.variables-table input{width:100%; box-sizing:border-box; font:inherit; padding:5px 7px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink);}
+.variables-table input[data-var="nom"]{font-family:ui-monospace, SFMono-Regular, Consolas, monospace; font-size:12.5px;}
+.variables-table input.is-invalid{border-color:var(--bad);}
+.variables-code{margin-top:10px;}
+.variables-code .code-wrap{margin-top:4px;}

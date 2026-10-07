@@ -355,6 +355,7 @@
   <div class="snippets">
     <span>Citer : <code>#voir("${esc(entry.id)}")</code></span>
     <span>Insérer dans une fiche : <code>#entree("${esc(entry.id)}")</code></span>
+    ${entry.type === "produit" ? `<span>Dans le code : <code>from produits import produit</code> puis <code>p = produit("${esc(entry.id)}")</code>, et on remplit ses variables (<code>p.${esc((entry.variables || [])[0]?.nom || "nom")} = …</code>)</span>` : ""}
   </div>
   <div class="save-actions">${actions}${(entry.questions || []).length ? `<a class="btn ghost" href="quiz.html?entries=${encodeURIComponent(entry.id)}">Série sur ses questions (${entry.questions.length})</a>` : ""}</div>
 </div>

@@ -59,9 +59,10 @@ export const deleteEntry = (id) => request("DELETE", entryUrl(id), signed({}));
 export const questionLinkUrl = (id, question) => `${entryUrl(id)}/questions/${encodeURIComponent(question)}`;
 export const linkQuestion = (id, question, reading) => request("PUT", questionLinkUrl(id, question), { reading });
 export const unlinkQuestion = (id, question) => request("DELETE", questionLinkUrl(id, question), {});
-/** text: { source, code?, hypotheses?, limites? } (the last two: formulas only) */
+/** text: { source, code?, hypotheses?, limites?, variables? } (hypotheses, limites: formulas;
+ *  variables: financial products, [{ nom, valeur, unite, note }]) */
 export const saveText = (link, text) => request(link.method, link.href, signed(text));
-/** draft: { type, titre, source, hypotheses?, limites? } */
+/** draft: { type, titre, source, hypotheses?, limites?, variables? } */
 export const previewEntry = (link, draft) => request(link.method, link.href, draft);
 
 // Math buttons added from the editors (notes/_outils-maths.json), shared by everyone.

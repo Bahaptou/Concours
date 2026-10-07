@@ -128,6 +128,7 @@
     { id: "definition", label: "Définition", plural: "Définitions" },
     { id: "propriete", label: "Propriété", plural: "Propriétés" },
     { id: "theoreme", label: "Théorème", plural: "Théorèmes" },
+    { id: "produit", label: "Produit financier", plural: "Produits financiers" },
     { id: "simulation", label: "Simulation", plural: "Simulations" },
     { id: "brique", label: "Brique de code", plural: "Briques de code" },
   ];

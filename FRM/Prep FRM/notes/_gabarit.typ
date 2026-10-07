@@ -68,6 +68,7 @@
   definition: (nom: "Définition", couleur: rgb("#eb6834")),
   propriete: (nom: "Propriété", couleur: rgb("#199e70")),
   theoreme: (nom: "Théorème", couleur: rgb("#4a3aa7")),
+  produit: (nom: "Produit financier", couleur: rgb("#008300")),
   simulation: (nom: "Simulation", couleur: rgb("#d55181")),
   brique: (nom: "Brique de code", couleur: rgb("#c98500")),
 )
@@ -88,9 +89,39 @@
   #text(size: 0.92em)[#body]
 ]
 
+// Variables of a financial product, declared by hand: the names the code fills (produit("id").nom).
+// A table with their notes when some are written, else the names in a row.
+#let variables-entree(couleur, variables) = {
+  let notes = variables.any(v => v.note != "")
+  block(
+    width: 100%,
+    inset: (x: 8pt, y: 6pt),
+    radius: 2pt,
+    fill: white,
+    stroke: 0.8pt + couleur.lighten(45%),
+    above: 0.7em,
+    below: 0pt,
+  )[
+    #text(size: 7.5pt, weight: "bold", fill: couleurs.doux, tracking: 0.06em)[#upper("Variables")]
+    #set text(size: 0.92em)
+    #set block(above: 0.35em, below: 0pt)
+    #if notes {
+      table(
+        columns: (auto, 1fr),
+        stroke: none,
+        inset: (x: 4pt, y: 2.5pt),
+        ..variables.map(v => (raw(v.nom), text(fill: couleurs.doux)[#v.note])).flatten(),
+      )
+    } else {
+      block(variables.map(v => raw(v.nom)).join([#h(0.35em)·#h(0.35em)]))
+    }
+  ]
+}
+
 // Box of an entry: its type and title, then its text (entries belong to everyone: no author shown).
-// hypotheses / limites: optional content, shown as blocks under the body.
-#let bloc-entree(type, titre, body, hypotheses: none, limites: none) = {
+// hypotheses / limites: optional content, shown as blocks under the body; variables: a financial
+// product's table, under the body too.
+#let bloc-entree(type, titre, body, hypotheses: none, limites: none, variables: none) = {
   let style = types-entree.at(type)
   block(
     width: 100%,
@@ -106,6 +137,7 @@
     #text(weight: "bold")[#titre]
     #v(0.2em)
     #body
+    #if variables != none and variables.len() > 0 { variables-entree(style.couleur, variables) }
     #if hypotheses != none { section-entree("Hypothèses", style.couleur, "solid", hypotheses) }
     #if limites != none { section-entree("Limites", style.couleur, "dashed", limites) }
   ]

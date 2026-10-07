@@ -51,7 +51,28 @@ const SECTIONS = [
   { id: "limites", label: "Limites", hint: "Quand la formule trompe ou ne s'applique plus. Une puce par limite." },
 ];
 const SECTION_TYPES = ["formule"];
+// A financial product declares the variables it needs (a name, an optional note): no values here,
+// the code fills them (produit("id") gives an object whose attributes are these names, all None).
+// Keep in step with VARIABLE_TYPES in backend/corpus.py.
+const VARIABLE_TYPES = ["produit"];
+const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,39}$/;
 const moduleName = (entryId) => entryId.replace(/-/g, "_");
+
+function variableRow(v = { nom: "", note: "" }) {
+  const input = (field, current, placeholder, extra = "") =>
+    `<input data-var="${field}" value="${esc(current ?? "")}" placeholder="${esc(placeholder)}" aria-label="${esc(placeholder)}"${extra}>`;
+  return `<tr data-variable-row>
+  <td>${input("nom", v.nom, "nom, ex. fixed_rate", ' spellcheck="false" autocomplete="off"')}</td>
+  <td>${input("note", v.note, "note (facultative), ex. taux fixe annuel")}</td>
+  <td><button type="button" class="pick-remove" data-remove-variable title="Retirer cette variable" aria-label="Retirer cette variable">×</button></td>
+</tr>`;
+}
+
+/** The lines to start from in the code: the product and its variables to fill. */
+function variablesSnippet(entryId, names) {
+  const lines = ["from produits import produit", `p = produit("${entryId || "identifiant"}")`, ...names.map((name) => `p.${name} = ...`)];
+  return lines.join("\n");
+}
 
 /** Line importing a brick into Python code: its public functions. */
 function brickImportLine(brick) {
@@ -138,6 +159,16 @@ function layout({ creating, meta }) {
     <label class="field" data-field="type">Type<select name="type">${typeOptions(meta.type)}</select></label>
     <label class="field" data-field="id">Identifiant <span class="hint">pour citer : #voir("…") · fixé à la création</span><input name="id" maxlength="50" value="${esc(meta.id)}"${creating ? "" : " readonly"}></label>
   </form>
+  <div class="variables-pane" data-variables-pane hidden>
+    <h3>Variables</h3>
+    <p class="small muted">Les variables dont le produit a besoin, sans valeur : on les remplit dans le code. Un même produit peut en déclarer plusieurs sortes (<code>fixed_rate</code>, <code>variable_rate</code>…), la fonction choisit celle qu'elle utilise.</p>
+    <table class="variables-table">
+      <thead><tr><th>Nom (pour le code)</th><th>Note</th><th></th></tr></thead>
+      <tbody data-variables></tbody>
+    </table>
+    <button type="button" class="btn ghost" data-add-variable>＋ Ajouter une variable</button>
+    <div class="variables-code"><span class="small muted">Dans le code :</span><div data-variables-code></div></div>
+  </div>
   <p class="small" data-readings></p>
   <p class="small muted"><span data-journal></span> Le texte est commun : ce que tu enregistres remplace celui de tout le monde (git garde les anciens textes).</p>
   <div class="form-error" data-form-error hidden></div>
@@ -214,6 +245,7 @@ async function start() {
   let savedSource = text && text.data.exists ? text.data.source : null;
   let savedCode = text ? text.data.code : null;
   const savedSections = Object.fromEntries(SECTIONS.map((section) => [section.id, (text && text.data[section.id]) || ""]));
+  let savedVariables = (text && text.data.variables) || [];
 
   // ---------------------------------------------------------- metadata form
 
@@ -223,6 +255,51 @@ async function start() {
 
   const hasCode = () => CODE_TYPES.includes(form.type.value);
   const hasSections = () => SECTION_TYPES.includes(form.type.value);
+  const hasVariables = () => VARIABLE_TYPES.includes(form.type.value);
+
+  // ---------------------------------------------------------- variables of a financial product
+
+  const variablesBody = $("[data-variables]");
+  variablesBody.innerHTML = savedVariables.map(variableRow).join("");
+
+  /** The table as the server takes it: [{ nom, note }], blank rows skipped. */
+  function readVariables() {
+    return [...variablesBody.querySelectorAll("[data-variable-row]")]
+      .map((row) => Object.fromEntries([...row.querySelectorAll("[data-var]")].map((input) => [input.dataset.var, input.value.trim()])))
+      .filter((v) => v.nom || v.note)
+      .map((v) => ({ nom: v.nom, note: v.note }));
+  }
+
+  /** The example to copy into the code, following the table and the identifier. */
+  function showVariablesCode() {
+    const names = readVariables().map((v) => v.nom).filter((name) => VARIABLE_NAME.test(name));
+    $("[data-variables-code]").innerHTML = ui.codeBlock(variablesSnippet(form.id.value, names));
+  }
+
+  function markVariableNames() {
+    variablesBody.querySelectorAll('[data-var="nom"]').forEach((input) => {
+      input.classList.toggle("is-invalid", Boolean(input.value.trim()) && !VARIABLE_NAME.test(input.value.trim()));
+      input.title = input.classList.contains("is-invalid") ? "Lettres sans accent, chiffres et _, sans commencer par un chiffre (le code l'utilise tel quel)" : "";
+    });
+  }
+
+  $("[data-add-variable]").addEventListener("click", () => {
+    variablesBody.insertAdjacentHTML("beforeend", variableRow());
+    variablesBody.querySelector("[data-variable-row]:last-child [data-var='nom']").focus();
+  });
+  variablesBody.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-remove-variable]")) return;
+    event.target.closest("[data-variable-row]").remove();
+    showVariablesCode();
+    markDirty();
+    schedulePreview();
+  });
+  variablesBody.addEventListener("input", () => {
+    markVariableNames();
+    showVariablesCode();
+    markDirty();
+    schedulePreview();
+  });
 
   function refreshMetaDisplay() {
     const meta = metaOf();
@@ -231,11 +308,13 @@ async function start() {
     $("[data-readings]").textContent = readingsLine(entry);
     $("[data-code-pane]").hidden = !hasCode();
     for (const section of SECTIONS) $(`[data-section-pane="${section.id}"]`).hidden = !hasSections();
+    $("[data-variables-pane]").hidden = !hasVariables();
+    showVariablesCode();
     $("[data-editor]").classList.toggle("compact", hasSections());
     $("[data-code-title]").textContent = form.type.value === "brique"
       ? `Code de la brique · une simulation l'importe avec : from briques.${moduleName(form.id.value || "identifiant")} import …`
       : "Code Python de la simulation";
-    const extraFiles = hasCode() ? " + code.py" : hasSections() ? ` + ${SECTIONS.map((section) => `${section.id}.typ`).join(" + ")}` : "";
+    const extraFiles = hasCode() ? " + code.py" : hasSections() ? ` + ${SECTIONS.map((section) => `${section.id}.typ`).join(" + ")}` : hasVariables() ? " + variables.json" : "";
     $("[data-file]").textContent = `notes/corpus/${form.id.value || "…"}/texte.typ${extraFiles}`;
   }
 
@@ -349,6 +428,8 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
         titre: meta.titre || "Sans titre",
         source: view.state.doc.toString(),
         ...sectionTexts(),
+        // Only the valid names, once each: a name being typed must not stop the preview (saving reports it).
+        ...(hasVariables() ? { variables: readVariables().filter((v, i, all) => VARIABLE_NAME.test(v.nom) && all.findIndex((w) => w.nom === v.nom) === i) } : {}),
       });
       if (seq !== previewSeq) return; // an older request answered late: ignore it
       $("[data-preview]").innerHTML = result.data.pages.join("");
@@ -374,8 +455,9 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
   const sourceChanged = () => view.state.doc.toString() !== (savedSource ?? NEW_TEXT);
   const codeChanged = () => hasCode() && codeView.state.doc.toString() !== (savedCode ?? codeTemplate(form.type.value));
   const sectionsChanged = () => hasSections() && SECTIONS.some((section) => sectionViews[section.id].state.doc.toString() !== savedSections[section.id]);
+  const variablesChanged = () => hasVariables() && JSON.stringify(readVariables()) !== JSON.stringify(savedVariables);
   const metaChanged = () => JSON.stringify(metaOf()) !== savedMeta;
-  const isDirty = () => (entry ? metaChanged() : Boolean(form.titre.value.trim())) || sourceChanged() || codeChanged() || sectionsChanged();
+  const isDirty = () => (entry ? metaChanged() : Boolean(form.titre.value.trim())) || sourceChanged() || codeChanged() || sectionsChanged() || variablesChanged();
 
   function markDirty() {
     if (!saving) status(isDirty() ? "Modifications non enregistrées" : "✓ À jour", isDirty() ? "warn" : "ok");
@@ -421,17 +503,19 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
         showReport(updated.data.rebuild);
         rebuilt += dependentsIn(updated.data.rebuild);
       }
-      if (sourceChanged() || codeChanged() || sectionsChanged()) {
+      if (sourceChanged() || codeChanged() || sectionsChanged() || variablesChanged()) {
         const source = view.state.doc.toString();
         const code = hasCode() ? codeView.state.doc.toString() : undefined;
         const sections = sectionTexts();
+        const variables = hasVariables() ? readVariables() : undefined;
         const written = () => {
           savedSource = source;
           if (code !== undefined) savedCode = code;
           Object.assign(savedSections, sections);
+          if (variables !== undefined) savedVariables = variables;
         };
         try {
-          const saved = await api.saveText({ method: "PUT", href: api.textUrl(entry.data.id) }, { source, code, ...sections });
+          const saved = await api.saveText({ method: "PUT", href: api.textUrl(entry.data.id) }, { source, code, ...sections, ...(variables !== undefined ? { variables } : {}) });
           written();
           adopt(saved);
           showReport(saved.data.rebuild);

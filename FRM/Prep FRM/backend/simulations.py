@@ -1,7 +1,8 @@
 """Runs simulation (and brick) code on this machine, in a separate Python process.
 
 Each run gets a fresh temporary folder: the code as ``main.py``, every brick of the corpus as
-``briques/<module>.py`` (each brick has one shared code: ``CorpusService.brick_sources``),
+``briques/<module>.py`` (each brick has one shared code: ``CorpusService.brick_sources``), the
+financial products as ``produits.py`` (``from produits import produit``: an object to fill),
 and a small runner script. The child process uses the project's Python (numpy, scipy, pandas,
 matplotlib), in isolated mode, with a time limit; matplotlib draws without a window (Agg) and the
 runner saves the figures still open at the end.
@@ -140,9 +141,10 @@ class SimulationRunner:
 
     def run(self, code: str, timeout: float = DEFAULT_TIMEOUT) -> RunResult:
         bricks = self.corpus.brick_sources()
+        products = self.corpus.products()
         with self._slots, tempfile.TemporaryDirectory(prefix="prep-frm-run-") as tmp:
             folder = Path(tmp)
-            self._prepare(folder, code, bricks)
+            self._prepare(folder, code, bricks, products)
             started = time.perf_counter()
             try:
                 process = subprocess.Popen(
@@ -176,10 +178,11 @@ class SimulationRunner:
             return self._result(folder, completed, duration, used_bricks(code, bricks))
 
     @staticmethod
-    def _prepare(folder: Path, code: str, bricks) -> None:
+    def _prepare(folder: Path, code: str, bricks, products: dict | None = None) -> None:
         try:
             (folder / "main.py").write_text(code, encoding="utf-8")
             (folder / "_runner.py").write_text(RUNNER, encoding="utf-8")
+            (folder / "produits.py").write_text(PRODUCTS_MODULE.format(products=repr(products or {})), encoding="utf-8")
             package = folder / "briques"
             package.mkdir()
             (package / "__init__.py").write_text("", encoding="utf-8")
@@ -202,3 +205,57 @@ class SimulationRunner:
             for name in report["figures"]
         ]
         return RunResult(report["error"] is None, stdout, stderr, duration, error=report["error"], figures=figures, bricks=used)
+
+
+# Module importable by the code run (and by the bricks): the financial products of the corpus.
+PRODUCTS_MODULE = """\"\"\"Financial products of the corpus, generated for this run.
+
+produit("id") gives a new object whose attributes are the variables declared on the product's page,
+all None: the code fills them (p.fixed_rate = 0.03). Assigning a name the product does not declare
+raises an error (a typo would otherwise go unnoticed).\"\"\"
+
+PRODUITS = {products}
+
+
+class Produit:
+    \"\"\"One financial product of the corpus: its declared variables, to fill.\"\"\"
+
+    def __init__(self, identifiant, notes):
+        object.__setattr__(self, "_id", identifiant)
+        object.__setattr__(self, "_notes", dict(notes))
+        for nom in notes:
+            object.__setattr__(self, nom, None)
+
+    def __setattr__(self, nom, valeur):
+        if nom not in self._notes:
+            declarees = ", ".join(self._notes) or "aucune"
+            raise AttributeError(
+                f"« {{nom}} » n'est pas une variable du produit {{self._id!r}} (variables : {{declarees}}). "
+                "Ajoute-la sur la page du produit dans le corpus."
+            )
+        object.__setattr__(self, nom, valeur)
+
+    def variables(self):
+        \"\"\"{{name: value}} of the declared variables (None until filled).\"\"\"
+        return {{nom: getattr(self, nom) for nom in self._notes}}
+
+    def a_remplir(self):
+        \"\"\"Names of the declared variables still None.\"\"\"
+        return [nom for nom, valeur in self.variables().items() if valeur is None]
+
+    def notes(self):
+        \"\"\"{{name: note}} as written on the product's page.\"\"\"
+        return dict(self._notes)
+
+    def __repr__(self):
+        valeurs = ", ".join(f"{{nom}}={{valeur!r}}" for nom, valeur in self.variables().items())
+        return f"produit({{self._id!r}}: {{valeurs}})"
+
+
+def produit(identifiant):
+    \"\"\"A new object for the product `identifiant` (its corpus identifier, e.g. "obligation-5-ans").\"\"\"
+    if identifiant not in PRODUITS:
+        connus = ", ".join(sorted(PRODUITS)) or "aucun"
+        raise KeyError(f"Produit inconnu du corpus : {{identifiant!r}} (produits : {{connus}})")
+    return Produit(identifiant, PRODUITS[identifiant])
+"""

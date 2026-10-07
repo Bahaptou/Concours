@@ -1,11 +1,11 @@
 {
   "type": "definition",
   "titre": "Funding Liquidity Risk",
+  "valide": true,
   "questions": [
     {
       "id": "7",
       "reading": 1
     }
-  ],
-  "valide": true
+  ]
 }

@@ -4,7 +4,9 @@ An entry has a readable, fixed identifier (``bayes``) and belongs to everyone: s
 (type, title, linked questions, validity) in ``corpus/<id>/entree.json`` and one shared text,
 ``texte.typ``, plus ``code.py`` for a simulation or a brick, and ``hypotheses.typ`` / ``limites.typ``
 for a formula (two small blocks shown under it, in the entry's box everywhere: corpus page and
-notes). Its ``journal.jsonl`` (backend/journal.py) keeps who created and changed it, and when; git
+notes), and ``variables.json`` for a financial product: the names of the variables it needs,
+declared by hand with an optional note, shown in its box and given to the code as an object whose
+attributes are left to fill (``from produits import produit``, backend/simulations.py). Its ``journal.jsonl`` (backend/journal.py) keeps who created and changed it, and when; git
 keeps the texts. Entries cite each other with ``#voir("id")``; notes can also insert a whole entry
 with ``#entree("id")``.
 
@@ -49,11 +51,13 @@ from backend.files import remove, remove_tree, write_atomic
 from backend.journal import Contributor
 from backend.notes import NotesService, NoteTarget, now_ms
 
-ENTRY_TYPES = ("formule", "definition", "propriete", "theoreme", "simulation", "brique")
+ENTRY_TYPES = ("formule", "definition", "propriete", "theoreme", "produit", "simulation", "brique")
 BRICK = "brique"
 CODE_TYPES = ("simulation", BRICK)  # entries carrying Python code
 SECTIONS = ("hypotheses", "limites")  # texts written under a formula, in this order
 SECTION_TYPES = ("formule",)  # entries carrying them
+VARIABLE_TYPES = ("produit",)  # entries declaring variables (variables.json: [{nom, note}])
+VARIABLES = "variables.json"
 BRICK_IMPORT = re.compile(r"^[ \t]*(?:from|import)[ \t]+briques\.([A-Za-z_]\w*)", re.MULTILINE)
 CITATION = re.compile(r'#(voir|entree)\(\s*"([a-z0-9][a-z0-9-]*)"')
 FORBIDDEN = re.compile(r"_corpus\.typ|#entree\(")
@@ -78,6 +82,7 @@ class EntryTexts:
     code: str | None
     hypotheses: str | None
     limites: str | None
+    variables: list[dict] | None = None  # financial products: [{nom, note}]
 
 
 @dataclass(frozen=True)
@@ -93,6 +98,7 @@ class Entry:
     used_by: tuple[NoteTarget, ...]  # notes citing or inserting it
     imports: tuple[str, ...] = ()  # bricks imported by its code
     questions: tuple[tuple[str, int], ...] = ()  # linked AnalystPrep questions: (question id, reading)
+    variables: tuple[dict, ...] = ()  # financial products: [{nom, note}]
 
     @property
     def updated_at(self) -> int:
@@ -163,6 +169,12 @@ class BrickSource:
     entry_id: str
     module: str
     code: str
+
+
+def typst_variables(variables: list[dict]) -> str:
+    """Typst array of dictionaries for ``bloc-entree``'s ``variables`` (strings, escaped)."""
+    rows = [f"(nom: {typst_string(v['nom'])}, note: {typst_string(v.get('note', ''))})" for v in variables]
+    return "(" + ", ".join(rows) + ",)"
 
 
 def citations(source: str) -> set[tuple[str, str]]:
@@ -249,6 +261,21 @@ class CorpusService:
     def valid_folder(self, entry_id: str) -> Path:
         return self.folder(entry_id) / VALID
 
+    def variables_path(self, entry_id: str) -> Path:
+        return self.folder(entry_id) / VARIABLES
+
+    def read_variables(self, entry_id: str, entry_type: str) -> list[dict]:
+        """A financial product's variables ([] for the other types: a file left over from a change of
+        type is ignored, not deleted)."""
+        path = self.variables_path(entry_id)
+        if entry_type not in VARIABLE_TYPES or not path.exists():
+            return []
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise StorageError(str(path), str(error)) from error
+        return [{"nom": v["nom"], "note": v.get("note", "")} for v in data if isinstance(v, dict) and "nom" in v] if isinstance(data, list) else []
+
     @staticmethod
     def read_sections(folder: Path, entry_type: str) -> dict[str, str]:
         """Non-blank sections in ``folder`` (the entry's, or its valid copy), in display order. Empty
@@ -312,6 +339,7 @@ class CorpusService:
             used_by=tuple(sorted(usage.get(entry_id, []), key=lambda n: n.reading)),
             imports=tuple(sorted(brick_imports(code or "") - {entry_id})),
             questions=tuple((q["id"], q["reading"]) for q in raw.get("questions", [])),
+            variables=tuple(self.read_variables(entry_id, raw["type"])),
         )
 
     def get(self, entry_id: str) -> Entry:
@@ -324,7 +352,7 @@ class CorpusService:
         return sorted(entries, key=lambda e: e.meta.titre.lower())
 
     def load_texts(self, entry_id: str) -> EntryTexts:
-        self._read_raw(entry_id)  # unknown entry -> 404
+        raw = self._read_raw(entry_id)  # unknown entry -> 404
 
         def read(path: Path) -> str | None:
             return path.read_text(encoding="utf-8") if path.exists() else None
@@ -334,7 +362,18 @@ class CorpusService:
             code=read(self.code_path(entry_id)),
             hypotheses=read(self.section_path(entry_id, "hypotheses")),
             limites=read(self.section_path(entry_id, "limites")),
+            variables=self.read_variables(entry_id, raw["type"]) if raw["type"] in VARIABLE_TYPES else None,
         )
+
+    def products(self) -> dict[str, dict]:
+        """{product id: {variable name: note}} of every financial product, for the code."""
+        found = {}
+        for path in sorted(self.entries_root.glob("*/entree.json")):
+            entry_id = path.parent.name
+            raw = self._read_raw(entry_id)
+            if raw["type"] in VARIABLE_TYPES:
+                found[entry_id] = {v["nom"]: v["note"] for v in self.read_variables(entry_id, raw["type"])}
+        return found
 
     def _text_files(self, *, valid_copies: bool = False):
         """(entry id, path) of every Typst text of the entries; with ``valid_copies``, also of the
@@ -462,9 +501,11 @@ class CorpusService:
         code: str | None,
         hypotheses: str | None = None,
         limites: str | None = None,
+        variables: list[dict] | None = None,
     ) -> tuple[Entry, RebuildReport]:
-        """Writes the entry's text. ``code``, ``hypotheses`` and ``limites`` left at None are not
-        touched; a blank section removes its file (the block disappears)."""
+        """Writes the entry's text. ``code``, ``hypotheses``, ``limites`` and ``variables`` left at
+        None are not touched; a blank section removes its file (the block disappears), and so does
+        an empty list of variables."""
         sections = {"hypotheses": hypotheses, "limites": limites}
         for text in (source, hypotheses, limites):
             if text is not None and FORBIDDEN.search(text):
@@ -478,6 +519,8 @@ class CorpusService:
             for section, text in sections.items():
                 if text is not None and text.strip() and not carries_sections:
                     raise InvalidRequestError(section, "les hypothèses et les limites sont réservées aux formules")
+            if variables and raw["type"] not in VARIABLE_TYPES:
+                raise InvalidRequestError("variables", "les variables sont réservées aux produits financiers")
             # The texts that compiled, in case this change breaks the entry.
             previous = self._current_texts(entry_id, raw["type"]) if raw.get("valide", True) else None
             try:
@@ -492,6 +535,11 @@ class CorpusService:
                         write_atomic(path, text)
                     else:
                         remove(path)
+                if variables is not None:
+                    if variables:
+                        write_atomic(self.variables_path(entry_id), json.dumps(variables, ensure_ascii=False, indent=2) + "\n")
+                    else:
+                        remove(self.variables_path(entry_id))
             except OSError as error:
                 raise StorageError(str(self.folder(entry_id)), str(error)) from error
             journal.record(self.folder(entry_id), who, now_ms())
@@ -560,14 +608,16 @@ class CorpusService:
             self._regenerate()
         return report
 
-    def preview(self, entry_type: str, titre: str, source: str, hypotheses: str | None = None, limites: str | None = None) -> list[str]:
+    def preview(
+        self, entry_type: str, titre: str, source: str, hypotheses: str | None = None, limites: str | None = None, variables: list[dict] | None = None
+    ) -> list[str]:
         """SVG of an unsaved text, rendered in its box. Nothing is written."""
         texts = {"hypotheses": hypotheses, "limites": limites}
         for text in (source, *texts.values()):
             if text is not None and FORBIDDEN.search(text):
                 raise CorpusImportForbiddenError()
         sections = {section: text for section, text in texts.items() if text is not None and text.strip()}
-        return self._box_pages(entry_type, titre, source, sections)
+        return self._box_pages(entry_type, titre, source, sections, variables or [])
 
     def regenerate(self) -> None:
         with self._writes:
@@ -576,17 +626,19 @@ class CorpusService:
     # -------------------------------------------------------------- rendering
 
     @staticmethod
-    def _wrapper(entry_type: str, titre: str, sections: dict[str, str] | None = None) -> tuple[str, str]:
-        """(prelude, suffix) putting a source inside its box. The sections go in the prelude as
-        named arguments: ``bloc-entree`` draws them under the body."""
+    def _wrapper(entry_type: str, titre: str, sections: dict[str, str] | None = None, variables: list[dict] | None = None) -> tuple[str, str]:
+        """(prelude, suffix) putting a source inside its box. The sections and the variables go in
+        the prelude as named arguments: ``bloc-entree`` draws them under the body."""
         arguments = "".join(f", {section}: [\n{text}\n]" for section, text in (sections or {}).items())
+        if variables and entry_type in VARIABLE_TYPES:
+            arguments += f", variables: {typst_variables(variables)}"
         prelude = (
             '#import "/_gabarit.typ": bloc-entree, page-entree\n#show: page-entree\n'
             f"#bloc-entree({typst_string(entry_type)}, {typst_string(titre)}{arguments})[\n"
         )
         return prelude, "\n]\n"
 
-    def _box_pages(self, entry_type: str, titre: str, source: str, sections: dict[str, str]) -> list[str]:
+    def _box_pages(self, entry_type: str, titre: str, source: str, sections: dict[str, str], variables: list[dict] | None = None) -> list[str]:
         """SVG pages of a text in its box (non-blank sections only, and only for the types that
         carry them). A text with sections that does not compile gets ``error.part``: each text is
         then compiled alone in the box to find the guilty one, whose own line numbers are reported."""
@@ -594,7 +646,7 @@ class CorpusService:
         failure = None
         try:
             # With sections, a line found by searching the source alone would mean nothing: skip it.
-            return self.compiler.svg_pages(source, wrapper=self._wrapper(entry_type, titre, sections), locate=not sections)
+            return self.compiler.svg_pages(source, wrapper=self._wrapper(entry_type, titre, sections, variables), locate=not sections)
         except TypstCompileError as error:
             if not sections:
                 raise
@@ -611,7 +663,7 @@ class CorpusService:
     def _render(self, entry_id: str, raw: dict, source: str) -> None:
         """Write the SVG pages of the entry (lock held). Raises TypstCompileError."""
         sections = self.read_sections(self.folder(entry_id), raw["type"])
-        pages = self._box_pages(raw["type"], raw["titre"], source, sections)
+        pages = self._box_pages(raw["type"], raw["titre"], source, sections, self.read_variables(entry_id, raw["type"]))
         try:
             for old in self.page_paths(entry_id)[len(pages):]:
                 remove(old)
@@ -699,6 +751,9 @@ class CorpusService:
 
         parts = [f"corps: {include(TEXT)}"]
         parts += [f"{section}: {include(f'{section}.typ') if section in sections else 'none'}" for section in SECTIONS]
+        # The variables are data, never a cause of failure: always the entry's current ones.
+        variables = self.read_variables(entry_id, entry_type)
+        parts.append(f"variables: {typst_variables(variables) if variables else 'none'}")
         return f"{typst_string(entry_id)}: ({', '.join(parts)}),"
 
     def _manifest(self, raws: dict[str, dict]) -> str:
@@ -746,6 +801,7 @@ def entry_to_dict(entry: Entry, notes_root: Path) -> dict:
         "code": entry.code,
         "updatedAt": entry.updated_at,
         "journal": journal.as_dicts(list(entry.journal)),
+        "variables": list(entry.variables),
     }
 
 
@@ -781,6 +837,7 @@ CORPUS_TEMPLATE = """// GENERATED by the Prep FRM server: the full corpus, for n
     meta.type, meta.titre, (texte.corps)(),
     hypotheses: if texte.hypotheses != none {{ (texte.hypotheses)() }},
     limites: if texte.limites != none {{ (texte.limites)() }},
+    variables: texte.variables,
   )
 }}
 """

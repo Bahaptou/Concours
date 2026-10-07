@@ -6,7 +6,4 @@ Trading liquidity risk is the risk associated with *the inability of a firm to e
 It may *reduce the institution's ability to hedge market risk*, and also it is the *capacity to liquidate assets when necessary*.
 
 
-
-Aka: #voir("market-liquidity-risk")
-
 See #voir("liquidity-risk")

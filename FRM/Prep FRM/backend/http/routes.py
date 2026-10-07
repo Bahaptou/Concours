@@ -204,14 +204,14 @@ def get_text(request: ApiRequest, services: Services) -> ApiResponse:
     entry_id = parse_entry_id(request.params["id"])
     files = services.corpus.load_texts(entry_id)
     entry = services.corpus.get(entry_id)
-    ctx = TextContext(entry_id, entry.meta.type, files.source, files.code, files.hypotheses, files.limites)
+    ctx = TextContext(entry_id, entry.meta.type, files.source, files.code, files.hypotheses, files.limites, files.variables)
     return ApiResponse(HTTPStatus.OK, TextPresenter().present(ctx))
 
 
 def save_text(request: ApiRequest, services: Services) -> ApiResponse:
     entry_id = parse_entry_id(request.params["id"])
     payload = parse_text_payload(request.body)
-    entry, report = services.corpus.save_text(entry_id, payload.who, payload.source, payload.code, payload.hypotheses, payload.limites)
+    entry, report = services.corpus.save_text(entry_id, payload.who, payload.source, payload.code, payload.hypotheses, payload.limites, payload.variables)
     return entry_response(HTTPStatus.OK, entry, services, report)
 
 
@@ -223,7 +223,7 @@ def run_code(request: ApiRequest, services: Services) -> ApiResponse:
 
 def preview_entry(request: ApiRequest, services: Services) -> ApiResponse:
     payload = parse_entry_preview(request.body)
-    pages = services.corpus.preview(payload.type, payload.titre, payload.source, payload.hypotheses, payload.limites)
+    pages = services.corpus.preview(payload.type, payload.titre, payload.source, payload.hypotheses, payload.limites, payload.variables)
     return ApiResponse(HTTPStatus.OK, EntryPreviewPresenter().present(EntryPreviewContext(pages)))
 
 

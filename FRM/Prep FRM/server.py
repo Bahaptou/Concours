@@ -16,8 +16,8 @@ API, under ``/api`` (responses ``{"data", "links"}``, errors as RFC 9457 problem
     DELETE /api/corpus/<id>              {who}: deletes it and removes its references from notes and entries
     PUT|DELETE /api/corpus/<id>/questions/<q>  {"reading"} / {}: links or unlinks an AnalystPrep question
     GET  /api/corpus/<id>/texte          the entry's shared text (and Python code, assumptions, limits)
-    PUT  /api/corpus/<id>/texte          {"source", "code"?, "hypotheses"?, "limites"?, who}: saves it
-    POST /api/compile/entry              {"type", "titre", "source", "hypotheses"?, "limites"?}: preview of an entry
+    PUT  /api/corpus/<id>/texte          {"source", "code"?, "hypotheses"?, "limites"?, "variables"? ([{"nom", "note"}]), who}: saves it
+    POST /api/compile/entry              {"type", "titre", "source", "hypotheses"?, "limites"?, "variables"?}: preview of an entry
     POST /api/run                        {"code", "timeout"}: runs simulation or brick code
 "who" is the profile of the person writing, for the journal: "author" (slug), "name", "initials".
     GET  /api/images                     shared images (notes/images/)

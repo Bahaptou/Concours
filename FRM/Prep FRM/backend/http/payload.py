@@ -43,6 +43,7 @@ class TextPayload:
     code: str | None
     hypotheses: str | None  # None: not sent, left as is; blank: the block is removed
     limites: str | None
+    variables: list[dict] | None = None  # [{nom, note}]; None: not sent, left as is; []: removed
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,7 @@ class EntryPreviewPayload:
     source: str
     hypotheses: str | None
     limites: str | None
+    variables: list[dict] | None = None
 
 
 # ---------------------------------------------------------------- path parameters
@@ -94,6 +96,9 @@ def parse_note_target(reading: str) -> NoteTarget:
 
 
 QUESTION_ID = re.compile(r"^\d{1,6}$")
+VARIABLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,39}$")  # usable as a Python attribute
+MAX_VARIABLES = 60
+NOTE_MAX = 200
 
 
 def parse_question_id(value: str) -> str:
@@ -198,6 +203,32 @@ def parse_contributor(body: bytes) -> Contributor:
     return _contributor(_json_object(body))
 
 
+def _variables(data: dict) -> list[dict] | None:
+    """Variables declared by a financial product: [{"nom", "note"?}], None when not sent. A name is
+    a Python identifier (the code fills produit("id").nom); values are given in the code, never here.
+    Other keys are ignored."""
+    value = data.get("variables")
+    if value is None:
+        return None
+    if not isinstance(value, list) or len(value) > MAX_VARIABLES:
+        raise InvalidRequestError("variables", f"liste de {MAX_VARIABLES} variables au plus attendue")
+    found, names = [], set()
+    for line, item in enumerate(value, 1):
+        if not isinstance(item, dict):
+            raise InvalidRequestError("variables", f"ligne {line} : objet attendu")
+        name = item.get("nom")
+        if not isinstance(name, str) or not VARIABLE_NAME.match(name):
+            raise InvalidRequestError("variables", f"ligne {line} : nom de variable attendu (lettres sans accent, chiffres, _ ; ex. « maturite »)")
+        if name in names:
+            raise InvalidRequestError("variables", f"ligne {line} : « {name} » est déjà une variable de ce produit")
+        names.add(name)
+        note = item.get("note", "")
+        if not isinstance(note, str) or len(note) > NOTE_MAX:
+            raise InvalidRequestError("variables", f"ligne {line} : la note de « {name} » est un texte de {NOTE_MAX} caractères au plus")
+        found.append({"nom": name, "note": note.strip()})
+    return found
+
+
 def parse_text_payload(body: bytes) -> TextPayload:
     data = _json_object(body)
     return TextPayload(
@@ -206,6 +237,7 @@ def parse_text_payload(body: bytes) -> TextPayload:
         code=_text(data, "code", required=False),
         hypotheses=_text(data, "hypotheses", required=False),
         limites=_text(data, "limites", required=False),
+        variables=_variables(data),
     )
 
 
@@ -245,4 +277,5 @@ def parse_entry_preview(body: bytes) -> EntryPreviewPayload:
         source=_text(data, "source"),
         hypotheses=_text(data, "hypotheses", required=False),
         limites=_text(data, "limites", required=False),
+        variables=_variables(data),
     )

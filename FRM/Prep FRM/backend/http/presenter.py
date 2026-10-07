@@ -160,6 +160,7 @@ class TextPresenter:
             "code": ctx.code,
             "hypotheses": ctx.hypotheses,
             "limites": ctx.limites,
+            "variables": ctx.variables,
         }
         return envelope(
             data,

@@ -55,6 +55,7 @@ class TextContext:
     code: str | None
     hypotheses: str | None
     limites: str | None
+    variables: list | None = None  # financial products only
 
 
 @dataclass(frozen=True)

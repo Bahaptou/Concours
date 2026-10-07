@@ -59,7 +59,9 @@ Pour passer de l'un à l'autre : 💾 Sauvegarder d'un côté, 📂 Charger de l
   - recherche.
 
   Au survol d'une bulle du graphe ou d'un nom dans les Stats, un aperçu montre le début de l'entrée,
-  avec un bouton pour l'ouvrir. Un clic sur une bulle la sélectionne, un clic à côté la relâche.
+  avec un bouton pour l'ouvrir. Un clic sur une bulle la sélectionne, un clic à côté la relâche. Le
+  graphe se parcourt comme une carte : glisser le fond pour se déplacer, molette (ou double-clic dans le
+  vide) pour zoomer, boutons « Tout voir » et « 1:1 » en haut à droite.
 - **Fiches** (`fiches.html`) : les 62 readings avec leurs étapes, leurs fiches et les entrées du corpus
   qu'elles citent ou insèrent ; filtres par livre, contributeur et type d'entrée (choix multiples, comme sur
   la page Corpus), état de la fiche (dont « fiche écrite mais ④ non cochée » et « ④ cochée sans

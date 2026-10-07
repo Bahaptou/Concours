@@ -32,7 +32,7 @@ sont dans `../CLAUDE.md`.
   serveur, affichée sur la page Reading.
 - **Portail des fiches** (`fiches.html`, onglet « Fiches ») : les 62
   readings avec étapes, fiches et entrées utilisées ; filtres livre,
-  auteur et type (choix multiples), état de la fiche (dont « écrite
+  contributeur et type (choix multiples), état de la fiche (dont « écrite
   mais ④ non cochée » et « ④ cochée sans fiche »), recherche de chapitre (un nombre = ce
   chapitre dans chaque livre) et d'entrée ; pastilles ①–④ pour trier
   par étape (cochés d'abord, non cochés d'abord, ordre officiel). Lien
@@ -249,7 +249,7 @@ sont dans `../CLAUDE.md`.
     pas `citedBy`). Les ajoutées sont grisées et respectent type et
     contributeur. Un seul réglage pour la liste et le graphe, pas pour les Stats.
 - **Le menu « Formules FRM » a été remplacé par le corpus** le 2026-10-01 :
-  ses 6 formules sont des entrées signées BD, sans reading tant
+  ses 6 formules sont des entrées créées par BD, sans reading tant
   qu'aucune fiche ni question ne les rattache.
 - **Hypothèses et limites : formules seulement, dans l'encadré partout.**
   Choix de Baptiste le 2026-10-02. Deux fichiers Typst par entrée, deux champs
@@ -294,7 +294,11 @@ sont dans `../CLAUDE.md`.
 - **Graphe du corpus** (choix de Baptiste le 2026-10-07) : sur la page d'un
   reading et en vue de la page Corpus ; entrées liées en pâle (réglage
   « Entrées liées ») ; imports en pointillés ; un clic sur une bulle la
-  sélectionne, un clic à côté la relâche. Flèches « cite » / « citée par » en `--use-1` /
+  sélectionne, un clic à côté la relâche. Navigation comme une carte (choix
+  de Baptiste le 2026-10-07) : glisser le fond déplace la vue, la molette
+  ou un double-clic dans le vide zoome autour du pointeur (15 % à 300 %),
+  boutons ＋ － « Tout voir » « 1:1 » ; la vue est le `viewBox` du SVG,
+  le cadre ne défile jamais. Flèches « cite » / « citée par » en `--use-1` /
   `--use-3` : le vert, essayé, échoue au validateur contre l'aqua du type
   Propriété (ΔE 11,9 < 15).
 - **Aperçu d'une entrée au survol** (`entry-preview.js`, choix de Baptiste
@@ -304,6 +308,12 @@ sont dans `../CLAUDE.md`.
   au-dessus de l'élément sans le couvrir ; un clic le ferme jusqu'à la
   sortie de l'élément. Hauteur fixe : la position tient avant le
   chargement de l'image.
+- **En-tête du site qui se cache au défilement** (choix de Baptiste le
+  2026-10-07) : collé en haut (`position: sticky`), il glisse hors de
+  l'écran quand on descend et revient dès qu'on remonte (`ui.js`,
+  mouvements de moins de 8 px ignorés ; toujours là en haut de page ou
+  atteint au clavier). Sous les infobulles, menus et messages (z-index
+  30 à 40), au-dessus du contenu ; l'aperçu au survol se place sous lui.
 - **Boutons de maths ajoutés depuis les éditeurs, partagés** (choix de
   Baptiste le 2026-10-07) : `notes/_outils-maths.json`, sans notion
   d'auteur, tout le monde ajoute et retire. Les boutons de base restent dans
@@ -457,6 +467,8 @@ et attente (constaté en test le 2026-10-07).
   serveur, le dernier enregistrement l'emporte, sans alerte ; sur deux
   machines, git signale un conflit sur le texte et ses rendus (le journal
   se fusionne seul). Récupérer les changements de l'autre avant d'écrire.
+- **Pincement tactile dans le graphe.** Un doigt déplace la vue ; le zoom
+  passe par la molette ou les boutons.
 - **Vue d'ensemble des interactions.** Le journal est enregistré mais
   affiché seulement fiche par fiche et entrée par entrée (choix de
   Baptiste le 2026-10-07 : la vue d'ensemble viendra plus tard).

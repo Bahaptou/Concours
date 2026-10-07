@@ -377,6 +377,30 @@
 
   // ------------------------------------------------------------------ comportements globaux
 
+  // Site header: slides away when scrolling down, back as soon as one scrolls up (choice of
+  // Baptiste, 2026-10-07). Small moves are ignored (a touchpad's jitter); near the top it stays.
+  let lastScroll = window.scrollY;
+  window.addEventListener(
+    "scroll",
+    () => {
+      const top = document.querySelector("header.top");
+      if (!top) return;
+      const y = window.scrollY;
+      top.classList.toggle("is-floating", y > top.offsetHeight);
+      if (y <= top.offsetHeight) {
+        top.classList.remove("is-hidden");
+        lastScroll = y;
+        return;
+      }
+      if (Math.abs(y - lastScroll) < 8) return;
+      top.classList.toggle("is-hidden", y > lastScroll);
+      lastScroll = y;
+    },
+    { passive: true }
+  );
+  // Reached with the keyboard (Tab): it comes back.
+  document.addEventListener("focusin", (event) => event.target.closest("header.top")?.classList.remove("is-hidden"));
+
   document.addEventListener("change", (event) => {
     const input = event.target.closest("input[data-step]");
     if (!input) return;

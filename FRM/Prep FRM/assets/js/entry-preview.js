@@ -61,7 +61,10 @@ ${entry.pages.length ? `<div class="ep-render"><img src="${esc(`${entry.pages[0]
       const frame = host.getBoundingClientRect();
       const gap = 8;
       const left = Math.min(Math.max(box.left + box.width / 2 - card.offsetWidth / 2 - frame.left, 0), Math.max(frame.width - card.offsetWidth, 0));
-      const above = box.top - card.offsetHeight - gap >= 0;
+      // Room above, below the site header when it shows (it covers the top of the window).
+      const header = document.querySelector("header.top:not(.is-hidden)");
+      const ceiling = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+      const above = box.top - card.offsetHeight - gap >= ceiling;
       card.style.left = `${left}px`;
       card.style.top = `${(above ? box.top - card.offsetHeight - gap : box.bottom + gap) - frame.top}px`;
     }
