@@ -113,12 +113,14 @@ function typeOptions(selected) {
 /** Readings of an entry, read-only: those of the notes using it. */
 function readingsLine(entry) {
   const uses = entry ? entry.data.usedBy : [];
-  if (!uses.length) return "Readings : aucun pour l'instant. Cite ou insère l'entrée dans une fiche (menu « 📚 Corpus ») pour la rattacher au reading de cette fiche.";
-  const items = uses.map((use) => {
-    const reading = FRM.findReading(use.reading);
-    return `${reading ? reading.tag : `R${use.reading}`} (fiche de ${use.author.charAt(0).toUpperCase()}${use.author.slice(1)})`;
-  });
-  return `Readings, d'après les fiches qui l'utilisent : ${items.join(", ")}`;
+  const questionReadings = entry ? entry.data.questionReadings || [] : [];
+  if (!uses.length && !questionReadings.length) {
+    return "Readings : aucun pour l'instant. Cite ou insère l'entrée dans une fiche (menu « 📚 Corpus »), ou lie-la à une question (page Questions), pour la rattacher à un reading.";
+  }
+  const tag = (id) => FRM.findReading(id)?.tag || `R${id}`;
+  const fromNotes = uses.map((use) => `${tag(use.reading)} (fiche de ${use.author.charAt(0).toUpperCase()}${use.author.slice(1)})`);
+  const fromQuestions = questionReadings.map((id) => `${tag(id)} (questions)`);
+  return `Readings, d'après les fiches et les questions liées : ${[...fromNotes, ...fromQuestions].join(", ")}`;
 }
 
 function layout({ creating, meta, author }) {

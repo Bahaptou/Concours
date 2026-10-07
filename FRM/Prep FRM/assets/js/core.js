@@ -136,6 +136,126 @@
 
   let notes = {};
 
+  // ------------------------------------------------------------------ attachment of an entry to readings
+  // An entry belongs to the readings of the notes citing it and of the questions linked to it; the
+  // two origins stay apart (noteReadings, questionReadings) for the "Rattachement" filters, which
+  // look at a scope: the chosen reading, else the chosen book, else any reading.
+
+  // unscoped: only meaningful when no reading or book is chosen. With one, every entry shown is in
+  // it, so "Fiche ou questions" would be everything and "Ni fiche ni question" nothing.
+  const ATTACHMENTS = [
+    { id: "all", label: "Tout", title: "Aucun filtre de rattachement" },
+    { id: "any", label: "Fiche ou questions", title: "Citée dans une fiche, liée à des questions, ou les deux", unscoped: true },
+    { id: "both", label: "Fiche et questions", title: "Citée dans une fiche et liée à des questions" },
+    { id: "noQuestion", label: "Pas encore dans une question", title: "Citée dans une fiche, liée à aucune question" },
+    { id: "noNote", label: "Pas encore dans une fiche", title: "Liée à des questions, citée dans aucune fiche" },
+    { id: "none", label: "Ni fiche ni question", title: "Rattachée à aucun reading", unscoped: true },
+  ];
+
+  /** Readings the "Rattachement" filters look at: [the chosen reading], else the chosen books'
+   *  readings, else null (any reading). `books`: a book id, a Set of ids (multi-select, see
+   *  toggleChoice) or null; "all", null and "Sans reading" count as not chosen. */
+  function attachmentScope(readingId, books) {
+    const reading = findReading(readingId);
+    if (reading) return [reading.id];
+    const ids = books === null || books === undefined || books === "all" ? [] : typeof books === "object" ? [...books] : [books];
+    const chosen = ids.map(findBook).filter(Boolean);
+    return chosen.length ? chosen.flatMap((book) => book.readings.map((r) => r.id)) : null;
+  }
+
+  /** { note, question }: is the entry used by a note, linked to a question, within scope — a
+   *  reading id, a list of reading ids, or null for any reading. A manifest written before
+   *  2026-10-07 has no origins. */
+  function attachmentOf(entry, scope = null) {
+    const noteReadings = entry.noteReadings || entry.readings || [];
+    const questionReadings = entry.questionReadings || [];
+    if (scope === null || scope === undefined || scope === "all") {
+      return { note: noteReadings.length > 0, question: questionReadings.length > 0 };
+    }
+    const ids = new Set([].concat(scope).map(Number));
+    return { note: noteReadings.some((r) => ids.has(r)), question: questionReadings.some((r) => ids.has(r)) };
+  }
+
+  /** {option id: how many of `entries` it keeps within `scope`}: the counts shown on the options. */
+  const attachmentCounts = (entries, scope = null) =>
+    Object.fromEntries(ATTACHMENTS.map((a) => [a.id, entries.filter((entry) => matchesAttachment(entry, a.id, scope)).length]));
+
+  function matchesAttachment(entry, filter, scope = null) {
+    if (!filter || filter === "all") return true;
+    const { note, question } = attachmentOf(entry, scope);
+    if (filter === "any") return note || question;
+    if (filter === "both") return note && question;
+    if (filter === "noQuestion") return note && !question;
+    if (filter === "noNote") return question && !note;
+    return !note && !question; // none
+  }
+
+  // ------------------------------------------------------------------ multi-select filters (types, books, authors)
+  // A selection is null (everything, the "Tous" button) or a Set of string values.
+
+  /** Selection after a click on `value` among the `available` values: "all" selects everything; a
+   *  value clicked while everything is selected becomes the only one; otherwise it is toggled, and
+   *  an empty or complete selection is everything again. */
+  function toggleChoice(selection, value, available) {
+    const clicked = String(value);
+    if (clicked === "all") return null;
+    if (selection === null) return available.length > 1 ? new Set([clicked]) : null;
+    const next = new Set(selection);
+    if (next.has(clicked)) next.delete(clicked);
+    else next.add(clicked);
+    return next.size === 0 || available.every((v) => next.has(String(v))) ? null : next;
+  }
+
+  const isChosen = (selection, value) => selection === null || selection.has(String(value));
+
+  // ------------------------------------------------------------------ entries linked to search results
+  // "Entrées liées" adds the entries linked to the results: citations (#voir) and code imports, both
+  // ways, up to a depth (0: none, 1: direct neighbours, Infinity: the whole chain). They are shown
+  // pale, like the graph's neighbours. The control itself is ui.linkedControl.
+
+  /** Entries of `pool` linked to `results` but not among them, in the order reached, at most
+   *  `depth` steps away (through any entry of the pool). Only `accept`ed ones are returned: the
+   *  control widens where to look, not what to show (type, author). Each comes with `via`, the ids
+   *  it was reached from. Links are rebuilt from `cites` and `imports`, which API entries have too
+   *  (unlike `citedBy`). */
+  function linkedTo(results, depth, pool, accept = () => true) {
+    if (!(depth > 0)) return [];
+    const byId = new Map(pool.map((entry) => [entry.id, entry]));
+    const neighbours = new Map(pool.map((entry) => [entry.id, new Set()]));
+    for (const entry of pool) {
+      for (const id of [...(entry.cites || []), ...(entry.imports || [])]) {
+        if (id === entry.id || !neighbours.has(id)) continue;
+        neighbours.get(entry.id).add(id);
+        neighbours.get(id).add(entry.id);
+      }
+    }
+    const via = new Map(results.map((entry) => [entry.id, null])); // null: a result
+    let frontier = results.map((entry) => entry.id).filter((id) => neighbours.has(id));
+    for (let level = 0; frontier.length && level < depth; level += 1) {
+      const step = new Map();
+      for (const from of frontier) {
+        for (const id of neighbours.get(from)) {
+          if (via.has(id)) continue;
+          if (!step.has(id)) step.set(id, []);
+          step.get(id).push(from);
+        }
+      }
+      step.forEach((sources, id) => via.set(id, sources));
+      frontier = [...step.keys()];
+    }
+    return [...via]
+      .filter(([, sources]) => sources)
+      .map(([id, sources]) => ({ entry: byId.get(id), via: sources }))
+      .filter(({ entry }) => accept(entry));
+  }
+
+  /** "liée à Expected Loss, Credit Risk et 2 autres": what brought a linked entry. */
+  function linkedLabel(via, pool) {
+    const titles = via.map((id) => pool.find((entry) => entry.id === id)?.titre).filter(Boolean);
+    const more = titles.length - 2;
+    return `liée à ${titles.slice(0, 2).join(", ")}${more > 0 ? ` et ${more === 1 ? "une autre" : `${more} autres`}` : ""}`;
+  }
+
   Object.assign(FRM, {
     STEPS,
     SCORE_LEVELS,
@@ -166,5 +286,14 @@
     corpusEntries: () => Object.values(corpus).sort((a, b) => a.titre.localeCompare(b.titre, "fr")),
     findEntry: (id) => corpus[id],
     corpusOf: (readingId) => FRM.corpusEntries().filter((entry) => entry.readings.includes(Number(readingId))),
+    ATTACHMENTS,
+    attachmentScope,
+    attachmentOf,
+    matchesAttachment,
+    attachmentCounts,
+    linkedTo,
+    linkedLabel,
+    toggleChoice,
+    isChosen,
   });
 })(window.FRM);

@@ -1,6 +1,7 @@
 /* Notes portal (fiches.html): every reading in the official order, with its steps, its notes
- * and the corpus entries they cite or insert. Filters: book, note state, author, chapter
- * (search), corpus entry (search) and entry type; four step pins sort by a ticked step.
+ * and the corpus entries they cite or insert. Filters: books, authors and entry types
+ * (multi-select, FRM.toggleChoice), note state, chapter (search) and corpus entry (search);
+ * four step pins sort by a ticked step.
  * A click opens the reading page on its notes card.
  * Data: notes/index.js (notes by reading and author) and notes/corpus/index.js (entries and
  * the notes using them), both written by the server and readable without it. */
@@ -11,7 +12,8 @@
   const { store } = FRM;
   const LAST_STEP = FRM.STEPS[FRM.STEPS.length - 1].id; // ④, the note
 
-  const filters = { book: "all", state: "all", author: "all", entryType: "all", chapter: "", query: "" };
+  // books, authors, entryTypes: multi-select, null (everything) or a Set of strings (FRM.toggleChoice).
+  const filters = { books: null, state: "all", authors: null, entryTypes: null, chapter: "", query: "" };
   // Step pin: sort by one step, ticked first ("done") or unticked first ("todo"); null = official order.
   let pin = null;
 
@@ -46,12 +48,12 @@
   ];
 
   function matches(reading, notes, used) {
-    if (filters.book !== "all" && FRM.bookOf(reading).id !== filters.book) return false;
+    if (!FRM.isChosen(filters.books, FRM.bookOf(reading).id)) return false;
     if (!matchesChapter(reading)) return false;
     const state = STATES.find((s) => s.value === filters.state);
     if (state.test && !state.test(reading, notes)) return false;
-    if (filters.author !== "all" && !notes.includes(filters.author)) return false;
-    return matchingEntries(used).length > 0 || (filters.entryType === "all" && !filters.query.trim());
+    if (filters.authors !== null && !notes.some((author) => filters.authors.has(author))) return false;
+    return matchingEntries(used).length > 0 || (filters.entryTypes === null && !filters.query.trim());
   }
 
   /** "10" finds chapter 10 of every book (FRM-10, QA-10…); text searches the reference and title. */
@@ -67,7 +69,7 @@
     const query = ui.fold(filters.query.trim());
     return used.filter(
       ({ entry }) =>
-        (filters.entryType === "all" || entry.type === filters.entryType) &&
+        FRM.isChosen(filters.entryTypes, entry.type) &&
         (!query || ui.fold(`${entry.titre} ${entry.id}`).includes(query))
     );
   }
@@ -101,17 +103,17 @@
 
   function filterBar() {
     return `
-<div class="filters">
-  <div class="filter-group"><span class="filter-label">Livre</span>${toggles("book", [
+<div class="filters" data-fiches-filters>
+  <div class="filter-group"><span class="filter-label">Livre</span>${ui.choiceToggles("books", filters.books, [
     { value: "all", label: "Tous" },
     ...FRM.books.map((b) => ({ value: b.id, label: `${b.id} · ${ui.shortTitle(b)}`, title: b.title })),
   ])}</div>
   <div class="filter-group"><span class="filter-label">Fiche</span>${toggles("state", STATES)}</div>
-  <div class="filter-group"><span class="filter-label">Auteur</span>${toggles("author", [
+  <div class="filter-group"><span class="filter-label">Auteur</span>${ui.choiceToggles("authors", filters.authors, [
     { value: "all", label: "Tous" },
     ...authors().map((a) => ({ value: a, label: capitalized(a) })),
   ])}</div>
-  <div class="filter-group"><span class="filter-label">Entrées</span>${toggles("entryType", [
+  <div class="filter-group"><span class="filter-label">Entrées</span>${ui.choiceToggles("entryTypes", filters.entryTypes, [
     { value: "all", label: "Tous les types" },
     ...FRM.ENTRY_TYPES.map((t) => ({ value: t.id, label: t.plural, className: ` etype-filter etype-${t.id}` })),
   ])}</div>
@@ -130,7 +132,7 @@
   }
 
   function entryChips(used) {
-    const shown = filters.entryType === "all" && !filters.query.trim() ? used : matchingEntries(used);
+    const shown = filters.entryTypes === null && !filters.query.trim() ? used : matchingEntries(used);
     return shown
       .map(({ entry, authors: by }) => `<a class="entry-chip" href="${ui.entryHref(entry)}" title="${esc(`${FRM.entryType(entry.type).label} · dans la fiche de ${by.map(capitalized).join(", ")}`)}">${ui.typeTag(entry.type)} ${esc(entry.titre)}</a>`)
       .join("");
@@ -218,14 +220,14 @@
         pin = nextPin(pinButton.dataset.pin);
         return update();
       }
-      const button = event.target.closest("[data-filter]");
+      const button = event.target.closest("[data-filter]"); // single choice: the note state
       if (!button) return;
       const key = button.dataset.filter;
-      const raw = button.dataset.value;
-      filters[key] = key === "book" && /^\d+$/.test(raw) ? Number(raw) : raw; // book ids are numbers
+      filters[key] = button.dataset.value;
       document.querySelectorAll(`[data-filter="${key}"]`).forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
       update();
     });
+    ui.watchChoiceToggles(document.querySelector("[data-fiches-filters]"), filters, update);
     document.querySelector("[data-chapter]").addEventListener("input", (event) => {
       filters.chapter = event.target.value;
       update();

@@ -38,7 +38,7 @@
   ${tile(entries.length, "Entrées", `${ui.plural(versions, "version")}`)}
   ${tile(links, "Liens", "citations entre entrées et usages en fiche")}
   ${tile(questions.size, "Questions liées", "questions AnalystPrep reliées")}
-  ${tile(readings.size, "Readings", `sur ${FRM.readings.length}, via les fiches`)}
+  ${tile(readings.size, "Readings", `sur ${FRM.readings.length}, via les fiches et les questions`)}
 </div>`;
   }
 
@@ -79,21 +79,16 @@
     return groups;
   }
 
-  const questionCount = (list) => new Set(list.flatMap((e) => (e.questions || []).map((q) => q.id))).size;
 
   /** What deserves attention: not an entry without reading of its own, but what floats. */
   function watchList(entries) {
     const graph = linkGraph();
     const shown = new Set(entries.map((e) => e.id));
-    const link = (e) => `<a href="${ui.entryHref(e)}">${esc(e.titre)}</a>`;
+    const link = (e) => `<a href="${ui.entryHref(e)}" data-entry-preview="${esc(e.id)}">${esc(e.titre)}</a>`;
     const names = (list, max = 8) => list.slice(0, max).map(link).join(", ") + (list.length > max ? ` et ${list.length - max} autres` : "");
-    const questionsNote = (list) => {
-      const n = questionCount(list);
-      return n ? ` <span class="muted">· ${ui.plural(n, "question liée")}</span>` : "";
-    };
 
     const isolated = entries.filter((e) => !graph.neighbours.get(e.id)?.size);
-    // Groups of 2+ entries where no entry is used in a note; an isolated entry is listed above.
+    // Groups of 2+ entries where no entry has a reading (note or linked question); an isolated entry is listed above.
     const floating = groupsOf(graph)
       .filter((group) => group.length > 1 && !group.some((e) => e.readings.length) && group.some((e) => shown.has(e.id)))
       .sort((a, b) => b.length - a.length);
@@ -105,13 +100,13 @@
 
     const groupLines = floating
       .slice(0, 6)
-      .map((group) => `<li>${names(group, 5)} <span class="muted">(${group.length})</span>${questionsNote(group)}</li>`)
+      .map((group) => `<li>${names(group, 5)} <span class="muted">(${group.length})</span></li>`)
       .join("");
     const moreGroups = floating.length > 6 ? `<div class="muted">et ${floating.length - 6} autres groupes</div>` : "";
 
     return `<ul class="watch-list">
   ${item(isolated.length, "Isolées : liées à aucune autre entrée (ni citation ni import)", `${names(isolated)}${isolatedNoReading.length ? `<div class="muted">dont ${isolatedNoReading.length} sans reading non plus : ${names(isolatedNoReading, 6)}</div>` : ""}`)}
-  ${item(floatingCount, `Non rattachées : ${floating.length > 1 ? `${floating.length} groupes` : "un groupe"} d'entrées liées entre elles dont aucune n'est utilisée dans une fiche`, `<ul class="watch-groups">${groupLines}</ul>${moreGroups}<div class="muted">Citer une seule entrée d'un groupe dans une fiche rattache tout le groupe.</div>`)}
+  ${item(floatingCount, `Non rattachées : ${floating.length > 1 ? `${floating.length} groupes` : "un groupe"} d'entrées liées entre elles dont aucune n'appartient à un reading (ni fiche ni question liée)`, `<ul class="watch-groups">${groupLines}</ul>${moreGroups}<div class="muted">Citer une seule entrée d'un groupe dans une fiche, ou la lier à une question, rattache tout le groupe.</div>`)}
   ${item(entries.filter((e) => e.versions.some((v) => !v.valid)).length, "Une version ne compile pas : absente des fiches", names(entries.filter((e) => e.versions.some((v) => !v.valid))))}
   ${item(entries.filter((e) => !e.versions.length).length, "Aucune version écrite", names(entries.filter((e) => !e.versions.length)))}
 </ul>`;
@@ -191,7 +186,7 @@
     if (!top.length) return `<div class="placeholder">Aucune entrée pour les séries affichées.</div>`;
     return bars(
       top.map((e) => ({
-        label: `<a href="${ui.entryHref(e)}">${esc(e.titre)}</a>`,
+        label: `<a href="${ui.entryHref(e)}" data-entry-preview="${esc(e.id)}">${esc(e.titre)}</a>`,
         title: e.titre,
         segments: series.map((s) => ({ n: s.count(e), className: `use-bar use-${s.key}`, tipLabel: s.tip })),
         value: ui.number(total(e)),
@@ -299,7 +294,7 @@ ${codeLegend()}
 ${bars(
   sims.map((s) => ({
     // A type dot, not the full tag: the label column is narrow, the title must stay readable.
-    label: `<span class="type-dot etype-${s.entry.type}" title="${esc(FRM.entryType(s.entry.type).label)}"></span><a href="${ui.entryHref(s.entry)}">${esc(s.entry.titre)}</a>`,
+    label: `<span class="type-dot etype-${s.entry.type}" title="${esc(FRM.entryType(s.entry.type).label)}"></span><a href="${ui.entryHref(s.entry)}" data-entry-preview="${esc(s.entry.id)}">${esc(s.entry.titre)}</a>`,
     title: s.entry.titre,
     segments: [
       // The brick type's colour (they are bricks); hatched when reached through another brick.
@@ -338,7 +333,7 @@ ${bars(
   // ------------------------------------------------------------------ table view (sortable)
 
   const COLUMNS = [
-    { key: "titre", label: "Entrée", value: (e) => e.titre, cell: (e) => `<a href="${ui.entryHref(e)}">${esc(e.titre)}</a>` },
+    { key: "titre", label: "Entrée", value: (e) => e.titre, cell: (e) => `<a href="${ui.entryHref(e)}" data-entry-preview="${esc(e.id)}">${esc(e.titre)}</a>` },
     { key: "type", label: "Type", value: (e) => FRM.ENTRY_TYPES.findIndex((t) => t.id === e.type), cell: (e) => ui.typeTag(e.type), nowrap: true },
     {
       key: "versions",
@@ -412,6 +407,7 @@ ${bars(
 
   function render(container, entries) {
     charts.resetTips();
+    FRM.entryPreview.watch(container); // preview card on the entry names (once per container)
     lastEntries = entries;
     if (!entries.length) {
       container.innerHTML = `<div class="placeholder">Aucune entrée ne correspond à ces filtres.</div>`;
@@ -426,7 +422,7 @@ ${tiles(entries)}
   <section><h3>Code le plus complexe</h3><p class="small muted">Simulations et briques, par nombre de briques utilisées, directement ou à travers d'autres briques.</p>${complexCode(entries)}</section>
 </div>
 <details class="q-table-toggle"><summary>Voir en tableau (${entries.length})</summary><p class="small muted">Clique sur un en-tête pour trier.</p>${tableView(entries)}</details>
-<p class="src">Calculé sur les entrées affichées par les filtres. Readings et usages viennent des fiches (<code>#voir</code>, <code>#entree</code>) ; les questions, des liens posés depuis la page Questions.</p>`;
+<p class="src">Calculé sur les entrées affichées par les filtres. Readings : ceux des fiches (<code>#voir</code>, <code>#entree</code>) et des questions liées depuis la page Questions.</p>`;
     mostUsedLimit = MIN_MOST_USED;
     container.querySelector("[data-most-used]").innerHTML = `${mostUsedLegend()}${mostUsedBars(entries)}`;
     fitMostUsed(container);

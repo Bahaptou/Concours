@@ -110,26 +110,73 @@
     return `<select name="scope">${option("all", "Tout le programme")}${corpus}<optgroup label="Livres entiers">${books}</optgroup>${readings}</select>`;
   }
 
-  /** Entries with linked questions, to tick; shown when the scope is "entries". */
+  /** Entries with linked questions, to choose; shown when the scope is "entries". The corpus search
+   *  bar and its results on top, the chosen entries below as chips (× removes one). The chips carry
+   *  the form's values: an entry filtered out of the results stays chosen. */
   function entriesFieldset() {
-    const entries = linkedEntries();
-    if (!entries.length) return "";
-    const chosen = new Set(options.entries || []);
-    const items = entries
-      .map(
-        (entry) => `<label class="choice entry-choice" data-entry-title="${esc(ui.fold(`${entry.titre} ${entry.id}`))}"><input type="checkbox" name="entries" value="${esc(entry.id)}"${chosen.has(entry.id) ? " checked" : ""}>
-      <span>${ui.typeTag(entry.type)} ${esc(entry.titre)} <span class="muted small">(${entry.questions.length})</span></span></label>`
-      )
-      .join("");
+    if (!linkedEntries().length) return "";
     return `
     <fieldset class="field entries-field" data-when="entries"><legend>Entrées du corpus</legend>
       <div class="entries-match">
-        ${radio("match", "any", "Au moins une", "questions liées à l'une des entrées cochées")}
-        ${radio("match", "all", "Toutes", "seulement celles liées à toutes les entrées cochées")}
+        ${radio("match", "any", "Au moins une", "questions liées à l'une des entrées choisies")}
+        ${radio("match", "all", "Toutes", "seulement celles liées à toutes les entrées choisies")}
       </div>
-      <input type="search" class="search" data-entries-search placeholder="Filtrer les entrées…" aria-label="Filtrer les entrées">
-      <div class="entries-list">${items}</div>
+      <div class="entries-search" data-entries-search></div>
+      <div class="entries-list" data-entries-list></div>
+      <div class="small muted" data-entries-status></div>
+      <div class="entries-picked" data-entries-picked>${pickedChips()}</div>
     </fieldset>`;
+  }
+
+  function pickedChips() {
+    const chosen = (options.entries || []).map(FRM.findEntry).filter(Boolean);
+    if (!chosen.length) return `<span class="small muted">Aucune entrée choisie : coche des entrées ci-dessus.</span>`;
+    const chip = (entry) =>
+      `<span class="entry-pick">${ui.typeTag(entry.type)} ${esc(entry.titre)}<input type="hidden" name="entries" value="${esc(entry.id)}"><button type="button" class="pick-remove" data-unpick="${esc(entry.id)}" title="Retirer" aria-label="${esc(`Retirer ${entry.titre}`)}">×</button></span>`;
+    return `<span class="small muted">Choisies (${chosen.length}) :</span>${chosen.map(chip).join("")}`;
+  }
+
+  // The bar's filters, kept when the setup is rebuilt (corpus-search.js).
+  const entriesSearchState = {};
+  let entriesBar = null;
+
+  function mountEntriesSearch() {
+    const box = root().querySelector("[data-entries-search]");
+    entriesBar = box
+      ? FRM.corpusSearch.create(box, {
+          state: entriesSearchState,
+          offer: (entry) => (entry.questions || []).length > 0,
+          placeholder: "Chercher une entrée : titre ou identifiant…",
+          onChange: renderEntryChoices,
+        })
+      : null;
+    if (!entriesBar) return;
+    entriesBar.setEntries(FRM.corpusEntries());
+    renderEntryChoices();
+  }
+
+  /** The bar's results, to tick (linked entries greyed); ticking never rebuilds the bar. */
+  function renderEntryChoices() {
+    const list = root().querySelector("[data-entries-list]");
+    if (!list || !entriesBar) return;
+    const { offered, shown, linked } = entriesBar.results();
+    const chosen = new Set(options.entries || []);
+    const item = (entry, via = null) => `<label class="choice entry-choice${via ? " is-linked" : ""}"><input type="checkbox" data-entry-pick value="${esc(entry.id)}"${chosen.has(entry.id) ? " checked" : ""}>
+      <span>${ui.typeTag(entry.type)} ${esc(entry.titre)} <span class="muted small">(${ui.plural(entry.questions.length, "question")})</span>${via ? ` <span class="elinked">${esc(FRM.linkedLabel(via, FRM.corpusEntries()))}</span>` : ""}</span></label>`;
+    list.innerHTML = [...shown.map((entry) => item(entry)), ...linked.map((l) => item(l.entry, l.via))].join("") || `<div class="small muted">Aucune entrée ne correspond à ces filtres.</div>`;
+    root().querySelector("[data-entries-status]").textContent =
+      `${shown.length}${linked.length ? ` + ${linked.length} liée${linked.length > 1 ? "s" : ""}` : ""} sur ${ui.plural(offered.length, "entrée")} ayant des questions liées`;
+  }
+
+  /** Adds or removes a chosen entry: chips (the form's values) and the matching checkbox. */
+  function pickEntry(id, on) {
+    const chosen = new Set(options.entries || []);
+    if (on) chosen.add(id);
+    else chosen.delete(id);
+    options.entries = [...chosen];
+    root().querySelector("[data-entries-picked]").innerHTML = pickedChips();
+    const box = root().querySelector(`[data-entry-pick][value="${CSS.escape(id)}"]`);
+    if (box) box.checked = on;
   }
 
   const radio = (name, value, label, hint = "") =>
@@ -244,6 +291,7 @@
     screen = "setup";
     stopClock();
     root().innerHTML = tabs("setup") + resumeCard() + setupCard() + historyCard();
+    mountEntriesSearch();
     refreshSetup();
   }
 
@@ -675,16 +723,15 @@ ${shown.length ? `<div class="card"><h2>Par reading</h2>${byReadingTable(shown)}
     }
   });
 
-  document.addEventListener("input", (event) => {
-    if (!event.target.matches("[data-entries-search]")) return;
-    const query = ui.fold(event.target.value.trim());
-    // A ticked entry stays visible: the search finds entries to add, it never hides the choice made.
-    root().querySelectorAll(".entry-choice").forEach((item) => {
-      item.hidden = Boolean(query) && !item.dataset.entryTitle.includes(query) && !item.querySelector("input").checked;
-    });
+  document.addEventListener("click", (event) => {
+    const unpick = event.target.closest("[data-unpick]");
+    if (!unpick || !root().contains(unpick)) return;
+    pickEntry(unpick.dataset.unpick, false);
+    refreshSetup();
   });
 
   document.addEventListener("change", (event) => {
+    if (event.target.matches("[data-entry-pick]")) pickEntry(event.target.value, event.target.checked); // before reading the form
     if (event.target.closest("[data-setup]")) refreshSetup();
     if (event.target.matches("[data-hide-treated]")) {
       hideTreated = event.target.checked;

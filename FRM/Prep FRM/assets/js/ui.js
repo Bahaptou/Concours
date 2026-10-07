@@ -284,6 +284,70 @@
     flashTimer = setTimeout(() => box.classList.remove("is-visible"), 4000);
   }
 
+  // ------------------------------------------------------------------ "Entrées liées" control (see FRM.linkedTo)
+
+  /** How far to look for entries linked to the results: a number of steps (0: none) or "Max"
+   *  (the whole chain, depth Infinity). The number is kept while "Max" is on. */
+  function linkedControl(depth) {
+    const max = depth === Infinity;
+    return `<span class="linked-control" title="Ajoute les entrées liées aux résultats (citations et imports de code, dans les deux sens), en grisé : 0 = aucune, 1 = voisins directs, 2 = leurs voisins aussi… Max = toute la chaîne. Le type et l'auteur choisis s'appliquent à elles aussi.">
+  <span class="filter-label">Entrées liées</span>
+  <span class="small">jusqu'à</span><input type="number" class="linked-depth" data-linked-depth min="0" max="99" step="1" value="${max ? 1 : depth}"${max ? " disabled" : ""} aria-label="Distance maximale en liens"><span class="small">lien(s)</span>
+  <button type="button" class="toggle small" data-linked-max aria-pressed="${max}">Max</button>
+</span>`;
+  }
+
+  /** Calls onChange(depth) whenever a linkedControl inside `root` changes. */
+  function watchLinkedControl(root, onChange) {
+    const read = (control) => {
+      if (control.querySelector("[data-linked-max]").getAttribute("aria-pressed") === "true") return Infinity;
+      const value = Math.floor(Number(control.querySelector("[data-linked-depth]").value));
+      return Number.isFinite(value) && value > 0 ? value : 0;
+    };
+    root.addEventListener("input", (event) => {
+      const input = event.target.closest("[data-linked-depth]");
+      if (input) onChange(read(input.closest(".linked-control")));
+    });
+    root.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-linked-max]");
+      if (!button) return;
+      const control = button.closest(".linked-control");
+      const max = button.getAttribute("aria-pressed") !== "true";
+      button.setAttribute("aria-pressed", String(max));
+      control.querySelector("[data-linked-depth]").disabled = max;
+      onChange(read(control));
+    });
+  }
+
+  // ------------------------------------------------------------------ multi-select toggles (FRM.toggleChoice)
+
+  /** A row of multi-select toggles for filters[key] (null: everything, or a Set); options are
+   *  { value, label, title?, className? }, "all" first. */
+  function choiceToggles(key, selection, options, { small = false } = {}) {
+    return options
+      .map((o) => {
+        const value = String(o.value);
+        const pressed = value === "all" ? selection === null : FRM.isChosen(selection, value);
+        return `<button type="button" class="toggle${small ? " small" : ""}${o.className || ""}" data-multi-filter="${key}" data-value="${esc(value)}" aria-pressed="${pressed}"${o.title ? ` title="${esc(o.title)}"` : ""}>${esc(o.label)}</button>`;
+      })
+      .join("");
+  }
+
+  /** Clicks on choiceToggles inside `root`: updates filters[key] and the pressed states, then calls
+   *  onChange(key). The available values are those of the row's buttons. */
+  function watchChoiceToggles(root, filters, onChange) {
+    root.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-multi-filter]");
+      if (!button || !root.contains(button)) return;
+      const key = button.dataset.multiFilter;
+      const row = [...root.querySelectorAll(`[data-multi-filter="${key}"]`)];
+      const available = row.map((b) => b.dataset.value).filter((value) => value !== "all");
+      filters[key] = FRM.toggleChoice(filters[key], button.dataset.value, available);
+      row.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.value === "all" ? filters[key] === null : FRM.isChosen(filters[key], b.dataset.value))));
+      onChange(key);
+    });
+  }
+
   // ------------------------------------------------------------------ comportements globaux
 
   document.addEventListener("change", (event) => {
@@ -351,5 +415,9 @@
     codeBlock,
     loadScript,
     flash,
+    linkedControl,
+    watchLinkedControl,
+    choiceToggles,
+    watchChoiceToggles,
   };
 })(window.FRM);

@@ -49,6 +49,7 @@
   "risk-appetite": (type: "definition", titre: "Risk Appetite"),
   "risk-free-rate-rfr": (type: "definition", titre: "Risk Free Rate (rfr)"),
   "risk-reward-tradeoff-principle": (type: "theoreme", titre: "Risk-Reward Tradeoff Principle"),
+  "risk-tolerance": (type: "definition", titre: "Risk Tolerance"),
   "specific-risk": (type: "definition", titre: "Specific Risk"),
   "strategic-risk": (type: "definition", titre: "Strategic Risk"),
   "systematic-risk": (type: "definition", titre: "Systematic Risk"),

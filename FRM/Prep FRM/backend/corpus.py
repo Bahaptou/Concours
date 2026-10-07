@@ -12,9 +12,9 @@ A brick is reusable Python code that simulations import: brick ``donnees-aleatoi
 At run time each brick resolves to the version of the running code's author, or another one
 (see ``brick_sources``).
 
-An entry's readings are not stored: they are those of the notes citing or inserting it directly
-(an entry is written for a note). Citations by other entries do not count, or everything would
-end up attached to everything.
+An entry's readings are not stored: they are those of the notes citing or inserting it directly,
+and of the AnalystPrep questions linked to it (both origins are kept apart as well). Citations by
+other entries do not count, or everything would end up attached to everything.
 
 No import cycle is possible, by construction:
 - ``_corpus-titres.typ`` holds titles only and imports nothing but the template; ``voir`` lives there;
@@ -97,9 +97,21 @@ class Entry:
     questions: tuple[tuple[str, int], ...] = ()  # linked AnalystPrep questions: (question id, reading)
 
     @property
-    def readings(self) -> tuple[int, ...]:
-        """Readings of the notes using the entry: the only way an entry gets attached to a reading."""
+    def note_readings(self) -> tuple[int, ...]:
+        """Readings of the notes citing or inserting the entry."""
         return tuple(sorted({note.reading for note in self.used_by}))
+
+    @property
+    def question_readings(self) -> tuple[int, ...]:
+        """Readings of the AnalystPrep questions linked to the entry."""
+        return tuple(sorted({reading for _, reading in self.questions}))
+
+    @property
+    def readings(self) -> tuple[int, ...]:
+        """Readings the entry belongs to: those of the notes using it and of the questions linked to
+        it (choice of Baptiste, 2026-10-07). Never chosen by hand; the two origins stay apart in
+        note_readings / question_readings."""
+        return tuple(sorted(set(self.note_readings) | set(self.question_readings)))
 
 
 @dataclass(frozen=True)
@@ -383,8 +395,8 @@ class CorpusService:
     def link_question(self, entry_id: str, question_id: str, reading: int, linked: bool) -> Entry:
         """Links an AnalystPrep question to an entry (or unlinks it); idempotent. Stored in
         entree.json, shared like the rest of the corpus. Nothing to recompile: renderings do not
-        show the links; only the manifest (corpus page, quiz page) changes. The links do not attach
-        the entry to the question's reading: readings come from the notes only."""
+        show the links; only the manifest (corpus page, quiz page) changes. The link attaches the
+        entry to the question's reading, like a note citing it does."""
         with self._writes:
             raw = self._read_raw(entry_id)
             questions = [q for q in raw.get("questions", []) if q["id"] != question_id]
@@ -686,6 +698,8 @@ def entry_to_dict(entry: Entry, notes_root: Path) -> dict:
         "type": entry.meta.type,
         "titre": entry.meta.titre,
         "readings": list(entry.readings),
+        "noteReadings": list(entry.note_readings),
+        "questionReadings": list(entry.question_readings),
         "cites": list(entry.cites),
         "imports": list(entry.imports),
         "usedBy": [{"reading": n.reading, "author": n.author} for n in entry.used_by],

@@ -136,6 +136,9 @@
   "risk-reward-tradeoff-principle": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/risk-reward-tradeoff-principle/baptiste.typ", hypotheses: none, limites: none),
   ),
+  "risk-tolerance": (
+    "baptiste": (initiales: "BD", corps: () => include "corpus/risk-tolerance/baptiste.typ", hypotheses: none, limites: none),
+  ),
   "specific-risk": (
     "baptiste": (initiales: "BD", corps: () => include "corpus/specific-risk/baptiste.typ", hypotheses: none, limites: none),
   ),

@@ -473,7 +473,7 @@ def test_l_apercu_montre_les_sections_sans_rien_ecrire(services, site):
 
 def test_le_parcours_complet_par_l_api(api):
     # Créer l'entrée.
-    # Des readings envoyés par un ancien client sont ignorés : seules les fiches en donnent.
+    # Des readings envoyés par un ancien client sont ignorés : seules les fiches et les questions liées en donnent.
     status, _, body = api("POST", "/api/corpus", {"id": "bayes", "type": "formule", "titre": "Règle de Bayes", "readings": [12]})
     assert status == 201
     assert body["data"]["readings"] == []
@@ -678,8 +678,9 @@ def test_supprimer_une_brique_importee_par_l_api_donne_409(api, services):
 #
 # On relie des questions AnalystPrep aux entrées du corpus depuis la page des questions, pour
 # retrouver les questions d'une ou plusieurs entrées et s'en faire des séries. Le lien vit dans
-# entree.json : partagé comme le reste du corpus (git). Il ne rattache pas l'entrée au reading de
-# la question : les readings d'une entrée viennent des fiches seulement.
+# entree.json : partagé comme le reste du corpus (git). Depuis le 2026-10-07 (choix de Baptiste),
+# il rattache l'entrée au reading de la question, comme une citation dans une fiche ; les deux
+# origines restent distinguées (noteReadings, questionReadings).
 
 
 def test_lier_une_question_l_ecrit_dans_l_entree_et_le_manifeste(services, site):
@@ -717,11 +718,33 @@ def test_delier_une_question(services, site):
     assert "questions" not in meta
 
 
-def test_un_lien_ne_rattache_pas_l_entree_au_reading_de_la_question(services):
+def test_un_lien_rattache_l_entree_au_reading_de_la_question(services):
     corpus = services.corpus
     creer(corpus, "bayes")
     corpus.link_question("bayes", "315", 12, linked=True)
+    entree = corpus.get("bayes")
+    # Une question appartient à un reading : la lier à l'entrée dit que l'entrée sert à ce reading.
+    assert entree.readings == (12,)
+    assert (entree.note_readings, entree.question_readings) == ((), (12,))
+    # Délier la question retire le rattachement s'il ne venait que d'elle.
+    corpus.link_question("bayes", "315", 0, linked=False)
     assert corpus.get("bayes").readings == ()
+
+
+def test_les_readings_viennent_des_fiches_et_des_questions_sans_se_confondre(services, site):
+    # Fiche du reading 12, questions des readings 12 et 30 : l'entrée appartient à 12 et 30 ;
+    # le manifeste dit d'où vient chacun (pour les filtres « pas encore dans une fiche », etc.).
+    corpus, notes = services.corpus, services.notes
+    creer(corpus, "bayes")
+    notes.save(NoteTarget(12, "baptiste"), FICHE + '#voir("bayes")')
+    corpus.link_question("bayes", "315", 12, linked=True)
+    corpus.link_question("bayes", "900", 30, linked=True)
+    entree = corpus.get("bayes")
+    assert entree.readings == (12, 30)
+    assert entree.note_readings == (12,)
+    assert entree.question_readings == (12, 30)
+    manifeste = json.loads((site / "notes" / "corpus" / "index.js").read_text(encoding="utf-8").split("FRM.registerCorpus(", 1)[1].rsplit(");", 1)[0])
+    assert (manifeste["bayes"]["readings"], manifeste["bayes"]["noteReadings"], manifeste["bayes"]["questionReadings"]) == ([12, 30], [12], [12, 30])
 
 
 def test_les_liens_survivent_aux_modifications_de_l_entree(services):

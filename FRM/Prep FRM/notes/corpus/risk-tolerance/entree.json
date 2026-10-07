@@ -1,21 +1,17 @@
 {
   "type": "definition",
-  "titre": "Operational Risk",
+  "titre": "Risk Tolerance",
   "auteurs": {
     "baptiste": {
       "nom": "Baptiste Durand",
       "initiales": "BD",
-      "updatedAt": 1791362531956,
+      "updatedAt": 1791362335644,
       "valide": true
     }
   },
   "questions": [
     {
-      "id": "4",
-      "reading": 1
-    },
-    {
-      "id": "5300",
+      "id": "35",
       "reading": 1
     }
   ]

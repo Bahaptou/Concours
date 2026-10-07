@@ -37,9 +37,12 @@ Pour passer de l'un à l'autre : 💾 Sauvegarder d'un côté, 📂 Charger de l
 - **Livre** (`livre.html?id=N`) et **Reading** (`reading.html?id=N`) : programme, étapes à cocher, note de
   confiance sur 4 par learning objective, « Things to Remember » et calculs des corrigés AnalystPrep
   (avec lien vers la page du PDF), suivi des questions, simulations Python, nos fiches, entrées du
-  corpus rattachées au reading.
+  corpus rattachées au reading. La carte « Corpus de ce reading » a une recherche et une vue Graphe (avec,
+  au choix, les entrées liées hors du reading).
 - **Corpus** (`corpus.html`, une entrée : `corpus.html?id=bayes`) : nos formules, définitions,
-  propriétés, théorèmes et simulations. Vue **Liste** (tri par titre, usage ou date) et vue **Stats**
+  propriétés, théorèmes et simulations. Vue **Liste** (tri par titre, usage ou date), vue **Graphe**
+  (les entrées et leurs citations en flèches, livres de chaque entrée, entrées liées hors filtres en
+  pâle) et vue **Stats**
   (chiffres clés, entrées à surveiller, répartition par type, les plus utilisées avec une légende
   cliquable, code le plus complexe, tableau triable), avec les mêmes filtres : type, livre (ou « sans
   reading »), reading, auteur, recherche.

@@ -61,7 +61,9 @@ sont dans `../CLAUDE.md`.
   dans l'ordre des balises : `data/curriculum.js` → `store` → `core` →
   `questions` → `ui` → `save` → `profile` → (`quiz-view`, `charts`) → script
   de la page. La page Corpus charge aussi `charts` puis `corpus-stats`
-  (infobulles, barres et tableau partagés).
+  (infobulles, barres et tableau partagés) ; `corpus-graph.js` (graphe des
+  entrées, pages Reading et Corpus) dessine en SVG, disposition par forces
+  écrite à la main, par groupes.
 - **Données générées, jamais éditées à la main** : `data/curriculum.js`
   (`tools/extract_curriculum.py`), `data/questions/rN.js`
   (`tools/extract_questions.py`), `save/exemple-demo.json`
@@ -238,6 +240,11 @@ sont dans `../CLAUDE.md`.
   « S'entraîner » / « refaire » lance une série. Le catalogue
   (`question-catalogue.js`) ne montre que des chiffres par question : les
   totaux sont au dashboard.
+- **Graphe du corpus** (choix de Baptiste le 2026-10-07) : sur la page d'un
+  reading et en vue de la page Corpus ; voisins hors sélection en pâle ;
+  imports en pointillés. Flèches « cite » / « citée par » en `--use-1` /
+  `--use-3` : le vert, essayé, échoue au validateur contre l'aqua du type
+  Propriété (ΔE 11,9 < 15).
 - **Boutons de maths ajoutés depuis les éditeurs, partagés** (choix de
   Baptiste le 2026-10-07) : `notes/_outils-maths.json`, sans notion
   d'auteur, tout le monde ajoute et retire. Les boutons de base restent dans

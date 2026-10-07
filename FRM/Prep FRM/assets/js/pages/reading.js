@@ -234,24 +234,94 @@ ${pager()}`,
 
   const newEntryHref = (type) => `entree.html${type ? `?type=${type}` : ""}`;
 
+  // List or graph of the entries, a search on them, linked entries greyed (kept while the page is open).
+  const corpusView = { mode: "list", query: "", linked: 0, attach: "all" }; // linked: FRM.linkedTo depth
+
   function renderCorpus() {
     const entries = FRM.corpusOf(reading.id);
-    const rows = entries.map(
-      (entry) => `
-<a class="entry-row" href="${ui.entryHref(entry)}">
-  ${ui.typeTag(entry.type)}
-  <span class="etitle">${esc(entry.titre)} <span class="entry-id">${esc(entry.id)}</span></span>
-  <span class="eauthors">${entry.versions.map((v) => `<span class="initials" title="${esc(v.name)}">${esc(v.initials)}</span>`).join("")}</span>
-</a>`
-    );
     const actions = withServer
       ? `<a class="btn" href="editeur.html?reading=${reading.id}">✎ Citer une entrée dans ma fiche</a>`
       : `<span class="small muted">Pour écrire une entrée, lance <code>Lancer Prep FRM.bat</code>.</span>`;
+    const toggle = (mode, label) => `<button type="button" class="toggle" data-corpus-mode="${mode}" aria-pressed="${corpusView.mode === mode}">${label}</button>`;
+    const tools = entries.length
+      ? `<div class="corpus-tools">
+  <div class="view-switch" role="group" aria-label="Vue">${toggle("list", "Liste")}${toggle("graph", "Graphe")}</div>
+  <input type="search" class="search" data-corpus-search placeholder="Chercher parmi ces ${entries.length} entrées : titre ou identifiant…" aria-label="Chercher parmi les entrées de ce reading" value="${esc(corpusView.query)}">
+</div>
+<div class="filter-group" data-corpus-linked>${ui.linkedControl(corpusView.linked)}</div>
+<div class="filter-group corpus-attach"><span class="filter-label">Rattachement</span>${FRM.ATTACHMENTS.filter((a) => !a.unscoped).map((a) => `<button type="button" class="toggle small" data-corpus-attach="${a.id}" aria-pressed="${corpusView.attach === a.id}"${a.title ? ` title="${esc(a.title)}"` : ""}>${esc(a.label)}</button>`).join("")}</div>`
+      : "";
     document.getElementById("corpus").innerHTML = `
-${rows.length ? `<div class="entry-list">${rows.join("")}</div>` : `<div class="placeholder">Aucune entrée du corpus n'est citée ou insérée dans une fiche de ce reading.</div>`}
+${tools}
+<div data-corpus-body></div>
 <p class="src">Une entrée rejoint ce reading dès qu'une fiche du reading la cite ou l'insère (menu « 📚 Corpus » de l'éditeur de fiche).</p>
 <div class="save-actions">${actions}<a class="btn ghost" href="corpus.html?reading=${reading.id}">Voir dans le corpus</a></div>`;
+    renderCorpusBody();
   }
+
+  function renderCorpusBody() {
+    const all = FRM.corpusOf(reading.id);
+    const query = ui.fold(corpusView.query.trim());
+    const searched = all.filter((entry) => !query || ui.fold(`${entry.titre} ${entry.id}`).includes(query));
+    const entries = searched.filter((entry) => FRM.matchesAttachment(entry, corpusView.attach, reading.id));
+    // Each "Rattachement" option with the number of entries it would show (the search kept).
+    const counts = FRM.attachmentCounts(searched, reading.id);
+    document.querySelectorAll("[data-corpus-attach]").forEach((b) => {
+      b.textContent = `${FRM.ATTACHMENTS.find((a) => a.id === b.dataset.corpusAttach).label} (${counts[b.dataset.corpusAttach]})`;
+    });
+    const body = document.querySelector("[data-corpus-body]");
+    if (!all.length) {
+      body.innerHTML = `<div class="placeholder">Aucune entrée du corpus n'est citée ou insérée dans une fiche de ce reading.</div>`;
+      return;
+    }
+    if (!entries.length) {
+      body.innerHTML = `<div class="placeholder">Aucune de ces entrées ne correspond${corpusView.query ? ` à « ${esc(corpusView.query)} »` : ""} avec ce rattachement.</div>`;
+      return;
+    }
+    const linked = FRM.linkedTo(entries, corpusView.linked, FRM.corpusEntries());
+    if (corpusView.mode === "graph") {
+      FRM.corpusGraph.render(body, entries, { linked: linked.map((l) => l.entry), paleLinks: corpusView.linked > 1 });
+      return;
+    }
+    const row = (entry, via = null) => `
+<a class="entry-row${via ? " is-linked" : ""}" href="${ui.entryHref(entry)}">
+  ${ui.typeTag(entry.type)}
+  <span class="etitle">${esc(entry.titre)} <span class="entry-id">${esc(entry.id)}</span>${via ? `<span class="elinked">${esc(FRM.linkedLabel(via, FRM.corpusEntries()))}</span>` : ""}</span>
+  ${originBadges(entry)}
+  <span class="eauthors">${entry.versions.map((v) => `<span class="initials" title="${esc(v.name)}">${esc(v.initials)}</span>`).join("")}</span>
+</a>`;
+    body.innerHTML = `<div class="entry-list">${entries.map((entry) => row(entry)).join("")}${linked.map((l) => row(l.entry, l.via)).join("")}</div>`;
+  }
+
+  /** Where the entry's link to this reading comes from: a note, questions, or both. */
+  function originBadges(entry) {
+    const { note, question } = FRM.attachmentOf(entry, reading.id);
+    const badge = (on, label, title) => (on ? `<span class="origin-badge" title="${title}">${label}</span>` : "");
+    return `<span class="origin-badges">${badge(note, "fiche", "Citée ou insérée dans une fiche de ce reading")}${badge(question, "questions", "Liée à des questions de ce reading")}</span>`;
+  }
+
+  document.addEventListener("input", (event) => {
+    if (!event.target.matches("[data-corpus-search]")) return;
+    corpusView.query = event.target.value;
+    renderCorpusBody();
+  });
+  document.addEventListener("click", (event) => {
+    const attach = event.target.closest("[data-corpus-attach]");
+    if (attach) {
+      corpusView.attach = attach.dataset.corpusAttach;
+      document.querySelectorAll("[data-corpus-attach]").forEach((b) => b.setAttribute("aria-pressed", String(b === attach)));
+      return renderCorpusBody();
+    }
+    const button = event.target.closest("[data-corpus-mode]");
+    if (!button) return;
+    corpusView.mode = button.dataset.corpusMode;
+    document.querySelectorAll("[data-corpus-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+    renderCorpusBody();
+  });
+  ui.watchLinkedControl(document, (depth) => {
+    corpusView.linked = depth;
+    renderCorpusBody();
+  });
 
   // ------------------------------------------------------------------ simulations (corpus entries of type simulation)
 

@@ -3,8 +3,7 @@
 // has to know about it.
 const { FRM } = window;
 const { ui } = FRM;
-const { esc, fold, typeTag } = ui;
-const NO_READING = "none"; // book filter: entries no note uses yet
+const { esc, typeTag } = ui;
 
 const IMPORT_LINE = /^#import\s+"([^"]+)"\s*(?::\s*(.*))?$/;
 
@@ -80,13 +79,13 @@ export function keepCursorBelowHeader(view) {
 }
 
 /**
- * Builds the menu: a toolbar button and its floating panel, with the filters of the corpus page
- * (type, book or "no reading", reading, author) above the search. The filters stay as set
- * between two openings; a filter with a single possible value is not shown (the bricks menu).
+ * Builds the menu: a toolbar button and its floating panel, with the corpus search bar
+ * (corpus-search.js: types, books, authors, reading, attachment, linked entries, text). The
+ * filters stay as set between two openings.
  *
  * view: the editor the actions write into, or a function returning it (editors with several fields);
- * load: async () => entries ({ id, type, titre, readings, versions }), called at each opening so
- *       that an entry created in another tab shows up;
+ * load: async () => entries ({ id, type, titre, readings, versions, cites, imports }), called at
+ *       each opening so that an entry created in another tab shows up;
  * actions: [{ label, title, run(view, entry) }], one button per action on each entry; label may be
  *          a function of the entry ("Lier" / "Délier"), run may be async;
  * keepOpen: true to stay open after an action (entries reloaded), false to close (insertions);
@@ -98,88 +97,35 @@ export function corpusPicker(view, { load, actions, exclude = () => null, keepOp
   root.innerHTML = `
 <button type="button" class="tool" aria-expanded="false" title="${esc(title)}">${esc(label)}</button>
 <div class="picker-panel corpus-panel" hidden>
-  <div class="picker-filters" data-picker-filters></div>
-  <input type="search" class="search" placeholder="Chercher : titre ou identifiant…" aria-label="Chercher dans le corpus">
+  <div data-picker-search></div>
   <ul class="picker-list"></ul>
   <div class="picker-foot"><span data-picker-status></span><a href="entree.html" target="_blank" rel="noopener">+ Nouvelle entrée ↗</a></div>
 </div>`;
   const target = typeof view === "function" ? view : () => view;
   const button = root.querySelector("button");
   const panel = root.querySelector(".picker-panel");
-  const filterBox = root.querySelector("[data-picker-filters]");
-  const search = root.querySelector("input");
   const list = root.querySelector(".picker-list");
   const status = root.querySelector("[data-picker-status]");
   let entries = [];
-  const filters = { type: "all", book: "all", reading: "all", author: "all" };
-
-  const offered = () => entries.filter((entry) => entry.id !== exclude());
-  const booksOf = (entry) => new Set(entry.readings.map(FRM.findReading).filter(Boolean).map((reading) => FRM.bookOf(reading).id));
-
-  function matches(entry, query) {
-    return (
-      (filters.type === "all" || entry.type === filters.type) &&
-      (filters.book === "all" || (filters.book === NO_READING ? !entry.readings.length : booksOf(entry).has(Number(filters.book)))) &&
-      (filters.reading === "all" || entry.readings.includes(Number(filters.reading))) &&
-      (filters.author === "all" || entry.versions.some((version) => version.author === filters.author)) &&
-      (!query || fold(`${entry.titre} ${entry.id}`).includes(query))
-    );
-  }
-
-  /** Type toggles (with counts) and three selects; built from what was loaded. */
-  function renderFilters() {
-    const pool = offered();
-    const count = (fn) => pool.filter(fn).length;
-    const types = FRM.ENTRY_TYPES.filter((type) => pool.some((entry) => entry.type === type.id));
-    if (!types.some((type) => type.id === filters.type)) filters.type = "all";
-    const toggle = (value, text, extra = "") =>
-      `<button type="button" class="toggle small${extra}" data-picker-type="${value}" aria-pressed="${filters.type === value}">${esc(text)}</button>`;
-    const typeRow = types.length > 1
-      ? `<div class="filter-group">${toggle("all", `Tous (${pool.length})`)}${types.map((type) => toggle(type.id, `${type.plural} (${count((e) => e.type === type.id)})`, ` etype-filter etype-${type.id}`)).join("")}</div>`
-      : "";
-    const option = (value, text, current) => `<option value="${esc(String(value))}"${String(current) === String(value) ? " selected" : ""}>${esc(text)}</option>`;
-    const books = FRM.books.filter((book) => pool.some((entry) => booksOf(entry).has(book.id)));
-    const withoutReading = count((entry) => !entry.readings.length);
-    const readings = FRM.books.flatMap((book) => book.readings).filter((reading) => pool.some((entry) => entry.readings.includes(reading.id)));
-    const authors = new Map();
-    pool.forEach((entry) => entry.versions.forEach((version) => authors.set(version.author, version.name)));
-    const select = (name, label, options) => `<select class="picker-select" data-picker-select="${name}" aria-label="${label}">${options.join("")}</select>`;
-    const selects = [
-      books.length + (withoutReading ? 1 : 0) > 1
-        ? select("book", "Livre", [
-            option("all", "Tous les livres", filters.book),
-            ...books.map((book) => option(book.id, `Livre ${book.id} · ${ui.shortTitle(book)}`, filters.book)),
-            ...(withoutReading ? [option(NO_READING, `Sans reading (${withoutReading})`, filters.book)] : []),
-          ])
-        : "",
-      readings.length > 1
-        ? select("reading", "Reading", [option("all", "Tous les readings", filters.reading), ...readings.map((reading) => option(reading.id, `${reading.tag} · ${reading.title}`, filters.reading))])
-        : "",
-      authors.size > 1
-        ? select("author", "Auteur", [option("all", "Tous les auteurs", filters.author), ...[...authors].sort((a, b) => a[1].localeCompare(b[1], "fr")).map(([slug, name]) => option(slug, name, filters.author))])
-        : "",
-    ].join("");
-    filterBox.innerHTML = `${typeRow}${selects ? `<div class="filter-group">${selects}</div>` : ""}`;
-    filterBox.hidden = !typeRow && !selects;
-  }
+  const bar = FRM.corpusSearch.create(root.querySelector("[data-picker-search]"), { onChange: render, offer: (entry) => entry.id !== exclude() });
+  const { search } = bar;
 
   function render() {
-    const query = fold(search.value.trim());
-    const pool = offered();
-    const shown = pool.filter((entry) => matches(entry, query));
+    const { offered, shown, linked } = bar.results();
     list.innerHTML =
-      shown
-        .map((entry) => {
+      [...shown.map((entry) => ({ entry, via: null })), ...linked]
+        .map(({ entry, via }) => {
           const tags = entry.readings.map(FRM.findReading).filter(Boolean).map((reading) => reading.tag).join(", ");
+          const line = [tags, via ? FRM.linkedLabel(via, entries) : ""].filter(Boolean).join(" · ");
           return `
-<li class="picker-item">
+<li class="picker-item${via ? " is-linked" : ""}">
   ${typeTag(entry.type)}
-  <span class="ptitle">${esc(entry.titre)} <span class="entry-id">${esc(entry.id)}</span>${tags ? `<span class="preadings">${esc(tags)}</span>` : ""}</span>
+  <span class="ptitle">${esc(entry.titre)} <span class="entry-id">${esc(entry.id)}</span>${line ? `<span class="preadings">${esc(line)}</span>` : ""}</span>
   ${actions.map((action, i) => `<button type="button" class="tool" data-action="${i}" data-id="${esc(entry.id)}" title="${esc(action.title)}">${esc(typeof action.label === "function" ? action.label(entry) : action.label)}</button>`).join("")}
 </li>`;
         })
-        .join("") || `<li class="picker-item muted">${pool.length ? "Aucune entrée ne correspond à ces filtres." : "Le corpus est vide."}</li>`;
-    status.textContent = `${shown.length} / ${pool.length}`;
+        .join("") || `<li class="picker-item muted">${offered.length ? "Aucune entrée ne correspond à ces filtres." : "Le corpus est vide."}</li>`;
+    status.textContent = `${shown.length}${linked.length ? ` + ${linked.length} liée${linked.length > 1 ? "s" : ""}` : ""} / ${offered.length}`;
   }
 
   async function open() {
@@ -193,7 +139,7 @@ export function corpusPicker(view, { load, actions, exclude = () => null, keepOp
     status.textContent = "Chargement…";
     try {
       entries = await load();
-      renderFilters();
+      bar.setEntries(entries);
       render();
     } catch (error) {
       status.textContent = `⚠ ${error.message}`;
@@ -218,27 +164,12 @@ export function corpusPicker(view, { load, actions, exclude = () => null, keepOp
     if (keepOpen) {
       // Several actions in a row (link a question to several entries): reload to show the new state.
       entries = await load();
-      renderFilters();
+      bar.setEntries(entries);
       render();
     }
   }
 
   button.addEventListener("click", () => (panel.hidden ? open() : close()));
-  search.addEventListener("input", render);
-  filterBox.addEventListener("mousedown", (event) => event.target.closest("button") && event.preventDefault());
-  filterBox.addEventListener("click", (event) => {
-    const toggle = event.target.closest("[data-picker-type]");
-    if (!toggle) return;
-    filters.type = toggle.dataset.pickerType;
-    filterBox.querySelectorAll("[data-picker-type]").forEach((b) => b.setAttribute("aria-pressed", String(b === toggle)));
-    render();
-  });
-  filterBox.addEventListener("change", (event) => {
-    const select = event.target.closest("[data-picker-select]");
-    if (!select) return;
-    filters[select.dataset.pickerSelect] = select.value;
-    render();
-  });
   panel.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       close();
@@ -258,7 +189,8 @@ export function corpusPicker(view, { load, actions, exclude = () => null, keepOp
     if (action) run(Number(action.dataset.action), action.dataset.id);
   });
   document.addEventListener("click", (event) => {
-    if (!root.contains(event.target)) close();
+    // The path as dispatched: a filter button re-rendered by its own click is no longer in `root`.
+    if (!event.composedPath().includes(root)) close();
   });
   return root;
 }

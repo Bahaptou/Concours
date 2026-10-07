@@ -5,6 +5,6 @@ Operational risk refers to the risk of loss resulting from inadequate or failed 
 - People and systems
 - External events. 
 
-Operational risks include #voir("legal-risk"), #voir("anti-money-laundering-risk"), #voir("cyber-risk"), and *rogue trading.*
+Operational risks include *legal* risk, *aml* risk, *cyber* risk, and *rogue trading.*
 
 Moreover, operational include corporate disasters such as *operational mishaps and corporate governance scandals*. It also includes *natural disasters.*

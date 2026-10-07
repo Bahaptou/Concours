@@ -370,6 +370,7 @@ pre.code-block code{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;
   border:1px solid var(--line); border-radius:999px; background:var(--surface); color:var(--ink-soft);
 }
 .toggle[aria-pressed="true"]{background:var(--primary); border-color:var(--primary); color:var(--bg);}
+.toggle:disabled{opacity:0.45; cursor:default;}
 
 .kpis{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); margin:0 0 14px 0;}
 @media (max-width:640px){.kpis{grid-template-columns:repeat(2, minmax(0, 1fr));}}
@@ -595,6 +596,51 @@ fieldset.field legend{padding:0; margin-bottom:4px;}
 .q-detail.is-treated .q-treated-badge{display:inline-block;}
 .q-detail.is-treated:not([open]) summary{color:var(--muted);}
 .hide-treated .q-detail.is-treated{display:none;}
+/* Graph of corpus entries (corpus-graph.js): arrows "cite" / "citée par" in the slate ramp (--use-1 / --use-3) */
+.graph-wrap{overflow:auto; max-height:78vh; border:1px solid var(--line); border-radius:10px; background:var(--surface-2);}
+svg.corpus-graph{display:block; max-width:none; height:auto; margin:0 auto; touch-action:none; user-select:none;} /* real size: scroll rather than shrink */
+.gnode{cursor:pointer;}
+.gnode:focus{outline:none;}
+.gbox{fill:var(--surface); stroke:var(--line); stroke-width:1;}
+.gnode:hover .gbox, .gnode:focus-visible .gbox, .gnode.is-focus .gbox{stroke:var(--ink-soft); stroke-width:1.6;}
+.gdot{fill:var(--etype);}
+.gtitle{font-size:13px; font-weight:600; fill:var(--ink);}
+.gbooks{font-size:10.5px; fill:var(--muted);}
+.gnode.is-ghost{opacity:0.55;}
+.gnode.is-ghost .gbox{fill:transparent; stroke-dasharray:4 3;}
+.gedge{fill:none; stroke:var(--muted); stroke-width:1.4; opacity:0.55;}
+.gedge.is-import{stroke-dasharray:4 3;}
+.gedge.is-cite{stroke:var(--use-1); stroke-width:2.2; opacity:1;}
+.gedge.is-cited{stroke:var(--use-3); stroke-width:2.2; opacity:1;}
+#garrow path{fill:var(--muted);}
+#garrow-cite path{fill:var(--use-1);}
+#garrow-cited path{fill:var(--use-3);}
+.corpus-graph.has-focus .gnode:not(.is-focus):not(.is-near){opacity:0.22;}
+.corpus-graph.has-focus .gedge:not(.is-cite):not(.is-cited){opacity:0.07;}
+.key-arrow{width:30px; height:10px; flex:0 0 auto;}
+.ledge{stroke-width:2;}
+.ledge.is-cite{stroke:var(--use-1);} .lhead.is-cite{fill:var(--use-1);}
+.ledge.is-cited{stroke:var(--use-3);} .lhead.is-cited{fill:var(--use-3);}
+.ledge.is-import{stroke:var(--muted); stroke-dasharray:4 3;}
+.key-ghost{background:transparent; border:1px dashed var(--muted);}
+.graph-info{min-height:20px; margin-top:8px; color:var(--ink-soft);}
+/* Preview card of a corpus entry (entry-preview.js: graph boxes, names in the stats); fixed height, see there. */
+.preview-host{position:relative;}
+.entry-preview{position:absolute; z-index:20; width:500px; max-width:100%; box-sizing:border-box; padding:10px; display:flex; flex-direction:column; gap:8px; border:1px solid var(--line); border-radius:10px; background:var(--surface); box-shadow:var(--shadow); font-size:14px; font-weight:400; text-align:left;}
+.entry-preview[hidden]{display:none;}
+.entry-preview .ep-head{display:flex; align-items:center; gap:8px; min-width:0; font-size:13.5px;}
+.entry-preview .ep-head strong{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.entry-preview .ep-render{height:190px; overflow:hidden; border-radius:6px; background:#ffffff; -webkit-mask-image:linear-gradient(to bottom, #000 72%, transparent); mask-image:linear-gradient(to bottom, #000 72%, transparent);}
+.entry-preview .ep-render img{display:block; width:100%; height:auto;}
+.entry-preview .ep-empty{display:grid; place-items:center; background:var(--surface-2); -webkit-mask-image:none; mask-image:none;}
+.entry-preview .ep-foot{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+.entry-preview .ep-foot .btn{padding:5px 11px; font-size:12.5px;}
+.tag .tag-src{font-weight:400; color:var(--muted); margin-left:2px;}
+.corpus-attach{margin:-2px 0 10px;}
+.origin-badges{display:inline-flex; gap:4px; flex:0 0 auto;}
+.origin-badge{font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:999px; padding:1px 7px; background:var(--surface-2);}
+.corpus-tools{display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:10px;}
+.corpus-tools .search{flex:1 1 220px;}
 /* Question page and catalogue */
 .quiz-tabs{margin-bottom:12px;}
 .q-nav{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; font-size:13px;}
@@ -614,6 +660,15 @@ fieldset.field legend{padding:0; margin-bottom:4px;}
 .entry-choice[hidden]{display:none;}
 .entry-choice > span{font-weight:600;}
 .entry-choice .muted{font-weight:400;}
+/* Series on corpus entries: the corpus search bar (corpus-search.js), the results to tick, the chosen ones as chips. */
+.entries-search{margin-top:8px;}
+.entries-search .search{width:100%; box-sizing:border-box;}
+.entry-choice.is-linked{opacity:0.55;}
+.entry-choice .elinked{font-weight:400; font-size:12px; color:var(--muted);}
+.entries-picked{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px;}
+.entry-pick{display:inline-flex; align-items:center; gap:6px; padding:2px 3px 2px 8px; border:1px solid var(--line); border-radius:999px; background:var(--surface-2); font-size:12.5px; font-weight:600;}
+.pick-remove{font:inherit; font-size:16px; line-height:1; width:22px; height:22px; padding:0; border:0; border-radius:50%; background:transparent; color:var(--ink-soft); cursor:pointer;}
+.pick-remove:hover{background:var(--line); color:var(--ink);}
 
 /* Things to Remember et calculs (page reading) */
 .fiche{margin-top:10px; border:1px solid var(--line); border-radius:10px; background:var(--surface);}
@@ -715,8 +770,8 @@ select.tool{padding:4px 6px;}
 .etype{display:inline-flex; align-items:center; gap:5px; flex:0 0 auto; font-size:11px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; padding:2px 7px; border-radius:6px; color:var(--ink-soft); background:var(--surface-2); border:1px solid var(--line);}
 .etype::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--etype);}
 /* Type and title side by side (lists, chips, menus): the title leads, the type tag recedes */
-:is(.entry-row, .entry-chip, .q-link-chip, .picker-item, .entry-choice, .links-grid li) .etype{font-size:9.5px; font-weight:600; letter-spacing:0.03em; padding:1px 5px; gap:4px; border-radius:4px;}
-:is(.entry-row, .entry-chip, .q-link-chip, .picker-item, .entry-choice, .links-grid li) .etype::before{width:6px; height:6px;}
+:is(.entry-row, .entry-chip, .q-link-chip, .picker-item, .entry-choice, .entry-pick, .links-grid li) .etype{font-size:9.5px; font-weight:600; letter-spacing:0.03em; padding:1px 5px; gap:4px; border-radius:4px;}
+:is(.entry-row, .entry-chip, .q-link-chip, .picker-item, .entry-choice, .entry-pick, .links-grid li) .etype::before{width:6px; height:6px;}
 /* In lists (one entry per line), a common tag width keeps the titles aligned */
 :is(.entry-row, .picker-item) .etype{min-width:82px;}
 .etype-formule{--etype:var(--etype-formule);}
@@ -742,6 +797,14 @@ select.search{min-width:0;}
 .entry-row .etitle .entry-id{font-weight:400;}
 .entry-row .ereadings{font-size:12px; color:var(--muted); white-space:nowrap;}
 .entry-row .eauthors{display:flex; gap:4px;}
+/* "Entrées liées": entries added because they are linked to the results, greyed like the graph's pale nodes. */
+.linked-control{display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px;}
+.linked-depth{width:54px; font:inherit; font-size:12.5px; padding:4px 6px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink);}
+.linked-depth:disabled{opacity:0.45;}
+.entry-row.is-linked{opacity:0.55; border-style:dashed; background:transparent;}
+.picker-item.is-linked{opacity:0.55;}
+:is(.entry-row, .picker-item).is-linked:hover{opacity:0.9;}
+.entry-row .elinked{display:block; font-size:12px; font-weight:400; color:var(--muted);}
 @media (max-width:640px){.entry-row{flex-wrap:wrap;} .entry-row .etitle{flex-basis:100%; order:-1;}}
 
 /* Entry page */
