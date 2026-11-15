@@ -84,7 +84,7 @@ export function keepCursorBelowHeader(view) {
  * filters stay as set between two openings.
  *
  * view: the editor the actions write into, or a function returning it (editors with several fields);
- * load: async () => entries ({ id, type, titre, readings, versions, cites, imports }), called at
+ * load: async () => entries ({ id, type, titre, readings, journal, cites, imports }), called at
  *       each opening so that an entry created in another tab shows up;
  * actions: [{ label, title, run(view, entry) }], one button per action on each entry; label may be
  *          a function of the entry ("Lier" / "Délier"), run may be async;

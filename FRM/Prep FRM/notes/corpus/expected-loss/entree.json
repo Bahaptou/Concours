@@ -1,14 +1,6 @@
 {
   "type": "definition",
   "titre": "Expected Loss",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791328057034,
-      "valide": true
-    }
-  },
   "questions": [
     {
       "id": "8",
@@ -18,5 +10,6 @@
       "id": "33",
       "reading": 1
     }
-  ]
+  ],
+  "valide": true
 }

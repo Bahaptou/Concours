@@ -128,6 +128,7 @@
     { id: "definition", label: "Définition", plural: "Définitions" },
     { id: "propriete", label: "Propriété", plural: "Propriétés" },
     { id: "theoreme", label: "Théorème", plural: "Théorèmes" },
+    { id: "produit", label: "Produit financier", plural: "Produits financiers" },
     { id: "simulation", label: "Simulation", plural: "Simulations" },
     { id: "brique", label: "Brique de code", plural: "Briques de code" },
   ];
@@ -189,6 +190,33 @@
     if (filter === "noNote") return question && !note;
     return !note && !question; // none
   }
+
+  // ------------------------------------------------------------------ journals of the shared notes and entries
+  // Notes and entries belong to everyone; their journal (backend/journal.py) lists sessions:
+  // { author, name, initials, start, end, saves, creation }.
+
+  /** { creator: {author, name, initials, at} | null, contributors, last }: who created a note or
+   *  an entry, and everyone who changed it (creator included) with { author, name, initials,
+   *  sessions, saves, last, creator }; the creator first, then the most recent. */
+  function journalSummary(journal = []) {
+    const sessions = [...journal].sort((a, b) => a.start - b.start);
+    const first = sessions.find((s) => s.creation) || sessions[0];
+    const byAuthor = new Map();
+    for (const s of sessions) {
+      const c = byAuthor.get(s.author) || { author: s.author, sessions: 0, saves: 0, last: 0, creator: false };
+      Object.assign(c, { name: s.name, initials: s.initials, sessions: c.sessions + 1, saves: c.saves + s.saves, last: Math.max(c.last, s.end) });
+      byAuthor.set(s.author, c);
+    }
+    if (first) byAuthor.get(first.author).creator = true;
+    return {
+      creator: first ? { author: first.author, name: first.name, initials: first.initials, at: first.start } : null,
+      contributors: [...byAuthor.values()].sort((a, b) => b.creator - a.creator || b.last - a.last),
+      last: sessions.length ? Math.max(...sessions.map((s) => s.end)) : null,
+    };
+  }
+
+  /** Author slugs of everyone who created or changed a note or an entry (the "Contributeur" filters). */
+  const contributorsOf = (journal = []) => [...new Set(journal.map((s) => s.author))];
 
   // ------------------------------------------------------------------ multi-select filters (types, books, authors)
   // A selection is null (everything, the "Tous" button) or a Set of string values.
@@ -277,11 +305,12 @@
     confidenceOfScope: scoped(confidenceOf),
     nextStep,
     // notes/index.js, written by the server: compiled notes by reading then author.
+    // notes/index.js, written by the server: the shared note of each reading ({ pages, pdf, updatedAt, journal }).
     registerNotes: (manifest) => (notes = manifest || {}),
-    notesOf: (readingId) => notes[String(readingId)] || {},
+    noteOf: (readingId) => notes[String(readingId)] || null,
     ENTRY_TYPES,
     entryType: (id) => ENTRY_TYPES.find((type) => type.id === id),
-    // notes/corpus/index.js, written by the server: every entry with its versions and back-links.
+    // notes/corpus/index.js, written by the server: every entry with its rendering, journal and back-links.
     registerCorpus: (manifest) => (corpus = manifest || {}),
     corpusEntries: () => Object.values(corpus).sort((a, b) => a.titre.localeCompare(b.titre, "fr")),
     findEntry: (id) => corpus[id],
@@ -295,5 +324,7 @@
     linkedLabel,
     toggleChoice,
     isChosen,
+    journalSummary,
+    contributorsOf,
   });
 })(window.FRM);

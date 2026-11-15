@@ -1,12 +1,5 @@
 {
   "type": "definition",
   "titre": "Board of Directors",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791230135996,
-      "valide": true
-    }
-  }
+  "valide": true
 }

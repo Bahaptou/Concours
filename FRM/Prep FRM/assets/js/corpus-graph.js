@@ -271,7 +271,7 @@
       return;
     }
     const graph = buildGraph(entries, linked, paleLinks);
-    // Room for the drawing: the card's width minus the margins (2 × 16) and a vertical scrollbar.
+    // Room for the drawing: the card's width minus a margin.
     layout(graph, Math.max(NODE_W, (container.clientWidth || 900) - 60));
     const all = [...graph.nodes.values()];
     const pad = 16;
@@ -282,42 +282,120 @@
     const marker = (id) => `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"></path></marker>`;
     const ghostCount = all.filter((n) => n.ghost).length;
     graph.shifts = shiftsOf(graph.links);
+    // The frame: the drawing's height, within a screen's worth; the view moves inside it (wire).
+    const frameHeight = Math.max(240, Math.min(Math.ceil(height), Math.round(window.innerHeight * 0.72)));
     container.innerHTML = `
 <div class="graph-legend legend">
   <span class="legend-item"><svg class="key-arrow" viewBox="0 0 30 10"><line x1="1" y1="5" x2="22" y2="5" class="ledge is-cite"></line><path d="M21,1 L29,5 L21,9 z" class="lhead is-cite"></path></svg>cite</span>
   <span class="legend-item"><svg class="key-arrow" viewBox="0 0 30 10"><line x1="1" y1="5" x2="22" y2="5" class="ledge is-cited"></line><path d="M21,1 L29,5 L21,9 z" class="lhead is-cited"></path></svg>citée par</span>
   <span class="legend-item"><svg class="key-arrow" viewBox="0 0 30 10"><line x1="1" y1="5" x2="28" y2="5" class="ledge is-import"></line></svg>import de code</span>
   ${ghostCount ? `<span class="legend-item"><span class="key rect key-ghost"></span>${esc(ghostLabel)} (${ghostCount})</span>` : ""}
-  <span class="legend-item muted">Survole ou clique une entrée ; double-clic pour l'ouvrir ; glisse pour déplacer.</span>
+  <span class="legend-item muted">Glisse le fond pour te déplacer, molette pour zoomer ; clique une entrée pour la garder en vue, glisse-la pour la déplacer, double-clic pour l'ouvrir.</span>
 </div>
-<div class="graph-wrap">
-  <svg class="corpus-graph" viewBox="${minX.toFixed(0)} ${minY.toFixed(0)} ${width.toFixed(0)} ${height.toFixed(0)}" width="${width.toFixed(0)}" role="img" aria-label="Graphe des liens entre ${entries.length} entrées">
+<div class="graph-wrap" style="height:${frameHeight}px">
+  <div class="graph-controls" role="group" aria-label="Zoom">
+    <button type="button" data-graph-zoom="in" title="Zoomer">＋</button>
+    <button type="button" data-graph-zoom="out" title="Dézoomer">－</button>
+    <button type="button" data-graph-zoom="fit" title="Voir tout le graphe">Tout voir</button>
+    <button type="button" data-graph-zoom="real" title="Revenir à la taille réelle">1:1</button>
+    <span class="graph-scale" data-graph-scale></span>
+  </div>
+  <svg class="corpus-graph" role="img" aria-label="Graphe des liens entre ${entries.length} entrées">
     <defs>${marker("garrow")}${marker("garrow-cite")}${marker("garrow-cited")}</defs>
     <g class="gedges">${graph.links.map((l, i) => `<path class="gedge${l.kind === "import" ? " is-import" : ""}" data-gedge="${i}" d="${edgePath(l, graph.nodes, graph.shifts[i])}" marker-end="url(#garrow)"></path>`).join("")}</g>
     <g class="gnodes">${all.map(nodeSvg).join("")}</g>
   </svg>
 </div>
 <div class="graph-info small" data-graph-info></div>`;
-    wire(container, graph);
+    wire(container, graph, { x: minX, y: minY, width, height });
   }
 
   // ------------------------------------------------------------------ interaction
 
-  function wire(container, graph) {
+  function wire(container, graph, bounds) {
     const svg = container.querySelector("svg.corpus-graph");
+    const wrap = container.querySelector(".graph-wrap");
     const info = container.querySelector("[data-graph-info]");
     const edges = [...svg.querySelectorAll("[data-gedge]")];
     let pinned = null;
 
     // Preview card of the box under the pointer (entry-preview.js).
     const preview = FRM.entryPreview.create(container);
-    container.querySelector(".graph-wrap").addEventListener("scroll", preview.hide);
-    // A click beside the boxes (background, arrows) releases the pinned entry.
-    container.querySelector(".graph-wrap").addEventListener("click", (event) => {
-      if (!pinned || event.target.closest("[data-gnode]")) return;
-      pinned = null;
-      focus(null);
+
+    // ---------------------------------------------------------- the view: like a map
+    // Drag the background to move, wheel (or double-click the background) to zoom around the
+    // pointer (choice of Baptiste, 2026-10-07). The camera is the drawing point at the centre of
+    // the frame and a scale (1 = real size); the SVG's viewBox follows it, and the frame's size.
+    const MIN_SCALE = 0.15;
+    const MAX_SCALE = 3;
+    const scaleLabel = container.querySelector("[data-graph-scale]");
+    let cam;
+    const frame = () => ({ w: wrap.clientWidth || 1, h: wrap.clientHeight || 1 });
+    const clampScale = (scale) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+
+    function apply() {
+      const { w, h } = frame();
+      const vw = w / cam.scale;
+      const vh = h / cam.scale;
+      svg.setAttribute("viewBox", `${(cam.cx - vw / 2).toFixed(2)} ${(cam.cy - vh / 2).toFixed(2)} ${vw.toFixed(2)} ${vh.toFixed(2)}`);
+      scaleLabel.textContent = `${Math.round(cam.scale * 100)} %`;
+    }
+    /** Zooms to `scale`, the drawing point (px, py) staying under the pointer. */
+    function zoomAt(scale, px, py) {
+      const s = clampScale(scale);
+      cam = { cx: px - ((px - cam.cx) * cam.scale) / s, cy: py - ((py - cam.cy) * cam.scale) / s, scale: s };
+      apply();
+      preview.hide();
+    }
+    /** Real size: the drawing centred across, its top at the top (centred when it fits). */
+    function realSize() {
+      const { h } = frame();
+      cam = { cx: bounds.x + bounds.width / 2, cy: bounds.height <= h ? bounds.y + bounds.height / 2 : bounds.y + h / 2, scale: 1 };
+      apply();
+    }
+    /** The whole drawing in the frame, never larger than real size. */
+    function fitAll() {
+      const { w, h } = frame();
+      cam = { cx: bounds.x + bounds.width / 2, cy: bounds.y + bounds.height / 2, scale: clampScale(Math.min(1, w / bounds.width, h / bounds.height)) };
+      apply();
+    }
+    /** A point of the window (clientX, clientY) in drawing units. */
+    function toDrawing(clientX, clientY) {
+      const point = svg.createSVGPoint();
+      point.x = clientX;
+      point.y = clientY;
+      return point.matrixTransform(svg.getScreenCTM().inverse());
+    }
+    realSize();
+    new ResizeObserver(apply).observe(wrap);
+    // The frame never scrolls (the browser scrolls a focused box into view): the camera moves instead.
+    wrap.addEventListener("scroll", () => {
+      wrap.scrollTop = 0;
+      wrap.scrollLeft = 0;
     });
+
+    svg.addEventListener(
+      "wheel",
+      (event) => {
+        event.preventDefault(); // the wheel zooms the graph instead of scrolling the page
+        const at = toDrawing(event.clientX, event.clientY);
+        const step = event.deltaMode === 1 ? event.deltaY * 33 : event.deltaY; // lines -> pixels
+        zoomAt(cam.scale * Math.exp(-step * 0.0015), at.x, at.y);
+      },
+      { passive: false }
+    );
+    container.querySelector(".graph-controls").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-graph-zoom]");
+      if (!button) return;
+      const kind = button.dataset.graphZoom;
+      if (kind === "in" || kind === "out") zoomAt(cam.scale * (kind === "in" ? 1.3 : 1 / 1.3), cam.cx, cam.cy);
+      else if (kind === "fit") fitAll();
+      else realSize();
+    });
+
+    // Drag of the background: moves the view; a press without movement is a click, which releases
+    // the pinned entry (a click beside the boxes, on the background or an arrow).
+    let pan = null;
 
     const titleLink = (id) => {
       const e = FRM.findEntry(id);
@@ -354,20 +432,35 @@
         · <span class="ginfo-cited">citée par</span> : ${into.join(", ") || "personne"}${pinned ? ` <span class="muted">(clic sur la bulle ou à côté pour relâcher)</span>` : ""}`;
     }
 
-    // Drag: moves a box and its arrows; a press without movement is a click (pin / unpin).
+    // Drag of a box: moves it and its arrows; a press without movement is a click (pin / unpin).
     let drag = null;
     svg.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
       const g = event.target.closest("[data-gnode]");
-      if (!g) return;
-      const point = svg.createSVGPoint();
-      point.x = event.clientX;
-      point.y = event.clientY;
-      const start = point.matrixTransform(svg.getScreenCTM().inverse());
+      if (!g) {
+        pan = { x: event.clientX, y: event.clientY, cx: cam.cx, cy: cam.cy, moved: false };
+        svg.setPointerCapture(event.pointerId);
+        return;
+      }
+      const start = toDrawing(event.clientX, event.clientY);
       const node = graph.nodes.get(g.dataset.gnode);
       drag = { g, node, start, origin: { x: node.px, y: node.py }, moved: false };
       g.setPointerCapture(event.pointerId);
     });
     svg.addEventListener("pointermove", (event) => {
+      if (pan) {
+        const dx = event.clientX - pan.x;
+        const dy = event.clientY - pan.y;
+        if (!pan.moved && Math.hypot(dx, dy) < 4) return;
+        if (!pan.moved) {
+          pan.moved = true;
+          svg.classList.add("is-panning");
+          preview.hide();
+        }
+        cam = { ...cam, cx: pan.cx - dx / cam.scale, cy: pan.cy - dy / cam.scale };
+        apply();
+        return;
+      }
       if (!drag) {
         const g = event.target.closest("[data-gnode]");
         if (!pinned) focus(g ? g.dataset.gnode : null);
@@ -375,10 +468,7 @@
         return;
       }
       preview.hide();
-      const point = svg.createSVGPoint();
-      point.x = event.clientX;
-      point.y = event.clientY;
-      const at = point.matrixTransform(svg.getScreenCTM().inverse());
+      const at = toDrawing(event.clientX, event.clientY);
       const dx = at.x - drag.start.x;
       const dy = at.y - drag.start.y;
       if (!drag.moved && Math.hypot(dx, dy) < 4) return;
@@ -391,6 +481,15 @@
       });
     });
     svg.addEventListener("pointerup", () => {
+      if (pan) {
+        if (!pan.moved && pinned) {
+          pinned = null;
+          focus(null);
+        }
+        pan = null;
+        svg.classList.remove("is-panning");
+        return;
+      }
       const clicked = drag && !drag.moved ? drag.g : null;
       if (clicked) {
         const id = drag.node.entry.id;
@@ -406,7 +505,11 @@
     });
     svg.addEventListener("dblclick", (event) => {
       const g = event.target.closest("[data-gnode]");
-      const entry = g && FRM.findEntry(g.dataset.gnode);
+      if (!g) {
+        const at = toDrawing(event.clientX, event.clientY);
+        return zoomAt(cam.scale * 1.6, at.x, at.y); // the background: zoom in there
+      }
+      const entry = FRM.findEntry(g.dataset.gnode);
       if (entry) location.href = ui.entryHref(entry);
     });
     svg.addEventListener("keydown", (event) => {
@@ -421,7 +524,16 @@
     });
     svg.addEventListener("focusin", (event) => {
       const g = event.target.closest("[data-gnode]");
-      if (g && !pinned) focus(g.dataset.gnode);
+      if (!g) return;
+      // Reached with the keyboard outside the frame: the view comes to it.
+      const box = g.getBoundingClientRect();
+      const room = wrap.getBoundingClientRect();
+      if (box.left < room.left || box.right > room.right || box.top < room.top || box.bottom > room.bottom) {
+        const node = graph.nodes.get(g.dataset.gnode);
+        cam = { ...cam, cx: node.px, cy: node.py };
+        apply();
+      }
+      if (!pinned) focus(g.dataset.gnode);
     });
   }
 

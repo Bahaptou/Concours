@@ -1,12 +1,5 @@
 {
   "type": "brique",
   "titre": "Rendement et volatilité d'un portefeuille",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1790873914500,
-      "valide": true
-    }
-  }
+  "valide": true
 }

@@ -141,9 +141,9 @@ class TypstCompileError(AppError):
         self.explanation = explanation
         self.line = line
         self.saved = saved  # True when the source was written to disk before compiling
-        # Corpus only: what happened to the notes depending on the failed version (RebuildReport.to_dict()).
+        # Corpus only: what happened to the notes depending on the failed entry (RebuildReport.to_dict()).
         self.rebuild: dict | None = None
-        # Corpus only: which text of a version holds the error ("source", "hypotheses" or "limites");
+        # Corpus only: which text of an entry holds the error ("source", "hypotheses" or "limites");
         # ``line`` counts inside that text. None when the failing text is not told apart.
         self.part: str | None = None
 

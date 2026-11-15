@@ -1,18 +1,11 @@
 {
   "type": "definition",
   "titre": "Economic Capital",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791293610033,
-      "valide": true
-    }
-  },
   "questions": [
     {
       "id": "33",
       "reading": 1
     }
-  ]
+  ],
+  "valide": true
 }

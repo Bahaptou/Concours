@@ -1,12 +1,5 @@
 {
   "type": "formule",
   "titre": "Variation de prix : duration et convexité",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1790857611815,
-      "valide": true
-    }
-  }
+  "valide": true
 }

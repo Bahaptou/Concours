@@ -1,9 +1,9 @@
-/* Notes portal (fiches.html): every reading in the official order, with its steps, its notes
- * and the corpus entries they cite or insert. Filters: books, authors and entry types
+/* Notes portal (fiches.html): every reading in the official order, with its steps, its shared note
+ * and the corpus entries it cites or inserts. Filters: books, contributors and entry types
  * (multi-select, FRM.toggleChoice), note state, chapter (search) and corpus entry (search);
  * four step pins sort by a ticked step.
  * A click opens the reading page on its notes card.
- * Data: notes/index.js (notes by reading and author) and notes/corpus/index.js (entries and
+ * Data: notes/index.js (the note of each reading, with its journal) and notes/corpus/index.js (entries and
  * the notes using them), both written by the server and readable without it. */
 (function (FRM, ui) {
   "use strict";
@@ -12,25 +12,23 @@
   const { store } = FRM;
   const LAST_STEP = FRM.STEPS[FRM.STEPS.length - 1].id; // ④, the note
 
-  // books, authors, entryTypes: multi-select, null (everything) or a Set of strings (FRM.toggleChoice).
+  // books, authors (contributors: created or changed the note), entryTypes: multi-select, null
+  // (everything) or a Set of strings (FRM.toggleChoice).
   const filters = { books: null, state: "all", authors: null, entryTypes: null, chapter: "", query: "" };
   // Step pin: sort by one step, ticked first ("done") or unticked first ("todo"); null = official order.
   let pin = null;
 
   // ------------------------------------------------------------------ data
 
-  const capitalized = (slug) => slug.charAt(0).toUpperCase() + slug.slice(1);
-  const notesHref = (reading, author) => `reading.html?id=${reading.id}${author ? `&auteur=${encodeURIComponent(author)}` : ""}#notes-card`;
+  const notesHref = (reading) => `reading.html?id=${reading.id}#notes-card`;
 
-  /** {reading id: [{ entry, authors: [slug] }]}: the corpus entries each reading's notes use. */
+  /** {reading id: [{ entry }]}: the corpus entries each reading's note uses. */
   function entriesByReading() {
     const byReading = new Map();
     for (const entry of FRM.corpusEntries()) {
       for (const use of entry.usedBy || []) {
         const list = byReading.get(use.reading) || [];
-        const found = list.find((item) => item.entry === entry);
-        if (found) found.authors.push(use.author);
-        else list.push({ entry, authors: [use.author] });
+        if (!list.some((item) => item.entry === entry)) list.push({ entry });
         byReading.set(use.reading, list);
       }
     }
@@ -41,18 +39,18 @@
 
   const STATES = [
     { value: "all", label: "Tous les readings" },
-    { value: "with", label: "Avec fiche", test: (r, notes) => notes.length > 0 },
-    { value: "without", label: "Sans fiche", test: (r, notes) => notes.length === 0 },
-    { value: "unchecked", label: "Fiche écrite, ④ non cochée", test: (r, notes) => notes.length > 0 && !store.progress.isDone(r.id, LAST_STEP) },
-    { value: "missing", label: "④ cochée sans fiche", test: (r, notes) => notes.length === 0 && store.progress.isDone(r.id, LAST_STEP) },
+    { value: "with", label: "Avec fiche", test: (r, note) => note !== null },
+    { value: "without", label: "Sans fiche", test: (r, note) => note === null },
+    { value: "unchecked", label: "Fiche écrite, ④ non cochée", test: (r, note) => note !== null && !store.progress.isDone(r.id, LAST_STEP) },
+    { value: "missing", label: "④ cochée sans fiche", test: (r, note) => note === null && store.progress.isDone(r.id, LAST_STEP) },
   ];
 
-  function matches(reading, notes, used) {
+  function matches(reading, note, used) {
     if (!FRM.isChosen(filters.books, FRM.bookOf(reading).id)) return false;
     if (!matchesChapter(reading)) return false;
     const state = STATES.find((s) => s.value === filters.state);
-    if (state.test && !state.test(reading, notes)) return false;
-    if (filters.authors !== null && !notes.some((author) => filters.authors.has(author))) return false;
+    if (state.test && !state.test(reading, note)) return false;
+    if (filters.authors !== null && !(note && FRM.contributorsOf(note.journal).some((author) => filters.authors.has(author)))) return false;
     return matchingEntries(used).length > 0 || (filters.entryTypes === null && !filters.query.trim());
   }
 
@@ -96,9 +94,11 @@
     return pin.order === "done" ? { step: stepId, order: "todo" } : null;
   }
 
+  /** [slug, name] of everyone who created or changed a note, by name. */
   function authors() {
-    const all = new Set(FRM.readings.flatMap((r) => Object.keys(FRM.notesOf(r.id))));
-    return [...all].sort();
+    const all = new Map();
+    FRM.readings.forEach((r) => (FRM.noteOf(r.id)?.journal || []).forEach((s) => all.set(s.author, s.name)));
+    return [...all].sort((a, b) => a[1].localeCompare(b[1], "fr"));
   }
 
   function filterBar() {
@@ -109,9 +109,9 @@
     ...FRM.books.map((b) => ({ value: b.id, label: `${b.id} · ${ui.shortTitle(b)}`, title: b.title })),
   ])}</div>
   <div class="filter-group"><span class="filter-label">Fiche</span>${toggles("state", STATES)}</div>
-  <div class="filter-group"><span class="filter-label">Auteur</span>${ui.choiceToggles("authors", filters.authors, [
+  <div class="filter-group" title="A créé ou modifié la fiche"><span class="filter-label">Contributeur</span>${ui.choiceToggles("authors", filters.authors, [
     { value: "all", label: "Tous" },
-    ...authors().map((a) => ({ value: a, label: capitalized(a) })),
+    ...authors().map(([slug, name]) => ({ value: slug, label: name })),
   ])}</div>
   <div class="filter-group"><span class="filter-label">Entrées</span>${ui.choiceToggles("entryTypes", filters.entryTypes, [
     { value: "all", label: "Tous les types" },
@@ -123,29 +123,27 @@
 
   // ------------------------------------------------------------------ rows
 
-  function noteLinks(reading, notes) {
-    if (!notes.length) return `<span class="muted">pas de fiche</span>`;
-    const all = FRM.notesOf(reading.id);
-    return notes
-      .map((a) => `<a href="${notesHref(reading, a)}">Fiche de ${esc(capitalized(a))}</a> <span class="muted">(${ui.dateTime(all[a].updatedAt)})</span>`)
-      .join(" · ");
+  /** The note's link, its contributors' initials and its last change. */
+  function noteLink(reading, note) {
+    if (!note) return `<span class="muted">pas de fiche</span>`;
+    return `<a href="${notesHref(reading)}">La fiche</a> ${ui.contributorBadges(note.journal)} <span class="muted">(modifiée le ${ui.dateTime(note.updatedAt)})</span>`;
   }
 
   function entryChips(used) {
     const shown = filters.entryTypes === null && !filters.query.trim() ? used : matchingEntries(used);
     return shown
-      .map(({ entry, authors: by }) => `<a class="entry-chip" href="${ui.entryHref(entry)}" title="${esc(`${FRM.entryType(entry.type).label} · dans la fiche de ${by.map(capitalized).join(", ")}`)}">${ui.typeTag(entry.type)} ${esc(entry.titre)}</a>`)
+      .map(({ entry }) => `<a class="entry-chip" href="${ui.entryHref(entry)}" title="${esc(`${FRM.entryType(entry.type).label} · dans la fiche`)}">${ui.typeTag(entry.type)} ${esc(entry.titre)}</a>`)
       .join("");
   }
 
-  function row(reading, notes, used) {
+  function row(reading, note, used) {
     const chips = entryChips(used);
     return `
 <div class="reading-row" data-complete="reading:${reading.id}">
   <span class="chap">${reading.chapter}</span>
   <div class="body">
-    <a class="rtitle" href="${notesHref(reading, notes[0])}">${esc(reading.title)}</a>
-    <div class="meta">${esc(reading.tag)} · ${noteLinks(reading, notes)}</div>
+    <a class="rtitle" href="${notesHref(reading)}">${esc(reading.title)}</a>
+    <div class="meta">${esc(reading.tag)} · ${noteLink(reading, note)}</div>
     ${chips ? `<div class="entry-chips">${chips}</div>` : ""}
   </div>
   ${ui.stepChips(reading)}
@@ -154,12 +152,10 @@
 
   function render() {
     const byReading = entriesByReading();
-    const me = store.profile.authorSlug();
     const rowOf = (reading) => {
-      // The current profile's note first.
-      const notes = Object.keys(FRM.notesOf(reading.id)).sort((a, b) => (b === me) - (a === me) || a.localeCompare(b));
+      const note = FRM.noteOf(reading.id);
       const used = byReading.get(reading.id) || [];
-      return matches(reading, notes, used) ? row(reading, notes, used) : "";
+      return matches(reading, note, used) ? row(reading, note, used) : "";
     };
     let shown = 0;
     let body;
@@ -189,7 +185,7 @@
   // ------------------------------------------------------------------ page
 
   function start() {
-    const withNotes = FRM.readings.filter((r) => Object.keys(FRM.notesOf(r.id)).length).length;
+    const withNotes = FRM.readings.filter((r) => FRM.noteOf(r.id)).length;
     ui.mount({
       active: "fiches",
       title: "Fiches",
@@ -197,7 +193,7 @@
       body: `
 <div class="card">
   <h2>Fiches</h2>
-  <p>Toutes nos fiches, reading par reading : ${ui.plural(withNotes, "reading")} sur ${FRM.readings.length} en ont au moins une. Les étiquettes sont les entrées du corpus que les fiches citent ou insèrent ; un clic sur un reading ouvre sa fiche.</p>
+  <p>Nos fiches, une par reading, communes à tous : ${ui.plural(withNotes, "reading")} sur ${FRM.readings.length} en ont une. Les initiales disent qui l'a créée et modifiée ; les étiquettes sont les entrées du corpus qu'elle cite ou insère ; un clic sur un reading ouvre sa fiche.</p>
 </div>
 <div class="card">${filterBar()}<div id="fiches"></div></div>`,
     });

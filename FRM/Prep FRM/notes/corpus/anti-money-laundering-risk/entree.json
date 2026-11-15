@@ -1,12 +1,5 @@
 {
   "type": "definition",
   "titre": "Anti-Money Laundering Risk",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791323087547,
-      "valide": true
-    }
-  }
+  "valide": true
 }

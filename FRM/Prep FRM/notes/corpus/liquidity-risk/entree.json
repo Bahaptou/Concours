@@ -1,18 +1,15 @@
 {
   "type": "definition",
   "titre": "Liquidity Risk",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791326668882,
-      "valide": true
-    }
-  },
   "questions": [
+    {
+      "id": "7",
+      "reading": 1
+    },
     {
       "id": "5300",
       "reading": 1
     }
-  ]
+  ],
+  "valide": true
 }

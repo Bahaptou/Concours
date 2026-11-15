@@ -1,12 +1,5 @@
 {
   "type": "formule",
   "titre": "Règle de Bayes",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1790857610037,
-      "valide": true
-    }
-  }
+  "valide": true
 }

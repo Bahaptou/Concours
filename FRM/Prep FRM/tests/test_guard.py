@@ -77,14 +77,14 @@ def test_une_ecriture_sans_json_est_refusee(raw):
     # text/plain ne déclenche pas de contrôle préalable du navigateur : c'est le type qu'une page
     # étrangère utiliserait. Seul application/json est accepté pour écrire.
     call, port = raw
-    status, body = call("PUT", "/api/notes/12/baptiste", {"Host": f"127.0.0.1:{port}", "Content-Type": "text/plain"}, {"source": "x"})
+    status, body = call("PUT", "/api/notes/12", {"Host": f"127.0.0.1:{port}", "Content-Type": "text/plain"}, {"source": "x"})
     assert (status, body["title"], body["contentType"]) == (415, "UNSUPPORTED_MEDIA_TYPE", "text/plain")
 
 
 def test_une_route_inconnue_reste_un_404(raw):
     # Le type de contenu n'est vérifié qu'une fois la route trouvée.
     call, port = raw
-    status, body = call("DELETE", "/api/notes/12/baptiste", {"Host": f"127.0.0.1:{port}"})
+    status, body = call("DELETE", "/api/notes/12", {"Host": f"127.0.0.1:{port}"})
     assert (status, body["title"]) == (404, "NOT_FOUND")
 
 
@@ -93,9 +93,9 @@ def test_l_execution_de_code_exige_aussi_du_json(raw):
     # écritures, refus avant toute exécution si le corps n'est pas déclaré en JSON.
     call, port = raw
     status, body = call("POST", "/api/run", {"Host": f"127.0.0.1:{port}", "Content-Type": "text/plain"},
-                        {"code": "print('jamais exécuté')", "author": "baptiste"})
+                        {"code": "print('jamais exécuté')"})
     assert (status, body["title"]) == (415, "UNSUPPORTED_MEDIA_TYPE")
     # Et depuis la page d'un autre site, même en JSON : refus.
     status, body = call("POST", "/api/run", {"Host": f"127.0.0.1:{port}", "Origin": "https://exemple.com",
-                                              "Content-Type": "application/json"}, {"code": "print(1)", "author": "baptiste"})
+                                              "Content-Type": "application/json"}, {"code": "print(1)"})
     assert (status, body["title"]) == (403, "FORBIDDEN_REQUEST")

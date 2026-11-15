@@ -1,5 +1,5 @@
 /* Corpus search bar, shared by the editors' "📚 Corpus" menu (editor/corpus-picker.js) and the
- * series setup of the Questions page (pages/quiz.js): types, books and authors (multi-select,
+ * series setup of the Questions page (pages/quiz.js): types, books and contributors (multi-select,
  * FRM.toggleChoice), reading and attachment selects, "Entrées liées", text search. It only
  * filters; what to do with an entry is up to the caller. A classic script, so that the series
  * setup also works without the server (file://). */
@@ -19,10 +19,11 @@
    * state: an object holding the filters, mutated in place, for a caller that rebuilds the bar and
    *   wants to keep them; a bar keeps its own otherwise.
    * placeholder: the search field's.
-   * Types, authors and the attachment are shown only when they offer a choice.
+   * Types, contributors and the attachment are shown only when they offer a choice.
    */
   function create(box, { onChange = () => {}, offer = () => true, state = {}, placeholder = "Chercher : titre ou identifiant…" } = {}) {
-    // types, books, authors: null (everything) or a Set (FRM.toggleChoice); reading: "all" or an id.
+    // types, books, authors (contributors: created or changed the entry): null (everything) or a
+    // Set (FRM.toggleChoice); reading: "all" or an id.
     const filters = Object.assign(state, { types: null, books: null, authors: null, reading: "all", attach: "all", linked: 0, query: "", ...state });
     let entries = [];
     box.innerHTML = `
@@ -38,7 +39,7 @@
     const matchesWhat = (entry) =>
       offer(entry) &&
       FRM.isChosen(filters.types, entry.type) &&
-      (filters.authors === null || entry.versions.some((version) => filters.authors.has(version.author)));
+      (filters.authors === null || FRM.contributorsOf(entry.journal).some((author) => filters.authors.has(author)));
 
     const matchesBooks = (entry) =>
       filters.books === null ||
@@ -102,11 +103,11 @@
         { value: NO_READING, label: `Sans reading (${count((entry) => !entry.readings.length)})`, title: "Ni une fiche ni une question liée ne la rattache à un reading" },
       ], { small: true }));
       const authors = new Map();
-      offered.forEach((entry) => entry.versions.forEach((version) => authors.set(version.author, version.name)));
+      offered.forEach((entry) => (entry.journal || []).forEach((session) => authors.set(session.author, session.name)));
       const authorRow = authors.size > 1
-        ? row("Auteur", ui.choiceToggles("authors", filters.authors, [
+        ? row("Contributeur", ui.choiceToggles("authors", filters.authors, [
             { value: "all", label: `Tous (${offered.length})` },
-            ...[...authors].sort((a, b) => a[1].localeCompare(b[1], "fr")).map(([slug, name]) => ({ value: slug, label: `${name} (${count((e) => e.versions.some((v) => v.author === slug))})` })),
+            ...[...authors].sort((a, b) => a[1].localeCompare(b[1], "fr")).map(([slug, name]) => ({ value: slug, label: `${name} (${count((e) => FRM.contributorsOf(e.journal).includes(slug))})` })),
           ], { small: true }))
         : "";
 

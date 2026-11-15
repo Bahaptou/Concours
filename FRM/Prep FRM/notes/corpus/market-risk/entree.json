@@ -1,14 +1,6 @@
 {
   "type": "definition",
   "titre": "Market Risk",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791322452620,
-      "valide": true
-    }
-  },
   "questions": [
     {
       "id": "4",
@@ -26,5 +18,6 @@
       "id": "36",
       "reading": 1
     }
-  ]
+  ],
+  "valide": true
 }

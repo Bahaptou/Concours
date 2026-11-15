@@ -1,12 +1,5 @@
 {
   "type": "definition",
   "titre": "Legal Risk",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791322910092,
-      "valide": true
-    }
-  }
+  "valide": true
 }

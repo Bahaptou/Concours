@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from backend.corpus import ENTRY_TYPES, EntryMeta
 from backend.errors import InvalidRequestError, PayloadTooLargeError
+from backend.journal import Contributor
 from backend.notes import NoteTarget
 from backend.simulations import MAX_TIMEOUT
 
@@ -30,19 +31,24 @@ class SourcePayload:
 
 
 @dataclass(frozen=True)
-class VersionPayload:
+class NotePayload:
     source: str
-    name: str
-    initials: str
+    who: Contributor
+
+
+@dataclass(frozen=True)
+class TextPayload:
+    source: str
+    who: Contributor
     code: str | None
     hypotheses: str | None  # None: not sent, left as is; blank: the block is removed
     limites: str | None
+    variables: list[dict] | None = None  # [{nom, note}]; None: not sent, left as is; []: removed
 
 
 @dataclass(frozen=True)
 class RunPayload:
     code: str
-    author: str
     timeout: float
 
 
@@ -64,10 +70,10 @@ class ImagePayload:
 class EntryPreviewPayload:
     type: str
     titre: str
-    initials: str
     source: str
     hypotheses: str | None
     limites: str | None
+    variables: list[dict] | None = None
 
 
 # ---------------------------------------------------------------- path parameters
@@ -85,11 +91,14 @@ def parse_author(value: str) -> str:
     return value
 
 
-def parse_note_target(reading: str, author: str) -> NoteTarget:
-    return NoteTarget(parse_reading(reading), parse_author(author))
+def parse_note_target(reading: str) -> NoteTarget:
+    return NoteTarget(parse_reading(reading))
 
 
 QUESTION_ID = re.compile(r"^\d{1,6}$")
+VARIABLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,39}$")  # usable as a Python attribute
+MAX_VARIABLES = 60
+NOTE_MAX = 200
 
 
 def parse_question_id(value: str) -> str:
@@ -159,29 +168,76 @@ def _initials(data: dict) -> str:
     return value
 
 
+def _contributor(data: dict) -> Contributor:
+    """Who makes the change (the profile of the person at the keyboard), for the journal:
+    "author" (slug), "name", "initials"."""
+    return Contributor(
+        author=parse_author(str(data.get("author", ""))),
+        name=_text(data, "name", max_length=NAME_MAX).strip(),
+        initials=_initials(data),
+    )
+
+
 def _meta(data: dict) -> EntryMeta:
     # No readings: they come from the notes using the entry (see backend/corpus.py).
     return EntryMeta(_entry_type(data), _text(data, "titre", max_length=TITLE_MAX).strip())
 
 
-def parse_new_entry(body: bytes) -> tuple[str, EntryMeta]:
+def parse_note_payload(body: bytes) -> NotePayload:
     data = _json_object(body)
-    return parse_entry_id(str(data.get("id", ""))), _meta(data)
+    return NotePayload(_text(data, "source"), _contributor(data))
 
 
-def parse_meta_payload(body: bytes) -> EntryMeta:
-    return _meta(_json_object(body))
-
-
-def parse_version_payload(body: bytes) -> VersionPayload:
+def parse_new_entry(body: bytes) -> tuple[str, EntryMeta, Contributor]:
     data = _json_object(body)
-    return VersionPayload(
+    return parse_entry_id(str(data.get("id", ""))), _meta(data), _contributor(data)
+
+
+def parse_meta_payload(body: bytes) -> tuple[EntryMeta, Contributor]:
+    data = _json_object(body)
+    return _meta(data), _contributor(data)
+
+
+def parse_contributor(body: bytes) -> Contributor:
+    """A body carrying only who acts (deleting an entry rewrites the notes citing it)."""
+    return _contributor(_json_object(body))
+
+
+def _variables(data: dict) -> list[dict] | None:
+    """Variables declared by a financial product: [{"nom", "note"?}], None when not sent. A name is
+    a Python identifier (the code fills produit("id").nom); values are given in the code, never here.
+    Other keys are ignored."""
+    value = data.get("variables")
+    if value is None:
+        return None
+    if not isinstance(value, list) or len(value) > MAX_VARIABLES:
+        raise InvalidRequestError("variables", f"liste de {MAX_VARIABLES} variables au plus attendue")
+    found, names = [], set()
+    for line, item in enumerate(value, 1):
+        if not isinstance(item, dict):
+            raise InvalidRequestError("variables", f"ligne {line} : objet attendu")
+        name = item.get("nom")
+        if not isinstance(name, str) or not VARIABLE_NAME.match(name):
+            raise InvalidRequestError("variables", f"ligne {line} : nom de variable attendu (lettres sans accent, chiffres, _ ; ex. « maturite »)")
+        if name in names:
+            raise InvalidRequestError("variables", f"ligne {line} : « {name} » est déjà une variable de ce produit")
+        names.add(name)
+        note = item.get("note", "")
+        if not isinstance(note, str) or len(note) > NOTE_MAX:
+            raise InvalidRequestError("variables", f"ligne {line} : la note de « {name} » est un texte de {NOTE_MAX} caractères au plus")
+        found.append({"nom": name, "note": note.strip()})
+    return found
+
+
+def parse_text_payload(body: bytes) -> TextPayload:
+    data = _json_object(body)
+    return TextPayload(
         source=_text(data, "source"),
-        name=_text(data, "name", max_length=NAME_MAX).strip(),
-        initials=_initials(data),
+        who=_contributor(data),
         code=_text(data, "code", required=False),
         hypotheses=_text(data, "hypotheses", required=False),
         limites=_text(data, "limites", required=False),
+        variables=_variables(data),
     )
 
 
@@ -193,8 +249,7 @@ def parse_run_payload(body: bytes) -> RunPayload:
     timeout = data.get("timeout", 30)
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not MIN_TIMEOUT <= timeout <= MAX_TIMEOUT:
         raise InvalidRequestError("timeout", f"nombre de secondes entre {MIN_TIMEOUT} et {MAX_TIMEOUT:g}")
-    # The author picks which version of each brick is imported.
-    return RunPayload(code, parse_author(str(data.get("author", ""))), float(timeout))
+    return RunPayload(code, float(timeout))
 
 
 def parse_image_payload(body: bytes) -> ImagePayload:
@@ -219,8 +274,8 @@ def parse_entry_preview(body: bytes) -> EntryPreviewPayload:
     return EntryPreviewPayload(
         type=_entry_type(data),
         titre=_text(data, "titre", max_length=TITLE_MAX).strip(),
-        initials=_initials(data),
         source=_text(data, "source"),
         hypotheses=_text(data, "hypotheses", required=False),
         limites=_text(data, "limites", required=False),
+        variables=_variables(data),
     )

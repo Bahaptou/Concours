@@ -36,15 +36,15 @@
 
   // ------------------------------------------------------------------ engine
 
-  /** Runs code; `author` picks which version of each brick is imported. Resolves to the result
+  /** Runs code (every brick of the corpus importable, each with its one shared code). Resolves to the result
    *  ({ ok, stdout, stderr, error, figures, durationMs, timedOut, bricks }), rejects with an Error. */
-  async function execute(code, author, timeout) {
+  async function execute(code, timeout) {
     let response;
     try {
       response = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, author, timeout }),
+        body: JSON.stringify({ code, timeout }),
       });
     } catch (e) {
       throw new Error("Serveur injoignable : relance « Lancer Prep FRM.bat ».");
@@ -119,7 +119,7 @@
         ? `<span class="run-ko">⏱ ${esc(result.error.message)} : augmente la limite ou allège le calcul.</span>`
         : `<span class="run-ko">✗ ${esc(result.error.type)}${result.error.line ? `, ligne ${result.error.line}` : ""} : ${esc(result.error.message)}</span>`;
     const bricks = result.bricks.length
-      ? `<div class="small muted">Briques : ${result.bricks.map((b) => `${esc(b.module)} (version de ${esc(b.author)})`).join(", ")}</div>`
+      ? `<div class="small muted">Briques : ${result.bricks.map((b) => esc(b.module)).join(", ")}</div>`
       : "";
     const stdout = result.stdout ? `<pre class="run-out">${esc(result.stdout)}</pre>` : "";
     const stderr = result.stderr ? `<pre class="run-out run-err">${esc(result.stderr)}</pre>` : "";
@@ -140,12 +140,11 @@
 
   /**
    * Run panel under a piece of code. Options:
-   *   code: () => string (read at each click: the editor's current text, or a stored version);
-   *   author: slug picking the bricks' versions (the version's author, or the current profile);
+   *   code: () => string (read at each click: the editor's current text, or the stored code);
    *   readings: () => [reading ids] whose step ③ a success ticks.
    * Returns the panel element. Without the server, a hint replaces the button.
    */
-  function panel({ code, author, readings = () => [] }) {
+  function panel({ code, readings = () => [] }) {
     const root = Object.assign(document.createElement("div"), { className: "run-panel" });
     if (!available()) {
       root.innerHTML = `<span class="small muted">Pour exécuter ce code, lance <code>Lancer Prep FRM.bat</code>.</span>`;
@@ -175,7 +174,7 @@
       button.disabled = true;
       box.innerHTML = `<div class="run-status muted">Exécution…</div>`;
       try {
-        const result = await execute(code(), author, Number(input.value) || DEFAULT_TIMEOUT);
+        const result = await execute(code(), Number(input.value) || DEFAULT_TIMEOUT);
         const ids = result.ok ? readings() : [];
         ids.forEach((id) => store.progress.set(id, "simulation", true));
         figures = result.figures;
@@ -190,19 +189,18 @@
     return root;
   }
 
-  /** Puts a run panel in every `[data-run-entry][data-run-author]` slot of `container`: the stored
-   *  version of that corpus entry, run with that author's bricks, ticking the entry's readings. */
+  /** Puts a run panel in every `[data-run-entry]` slot of `container`: the stored code of that
+   *  corpus entry, ticking the entry's readings. */
   function mountSlots(container) {
-    container.querySelectorAll("[data-run-entry][data-run-author]").forEach((slot) => {
+    container.querySelectorAll("[data-run-entry]").forEach((slot) => {
       const entry = FRM.findEntry(slot.dataset.runEntry);
-      const version = entry && entry.versions.find((v) => v.author === slot.dataset.runAuthor);
-      if (!version || !version.code) return;
-      slot.replaceChildren(panel({ code: () => version.code, author: version.author, readings: () => entry.readings }));
+      if (!entry || !entry.code) return;
+      slot.replaceChildren(panel({ code: () => entry.code, readings: () => entry.readings }));
     });
   }
 
   /** The slot to leave in a page's HTML for `mountSlots`. */
-  const slot = (entry, version) => `<div data-run-entry="${esc(entry.id)}" data-run-author="${esc(version.author)}"></div>`;
+  const slot = (entry) => `<div data-run-entry="${esc(entry.id)}"></div>`;
 
   FRM.runner = { available, execute, panel, mountSlots, slot };
 })(window.FRM, window.FRM.ui);

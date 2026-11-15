@@ -1,18 +1,11 @@
 {
   "type": "theoreme",
   "titre": "Case Northern Rock",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791299788928,
-      "valide": true
-    }
-  },
   "questions": [
     {
       "id": "7",
       "reading": 1
     }
-  ]
+  ],
+  "valide": true
 }

@@ -1,12 +1,5 @@
 {
   "type": "definition",
   "titre": "Risk Free Rate (rfr)",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1790925894788,
-      "valide": true
-    }
-  }
+  "valide": true
 }

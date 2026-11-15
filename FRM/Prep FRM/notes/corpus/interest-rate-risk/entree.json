@@ -1,14 +1,6 @@
 {
   "type": "definition",
   "titre": "Interest Rate Risk",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791308608617,
-      "valide": true
-    }
-  },
   "questions": [
     {
       "id": "3",
@@ -22,5 +14,6 @@
       "id": "10",
       "reading": 1
     }
-  ]
+  ],
+  "valide": true
 }

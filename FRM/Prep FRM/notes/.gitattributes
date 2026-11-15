@@ -1,0 +1,3 @@
+# Modification journals (backend/journal.py): lines are only appended, or the last one extended.
+# A merge keeps both sides' lines instead of a conflict; the server skips duplicates.
+journal.jsonl merge=union

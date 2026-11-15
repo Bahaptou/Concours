@@ -1,5 +1,6 @@
 // Notes editor (editeur.html?reading=N): CodeMirror on the left, live Typst preview on the
-// right, autosave to notes/r<N>/fiche-<author>.typ through the local server.
+// right, autosave to notes/r<N>/fiche.typ through the local server. The note is shared: whoever
+// opens it writes into it; the profile only says who did, in the note's journal.
 // Loaded as an ES module after the classic scripts, which provide window.FRM.
 import { EditorState, EditorView } from "../../vendor/codemirror/codemirror.js";
 import { isInMath } from "../editor/typst-language.js";
@@ -46,16 +47,15 @@ async function start() {
   if (location.protocol === "file:") {
     return mountPage(notice("L'éditeur a besoin du serveur", "Lance <code>Lancer Prep FRM.bat</code> (double-clic), puis rouvre cette page depuis le navigateur qui s'ouvre."));
   }
-  const author = store.profile.authorSlug();
-  if (!author) {
-    mountPage(notice("Qui écrit cette fiche ?", `Chaque personne a sa propre fiche, nommée d'après son prénom. <button type="button" class="btn" data-profile>Indiquer mon prénom</button>`));
+  if (!store.profile.authorSlug()) {
+    mountPage(notice("Qui modifie cette fiche ?", `La fiche est commune : ton profil sert seulement à noter qui la crée et qui la modifie. <button type="button" class="btn" data-profile>Indiquer mon prénom</button>`));
     document.addEventListener("frm:change", () => store.profile.authorSlug() && location.reload(), { once: true });
     return;
   }
 
   mountPage(`
 <div class="editor-head">
-  <div><div class="kicker">${esc(reading.tag)} · fiche de ${esc(store.profile.displayName())}</div><h2>${esc(reading.title)}</h2></div>
+  <div><div class="kicker">${esc(reading.tag)} · fiche commune · tu écris en tant que ${esc(store.profile.displayName())}</div><h2>${esc(reading.title)}</h2></div>
   <div class="editor-actions">
     <span class="save-status" data-save-status>Chargement…</span>
     <a class="btn ghost" href="${ui.readingHref(reading)}">Voir la page du reading</a>
@@ -71,19 +71,21 @@ async function start() {
     <div class="preview-pages" data-preview></div>
   </div>
 </div>
-<p class="src">Fichier : <code>notes/r${reading.id}/fiche-${author}.typ</code> · enregistrement automatique · Ctrl+S pour enregistrer tout de suite.</p>`);
+<p class="src"><span data-journal></span>Fichier : <code>notes/r${reading.id}/fiche.typ</code> · enregistrement automatique · Ctrl+S pour enregistrer tout de suite.</p>`);
   document.body.classList.add("wide");
 
   const $ = (selector) => document.querySelector(selector);
   let note;
   try {
-    note = await api.getNote(reading.id, author);
+    note = await api.getNote(reading.id);
   } catch (error) {
     $("[data-save-status]").textContent = `⚠ ${error.message}`;
     return;
   }
   const links = note.links;
-  const initial = note.data.exists ? note.data.source : noteTemplate(reading, store.profile.displayName());
+  const initial = note.data.exists ? note.data.source : noteTemplate(reading);
+  const showJournal = (journal) => ($("[data-journal]").innerHTML = journal.length ? `${ui.journalLine(journal)} · ` : "");
+  showJournal(note.data.journal);
 
   // ---------------------------------------------------------- preview
 
@@ -131,6 +133,7 @@ async function start() {
     try {
       const result = await api.save(links.save, view.state.doc.toString());
       setPdf(result.data.pdf);
+      showJournal(result.data.journal);
       status(`✓ Enregistré à ${new Date(result.data.savedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`, "ok");
     } catch (error) {
       if (error instanceof api.ApiProblem && error.problem.saved) {
@@ -174,7 +177,7 @@ async function start() {
     load: async () => (await api.listCorpus()).data.entries,
     actions: [
       { label: "Citer", title: "Le titre de l'entrée, en couleur : #voir(\"id\")", run: (v, entry) => (useCorpus(v), insert(v, `#voir("${entry.id}")`)) },
-      { label: "Insérer", title: "L'entrée entière, toutes versions : #entree(\"id\")", run: (v, entry) => (useCorpus(v), insertBlock(v, `#entree("${entry.id}")`)) },
+      { label: "Insérer", title: "L'entrée entière : #entree(\"id\")", run: (v, entry) => (useCorpus(v), insertBlock(v, `#entree("${entry.id}")`)) },
     ],
   });
   const images = imageMenu(view);

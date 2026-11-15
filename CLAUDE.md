@@ -28,11 +28,14 @@ d'entraînement, et un seul projet de code : Prep FRM.
 
 - **Les PDFs sont sous droits.** CFA Institute : « For candidate use only.
   Not for distribution. » ; AnalystPrep : « Reproduction and/or distribution
-  of this document is prohibited. » Usage personnel uniquement. Ils sont
-  versionnés dans le dépôt GitHub **privé** `Bahaptou/Concours` (décision de
-  Baptiste le 2026-10-02, « pour l'instant ») ; ne jamais les publier ni les
-  téléverser ailleurs (artifact, service en ligne, dépôt public). Rendre le
-  dépôt public serait les publier : en parler à Baptiste avant.
+  of this document is prohibited. » Usage personnel uniquement. Ils ne sont
+  plus versionnés depuis le 2026-10-07 (décision de Baptiste) : `.gitignore`
+  exclut `/CFA/` et tous les `*.pdf`, sauf les rendus des fiches de Prep FRM
+  (`FRM/Prep FRM/notes/**/*.pdf`, notre travail). Ils restent dans
+  l'historique du dépôt GitHub **privé** `Bahaptou/Concours`. Ne jamais les
+  publier ni les téléverser ailleurs (artifact, service en ligne, dépôt
+  public) ; rendre le dépôt public publierait cet historique : en parler à
+  Baptiste avant.
 - **Les PDFs ne se renomment ni ne se déplacent.** Les outils de Prep FRM
   les lisent par leur nom de fichier.
 - **CFA et FRM restent séparés.** Baptiste a refusé le 2026-10-01 tout
@@ -41,7 +44,11 @@ d'entraînement, et un seul projet de code : Prep FRM.
 
 ## Pièges rencontrés
 
-Aucun à ce niveau : voir `FRM/CLAUDE.md` et `FRM/Prep FRM/CLAUDE.md`.
+**`./CFA` dans `.gitignore` n'ignorait rien.** git ne comprend pas le
+préfixe `./` : le dossier CFA a été versionné avec ses PDF. Écrire `/CFA/`
+(constaté le 2026-10-07).
+
+Les autres pièges sont dans `FRM/CLAUDE.md` et `FRM/Prep FRM/CLAUDE.md`.
 
 ## Ce qui n'est pas en place
 

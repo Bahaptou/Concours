@@ -1,12 +1,5 @@
 {
   "type": "formule",
   "titre": "Black-Scholes : call européen",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1790930216280,
-      "valide": true
-    }
-  }
+  "valide": true
 }

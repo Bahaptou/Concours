@@ -1,12 +1,5 @@
 {
   "type": "definition",
   "titre": "Chief Risk Officer - CRO",
-  "auteurs": {
-    "baptiste": {
-      "nom": "Baptiste Durand",
-      "initiales": "BD",
-      "updatedAt": 1791230099744,
-      "valide": true
-    }
-  }
+  "valide": true
 }
