@@ -42,7 +42,7 @@ Pour passer de l'un à l'autre : 💾 Sauvegarder d'un côté, 📂 Charger de l
   rattachement et le réglage « Entrées liées » (voir Corpus), et une vue Graphe ; chaque entrée dit si
   elle vient d'une fiche, de questions, ou des deux.
 - **Corpus** (`corpus.html`, une entrée : `corpus.html?id=bayes`) : nos formules, définitions,
-  propriétés, théorèmes et simulations. Vue **Liste** (tri par titre, usage ou date), vue **Graphe**
+  propriétés, théorèmes, produits financiers et simulations. Vue **Liste** (tri par titre, usage ou date), vue **Graphe**
   (les entrées et leurs citations en flèches, livres de chaque entrée) et vue **Stats**
   (chiffres clés, entrées à surveiller, répartition par type, les plus utilisées avec une légende
   cliquable, code le plus complexe, tableau triable), avec les mêmes filtres :
@@ -111,7 +111,7 @@ conflit git en fusionnant : récupérer les changements de l'autre avant d'écri
 ## Corpus
 
 Une bibliothèque commune que nous construisons nous-mêmes : **formules, définitions, propriétés,
-théorèmes, simulations et briques de code**. Elle remplace l'ancien menu « Formules FRM » (ses 6
+théorèmes, produits financiers, simulations et briques de code**. Elle remplace l'ancien menu « Formules FRM » (ses 6
 formules y sont, créées par BD). Tout y est commun : chacun crée, modifie et supprime les entrées.
 
 - Chaque entrée a un **identifiant lisible** (`bayes`, fixé à la création), un type et un titre,
@@ -137,6 +137,10 @@ formules y sont, créées par BD). Tout y est commun : chacun crée, modifie et 
   Typst comme le reste. Ils s'affichent en deux petits blocs sous la formule,
   dans son encadré (hypothèses en cadre plein, limites en tirets), sur la page du corpus et dans les
   fiches qui insèrent la formule. Un champ vide n'affiche rien. Les autres types n'en ont pas.
+- **Produits financiers** : en plus du texte, la liste des **variables** dont le produit a besoin
+  (nom et note facultative, sans valeur), en haut de l'éditeur. Dans le code, `from produits import
+  produit`, puis `p = produit("obligation-5-ans")` donne un objet dont ces variables sont vides :
+  `p.fixed_rate = 0.03`… Un nom non déclaré est refusé, pour attraper les fautes de frappe.
 - **Supprimer une entrée** : bouton dans l'éditeur d'entrée. Ses références sont retirées des fiches et
   des autres entrées (`#voir` devient son titre en texte simple, `#entree` disparaît) ; ces réécritures
   comptent comme des modifications de la personne qui supprime. Une brique encore
@@ -146,7 +150,7 @@ formules y sont, créées par BD). Tout y est commun : chacun crée, modifie et 
   rattache l'entrée au reading de la question.
 
 Fichiers : `notes/corpus/<id>/entree.json` (type, titre, questions liées), `texte.typ` (le texte),
-`hypotheses.typ` et `limites.typ` (une formule), `code.py` (le code d'une simulation ou d'une brique),
+`hypotheses.typ` et `limites.typ` (une formule), `variables.json` (un produit financier), `code.py` (le code d'une simulation ou d'une brique),
 `page-<n>.svg` (le rendu), `journal.jsonl` (l'historique), `valide/` (le dernier texte qui compilait,
 tant que le texte ne compile pas). Le serveur génère
 `notes/_corpus-titres.typ` (titres, pour `#voir`), `notes/_corpus.typ` (textes qui compilent, pour
@@ -166,7 +170,8 @@ modifier à la main.
 - **Briques de code** : des fonctions réutilisables, entrées du corpus de type « Brique de code ». La
   brique `donnees-aleatoires` est le module `briques.donnees_aleatoires` :
   `from briques.donnees_aleatoires import generate_random_data`. Dans l'éditeur, le menu **🧱 Briques**
-  du panneau de code ajoute la ligne d'import. Chaque brique a un seul code, commun. Le bloc
+  du panneau de code ajoute la ligne d'import. Chaque brique a un seul code, commun.
+  Les produits financiers se lisent partout de la même façon : `from produits import produit`. Le bloc
   `if __name__ == "__main__":` d'une brique est sa démonstration, lancée par ▶ Exécuter sur la brique
   elle-même. Briques de départ : données aléatoires, trajectoires de prix,
   rendements de portefeuille, histogramme avec quantile, Monte-Carlo.

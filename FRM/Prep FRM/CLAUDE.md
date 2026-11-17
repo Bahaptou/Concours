@@ -38,12 +38,14 @@ sont dans `../CLAUDE.md`.
   par étape (cochés d'abord, non cochés d'abord, ordre officiel). Lien
   vers `reading.html?id=N#notes-card`.
 - **Corpus** (`corpus.html`, `entree.html`) : formules, définitions,
-  propriétés, théorèmes, simulations et briques de code écrits par nous. Identifiant
+  propriétés, théorèmes, produits financiers, simulations et briques de code écrits par nous. Identifiant
   lisible, titre, type et texte communs, readings tirés des fiches qui
   l'utilisent et des questions qui lui sont liées. Les entrées se
   citent (`#voir`) ; les fiches citent ou insèrent (`#entree`). Simulations
   et briques ont une section de code Python séparée de leur description.
   Une formule a de même deux champs, Hypothèses et Limites, affichés en blocs sous elle.
+  Un produit financier déclare ses variables (nom et note, sans valeur) ; le
+  code reçoit un objet à remplir (`from produits import produit`).
   Vues Liste (tri titre / usage / date), Graphe et Stats
   (`corpus-stats.js`), mêmes filtres : type, livre ou « sans reading »,
   contributeur (choix multiples), reading, rattachement, entrées liées (sauf
@@ -107,7 +109,8 @@ sont dans `../CLAUDE.md`.
   (généré) donne chaque fiche (pages, journal) aux pages ouvertes en `file://`.
 - **Corpus** : `notes/corpus/<id>/entree.json` (type, titre, `valide`,
   `questions` liées : identifiant et reading), `texte.typ`,
-  `hypotheses.typ` et `limites.typ` (formule), `code.py` (simulation,
+  `hypotheses.typ` et `limites.typ` (formule), `variables.json` (produit
+  financier), `code.py` (simulation,
   brique), `page-<n>.svg`, `journal.jsonl`, et `valide/` tant que le texte
   ne compile pas. Régénérés à chaque écriture du corpus, à chaque
   enregistrement de fiche et au démarrage :
@@ -156,7 +159,9 @@ sont dans `../CLAUDE.md`.
   sur les surfaces du site (`#ffffff`, `#1b2238`), voir l'en-tête de
   `style.css`.
 - **Couleurs des types d'entrée** validées de la même façon le
-  2026-10-01 : emplacements 1, 2, 3, 7 et 5 de la palette de référence,
+  2026-10-01 : emplacements 1, 2, 3, 7 et 5 de la palette de référence, puis
+  le jaune foncé des briques ; le vert `#008300` des produits financiers
+  (2026-10-08) ne passe le validateur qu'entre théorème et simulation,
   pastille à côté d'un texte encre (jamais du texte coloré). Une seule
   source par support : `--etype-*` dans `style.css`, `types-entree` dans
   `notes/_gabarit.typ` (même ordre, mêmes valeurs claires).
@@ -257,6 +262,15 @@ sont dans `../CLAUDE.md`.
   et dans les fiches (`_corpus.typ` les inclut). Un champ vide supprime son fichier,
   un champ non envoyé n'est pas touché. Ils comptent comme le texte pour les
   citations, l'interdiction d'insérer et la validité de l'entrée.
+- **Produits financiers : des variables déclarées, remplies dans le code**
+  (choix de Baptiste le 2026-10-08). Ni valeurs ni unités sur la page, ni
+  familles imposées, ni scénario de marché : courbes et valeurs se font en
+  code. `variables.json` : `[{nom, note}]`, nom = identifiant Python, 60 au
+  plus. Éditeur : tableau dans la carte du haut, avec l'exemple de code ;
+  l'aperçu ignore les noms invalides. Encadré : les noms, et un tableau
+  quand une note est écrite. Chaque exécution reçoit `produits.py` :
+  `produit("id")` rend un objet neuf, variables à `None`, `a_remplir()`,
+  `notes()` ; affecter un nom non déclaré lève une erreur (fautes de frappe).
 - **Une erreur dit quel texte la porte.** Trois textes, une seule boîte : en cas
   d'échec, le serveur compile chaque texte seul ; `part` et `line` (dans ce texte)
   vont dans le 422, et l'éditeur marque le bon champ.
@@ -469,6 +483,8 @@ et attente (constaté en test le 2026-10-07).
   se fusionne seul). Récupérer les changements de l'autre avant d'écrire.
 - **Pincement tactile dans le graphe.** Un doigt déplace la vue ; le zoom
   passe par la molette ou les boutons.
+- **Bouton « Valoriser » sur un produit.** La valorisation s'écrit dans
+  une simulation ou une brique qui reçoit `produit("id")` rempli.
 - **Vue d'ensemble des interactions.** Le journal est enregistré mais
   affiché seulement fiche par fiche et entrée par entrée (choix de
   Baptiste le 2026-10-07 : la vue d'ensemble viendra plus tard).
