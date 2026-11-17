@@ -1,0 +1,132 @@
+{
+  "app": "prep-frm",
+  "version": 1,
+  "exportedAt": "2026-11-15T18:15:49.768Z",
+  "profile": {
+    "firstName": "Cécile",
+    "lastName": "Diana"
+  },
+  "progress": {},
+  "confidence": {},
+  "attempts": [
+    {
+      "q": "4323",
+      "reading": 9,
+      "choice": "C",
+      "correct": true,
+      "ms": 43087,
+      "at": 1794764889771,
+      "session": "smwi4neqj"
+    },
+    {
+      "q": "52",
+      "reading": 3,
+      "choice": "C",
+      "correct": true,
+      "ms": 95505,
+      "at": 1794765018785,
+      "session": "smwi4neqj"
+    },
+    {
+      "q": "10",
+      "reading": 1,
+      "choice": "D",
+      "correct": true,
+      "ms": 47128,
+      "at": 1794765081287,
+      "session": "smwi4neqj"
+    },
+    {
+      "q": "3729",
+      "reading": 4,
+      "choice": "D",
+      "correct": false,
+      "ms": 145230,
+      "at": 1794765280150,
+      "session": "smwi4neqj"
+    },
+    {
+      "q": "288",
+      "reading": 10,
+      "choice": "D",
+      "correct": true,
+      "ms": 97784,
+      "at": 1794765501848,
+      "session": "smwi4neqj"
+    },
+    {
+      "q": "420",
+      "reading": 10,
+      "choice": "B",
+      "correct": true,
+      "ms": 64454,
+      "at": 1794765662649,
+      "session": "smwi4neqj"
+    },
+    {
+      "q": "3487",
+      "reading": 5,
+      "choice": "B",
+      "correct": true,
+      "ms": 203045,
+      "at": 1794765945239,
+      "session": "smwi4neqj"
+    },
+    {
+      "q": "212",
+      "reading": 5,
+      "choice": "C",
+      "correct": false,
+      "ms": 42001,
+      "at": 1794766000182,
+      "session": "smwi4neqj"
+    },
+    {
+      "q": "4328",
+      "reading": 9,
+      "choice": "C",
+      "correct": false,
+      "ms": 108048,
+      "at": 1794766116204,
+      "session": "smwi4neqj"
+    },
+    {
+      "q": "3723",
+      "reading": 4,
+      "choice": "B",
+      "correct": true,
+      "ms": 41521,
+      "at": 1794766198580,
+      "session": "smwi4neqj"
+    }
+  ],
+  "flags": {
+    "212": {
+      "review": true
+    },
+    "3487": {
+      "review": true
+    },
+    "3729": {
+      "review": true
+    },
+    "4328": {
+      "review": true
+    }
+  },
+  "treated": {},
+  "sessions": [
+    {
+      "id": "smwi4neqj",
+      "mode": "training",
+      "label": "Livre 1 · Foundations of Risk Management",
+      "startedAt": 1794764846683,
+      "finishedAt": 1794766201784,
+      "total": 10,
+      "answered": 10,
+      "correct": 7,
+      "ms": 887803,
+      "timeLimit": null
+    }
+  ]
+}
