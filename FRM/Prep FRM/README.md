@@ -54,6 +54,8 @@ Pour passer de l'un à l'autre : 💾 Sauvegarder d'un côté, 📂 Charger de l
     encore dans une fiche, Ni fiche ni question, avec le nombre d'entrées de chaque option ; dans le
     reading choisi, sinon dans les livres choisis, sinon dans tout le programme (« Fiche ou questions »
     et « Ni fiche ni question » sont grisés quand un reading ou un livre est choisi) ;
+  - **reading direct** : Tout, Avec reading direct, Sans reading direct (readings saisis à la
+    main), à part de « rattachement » ;
   - **entrées liées** (Liste et Graphe) : ajoute, grisées, les entrées qui citent les résultats ou
     qu'ils citent (imports de code compris), jusqu'à N liens de distance ou toute la chaîne (Max) ;
   - recherche.
@@ -116,9 +118,10 @@ formules y sont, créées par BD). Tout y est commun : chacun crée, modifie et 
 
 - Chaque entrée a un **identifiant lisible** (`bayes`, fixé à la création), un type et un titre,
   communs à tous.
-- **Ses readings ne se choisissent pas** : ce sont ceux des fiches qui la citent ou l'insèrent, et ceux
-  des questions qui lui sont liées. Une entrée apparaît sur la page d'un reading dès qu'une fiche de ce
-  reading s'en sert ou qu'elle est liée à une question de ce reading. Une citation par une autre entrée
+- **Ses readings** : ceux qu'on lui rattache à la main (un ou plusieurs), ceux des fiches qui la citent
+  ou l'insèrent, et ceux des questions qui lui sont liées. On rattache depuis la page Corpus (cocher
+  des entrées, « Rattacher à des readings… »), depuis la page d'une entrée, depuis la page d'un
+  reading (« ＋ Rattacher une entrée ») ou depuis l'éditeur d'entrée. Une citation par une autre entrée
   ne rattache pas.
 - Une entrée a **un seul texte**, que chacun modifie. Son **historique** dit qui l'a créée et qui l'a
   modifiée, quand (« Créée par … · modifiée par … », et les initiales des contributeurs, le créateur

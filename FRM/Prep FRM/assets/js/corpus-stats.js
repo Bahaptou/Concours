@@ -40,7 +40,7 @@
   ${tile(entries.length, "Entrées", `écrites par ${ui.plural(contributors, "contributeur")}`)}
   ${tile(links, "Liens", "citations entre entrées et usages en fiche")}
   ${tile(questions.size, "Questions liées", "questions AnalystPrep reliées")}
-  ${tile(readings.size, "Readings", `sur ${FRM.readings.length}, via les fiches et les questions`)}
+  ${tile(readings.size, "Readings", `sur ${FRM.readings.length}, à la main, via les fiches et les questions`)}
 </div>`;
   }
 
@@ -108,7 +108,7 @@
 
     return `<ul class="watch-list">
   ${item(isolated.length, "Isolées : liées à aucune autre entrée (ni citation ni import)", `${names(isolated)}${isolatedNoReading.length ? `<div class="muted">dont ${isolatedNoReading.length} sans reading non plus : ${names(isolatedNoReading, 6)}</div>` : ""}`)}
-  ${item(floatingCount, `Non rattachées : ${floating.length > 1 ? `${floating.length} groupes` : "un groupe"} d'entrées liées entre elles dont aucune n'appartient à un reading (ni fiche ni question liée)`, `<ul class="watch-groups">${groupLines}</ul>${moreGroups}<div class="muted">Citer une seule entrée d'un groupe dans une fiche, ou la lier à une question, rattache tout le groupe.</div>`)}
+  ${item(floatingCount, `Non rattachées : ${floating.length > 1 ? `${floating.length} groupes` : "un groupe"} d'entrées liées entre elles dont aucune n'appartient à un reading (ni saisi, ni fiche, ni question liée)`, `<ul class="watch-groups">${groupLines}</ul>${moreGroups}<div class="muted">Rattacher une seule entrée d'un groupe à un reading, la citer dans une fiche ou la lier à une question, rattache tout le groupe.</div>`)}
   ${item(entries.filter((e) => e.hasText && !e.valid).length, "Ne compile pas : les fiches gardent le dernier texte qui compilait", names(entries.filter((e) => e.hasText && !e.valid)))}
   ${item(entries.filter((e) => !e.hasText).length, "Pas encore de texte", names(entries.filter((e) => !e.hasText)))}
 </ul>`;

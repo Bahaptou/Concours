@@ -13,9 +13,11 @@ with ``#entree("id")``.
 A brick is reusable Python code that simulations import: brick ``donnees-aleatoires`` is module
 ``briques.donnees_aleatoires`` (``from briques.donnees_aleatoires import generate_random_data``).
 
-An entry's readings are not stored: they are those of the notes citing or inserting it directly,
-and of the AnalystPrep questions linked to it (both origins are kept apart as well). Citations by
-other entries do not count, or everything would end up attached to everything.
+An entry's readings have three origins, kept apart: the readings attached to it by hand
+(``readings`` in entree.json, ``direct_readings``; choice of Baptiste, 2026-11-19), those of the
+notes citing or inserting it directly, and those of the AnalystPrep questions linked to it. Only
+the first is stored. Citations by other entries do not count, or everything would end up attached
+to everything.
 
 No import cycle is possible, by construction:
 - ``_corpus-titres.typ`` holds titles only and imports nothing but the template; ``voir`` lives there;
@@ -99,6 +101,7 @@ class Entry:
     imports: tuple[str, ...] = ()  # bricks imported by its code
     questions: tuple[tuple[str, int], ...] = ()  # linked AnalystPrep questions: (question id, reading)
     variables: tuple[dict, ...] = ()  # financial products: [{nom, note}]
+    direct_readings: tuple[int, ...] = ()  # readings attached by hand (entree.json: "readings")
 
     @property
     def updated_at(self) -> int:
@@ -116,10 +119,11 @@ class Entry:
 
     @property
     def readings(self) -> tuple[int, ...]:
-        """Readings the entry belongs to: those of the notes using it and of the questions linked to
-        it (choice of Baptiste, 2026-10-07). Never chosen by hand; the two origins stay apart in
-        note_readings / question_readings."""
-        return tuple(sorted(set(self.note_readings) | set(self.question_readings)))
+        """Readings the entry belongs to: the ones attached by hand, those of the notes using it and
+        those of the questions linked to it (hand-attached readings added on 2026-11-19; notes and
+        questions on 2026-10-07). The three origins stay apart in direct_readings / note_readings /
+        question_readings."""
+        return tuple(sorted(set(self.direct_readings) | set(self.note_readings) | set(self.question_readings)))
 
 
 @dataclass(frozen=True)
@@ -340,7 +344,14 @@ class CorpusService:
             imports=tuple(sorted(brick_imports(code or "") - {entry_id})),
             questions=tuple((q["id"], q["reading"]) for q in raw.get("questions", [])),
             variables=tuple(self.read_variables(entry_id, raw["type"])),
+            direct_readings=self._direct_readings(raw),
         )
+
+    @staticmethod
+    def _direct_readings(raw: dict) -> tuple[int, ...]:
+        """Readings attached by hand, sorted; anything but an integer in the file is ignored."""
+        found = raw.get("readings", [])
+        return tuple(sorted({r for r in found if type(r) is int})) if isinstance(found, list) else ()
 
     def get(self, entry_id: str) -> Entry:
         return self._entry(entry_id, self._read_raw(entry_id), self._usage())
@@ -452,12 +463,36 @@ class CorpusService:
             self._regenerate()
         return self.get(entry_id)
 
+    def change_readings(self, entry_ids: list[str], add: list[int], remove: list[int]) -> list[Entry]:
+        """Attaches readings to entries by hand (``add``) and detaches others (``remove``), for one
+        entry or many, idempotent. Every entry is checked before anything is written, so an unknown
+        one changes nothing. Written to entree.json like the question links: shared through git,
+        nothing to recompile (renderings do not show readings), not a change of the text, so the
+        journal is left alone. Only the readings attached by hand are touched: those coming from
+        notes and questions are not stored."""
+        with self._writes:
+            raws = {entry_id: self._read_raw(entry_id) for entry_id in dict.fromkeys(entry_ids)}  # unknown -> 404
+            changed = False
+            for entry_id, raw in raws.items():
+                before = self._direct_readings(raw)
+                after = sorted((set(before) | set(add)) - set(remove))
+                if tuple(after) == before:
+                    continue
+                if after:
+                    raw["readings"] = after
+                else:
+                    raw.pop("readings", None)
+                self._write_raw(entry_id, raw)
+                changed = True
+            if changed:
+                self._regenerate()
+        return [self.get(entry_id) for entry_id in raws]
+
     def update_meta(self, entry_id: str, meta: EntryMeta, who: Contributor) -> tuple[Entry, RebuildReport]:
         self._check_type(entry_id, meta.type)
         with self._writes:
             raw = self._read_raw(entry_id)
-            raw.update(type=meta.type, titre=meta.titre)
-            raw.pop("readings", None)  # stored by the first version of the corpus, now derived
+            raw.update(type=meta.type, titre=meta.titre)  # the readings attached by hand stay
             self._write_raw(entry_id, raw)
             journal.record(self.folder(entry_id), who, now_ms())
             self._regenerate()
@@ -789,6 +824,7 @@ def entry_to_dict(entry: Entry, notes_root: Path) -> dict:
         "type": entry.meta.type,
         "titre": entry.meta.titre,
         "readings": list(entry.readings),
+        "directReadings": list(entry.direct_readings),
         "noteReadings": list(entry.note_readings),
         "questionReadings": list(entry.question_readings),
         "cites": list(entry.cites),

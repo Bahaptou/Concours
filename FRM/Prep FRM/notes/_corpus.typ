@@ -48,6 +48,7 @@
   "rendements-portefeuille": (corps: () => include "corpus/rendements-portefeuille/texte.typ", hypotheses: none, limites: none, variables: none),
   "reputation-risk": (corps: () => include "corpus/reputation-risk/texte.typ", hypotheses: none, limites: none, variables: none),
   "risk-free-rate-rfr": (corps: () => include "corpus/risk-free-rate-rfr/texte.typ", hypotheses: none, limites: none, variables: none),
+  "risk-management-process": (corps: () => include "corpus/risk-management-process/texte.typ", hypotheses: none, limites: none, variables: none),
   "risk-reward-tradeoff-principle": (corps: () => include "corpus/risk-reward-tradeoff-principle/texte.typ", hypotheses: none, limites: none, variables: none),
   "risk-tolerance": (corps: () => include "corpus/risk-tolerance/texte.typ", hypotheses: none, limites: none, variables: none),
   "specific-risk": (corps: () => include "corpus/specific-risk/texte.typ", hypotheses: none, limites: none, variables: none),
@@ -59,6 +60,7 @@
   "trajectoires-prix": (corps: () => include "corpus/trajectoires-prix/texte.typ", hypotheses: none, limites: none, variables: none),
   "unexpected-loss": (corps: () => include "corpus/unexpected-loss/texte.typ", hypotheses: none, limites: none, variables: none),
   "unsystematic-risk": (corps: () => include "corpus/unsystematic-risk/texte.typ", hypotheses: none, limites: none, variables: none),
+  "value-at-risk-var": (corps: () => include "corpus/value-at-risk-var/texte.typ", hypotheses: none, limites: none, variables: none),
   "var-parametrique-normale": (corps: () => include "corpus/var-parametrique-normale/texte.typ", hypotheses: none, limites: none, variables: none),
   "variance-portefeuille-2-actifs": (corps: () => include "corpus/variance-portefeuille-2-actifs/texte.typ", hypotheses: none, limites: none, variables: none),
 )

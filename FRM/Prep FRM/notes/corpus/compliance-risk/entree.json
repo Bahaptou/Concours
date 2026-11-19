@@ -1,5 +1,8 @@
 {
   "type": "definition",
   "titre": "Compliance Risk",
-  "valide": true
+  "valide": true,
+  "readings": [
+    1
+  ]
 }

@@ -64,7 +64,7 @@ def test_creer_une_entree_ecrit_sa_meta_son_journal_et_les_fichiers_generes(serv
     entry = creer(corpus, "bayes", titre="Règle de Bayes")
     assert entry.meta.titre == "Règle de Bayes"
     meta = json.loads((site / "notes" / "corpus" / "bayes" / "entree.json").read_text(encoding="utf-8"))
-    # Ni readings (ils viennent des fiches et des questions) ni auteurs (l'entrée est à tous).
+    # Aucun reading au départ (il vient d'une fiche, d'une question ou d'un rattachement à la main) ni auteurs (l'entrée est à tous).
     assert meta == {"type": "formule", "titre": "Règle de Bayes"}
     assert entry.readings == ()
     # Le journal dit qui l'a créée : une séance, marquée création.
@@ -931,6 +931,144 @@ def test_un_lien_mal_forme_est_refuse(api, chemin, corps, champ):
 
 def test_lier_a_une_entree_inconnue_donne_404(api):
     status, _, body = api("PUT", "/api/corpus/inconnue/questions/315", {"reading": 12})
+    assert (status, body["title"]) == (404, "ENTRY_NOT_FOUND")
+
+
+# ---------------------------------------------------------------- readings rattachés à la main
+#
+# Depuis le 2026-11-19 (choix de Baptiste), on peut rattacher une entrée à un ou plusieurs readings
+# sans passer par une fiche ni une question : le corpus va compter beaucoup d'entrées à rattacher.
+# C'est une troisième origine, distincte des deux autres (directReadings) ; elle vit dans
+# entree.json ("readings"), partagée par git comme les liens aux questions.
+
+
+def test_rattacher_un_reading_l_ecrit_dans_l_entree_et_le_manifeste(services, site):
+    corpus = services.corpus
+    creer(corpus, "bayes")
+    (entree,) = corpus.change_readings(["bayes"], [12, 3], [])
+    # Triés, et ce sont bien les readings de l'entrée.
+    assert (entree.direct_readings, entree.readings) == ((3, 12), (3, 12))
+    meta = json.loads((site / "notes" / "corpus" / "bayes" / "entree.json").read_text(encoding="utf-8"))
+    assert meta["readings"] == [3, 12]
+    # Le manifeste (pages ouvertes sans serveur) distingue cette origine des fiches et des questions.
+    m = manifeste(site)["bayes"]
+    assert (m["readings"], m["directReadings"], m["noteReadings"], m["questionReadings"]) == ([3, 12], [3, 12], [], [])
+
+
+def test_rattacher_deux_fois_ne_double_pas_et_detacher_un_reading_absent_ne_fait_rien(services):
+    corpus = services.corpus
+    creer(corpus, "bayes")
+    corpus.change_readings(["bayes"], [12], [])
+    (entree,) = corpus.change_readings(["bayes"], [12], [49])  # 12 déjà là ; 49 jamais rattaché
+    assert entree.direct_readings == (12,)
+
+
+def test_detacher_le_dernier_reading_retire_la_cle_du_fichier(services, site):
+    corpus = services.corpus
+    creer(corpus, "bayes")
+    corpus.change_readings(["bayes"], [12, 13], [])
+    corpus.change_readings(["bayes"], [], [12])
+    assert corpus.get("bayes").direct_readings == (13,)
+    corpus.change_readings(["bayes"], [], [13])
+    # Plus aucun reading à la main : le fichier retrouve sa forme d'avant.
+    meta = json.loads((site / "notes" / "corpus" / "bayes" / "entree.json").read_text(encoding="utf-8"))
+    assert meta == {"type": "formule", "titre": "Bayes"}
+
+
+def test_les_trois_origines_s_additionnent_sans_se_confondre(services, site):
+    # À la main : 5 et 12 ; fiche : 12 ; question : 30. L'entrée appartient à 5, 12 et 30 ;
+    # détacher le 12 à la main ne retire pas le rattachement venu de la fiche.
+    corpus, notes = services.corpus, services.notes
+    creer(corpus, "bayes")
+    fiche(notes, 12, FICHE + '#voir("bayes")')
+    corpus.link_question("bayes", "900", 30, linked=True)
+    corpus.change_readings(["bayes"], [5, 12], [])
+    entree = corpus.get("bayes")
+    assert entree.readings == (5, 12, 30)
+    assert (entree.direct_readings, entree.note_readings, entree.question_readings) == ((5, 12), (12,), (30,))
+    (entree,) = corpus.change_readings(["bayes"], [], [12])
+    assert (entree.direct_readings, entree.readings) == ((5,), (5, 12, 30))
+
+
+def test_les_readings_a_la_main_survivent_aux_modifications_de_l_entree(services):
+    # Changer le titre réécrit entree.json (l'ancienne version supprimait la clé "readings") ; écrire
+    # le texte aussi : les readings rattachés à la main doivent rester.
+    corpus = services.corpus
+    creer(corpus, "bayes")
+    corpus.change_readings(["bayes"], [12], [])
+    corpus.update_meta("bayes", EntryMeta("formule", "Règle de Bayes"), BAPTISTE)
+    texte(corpus, "bayes", "$ P(A|B) $")
+    assert corpus.get("bayes").direct_readings == (12,)
+
+
+def test_changer_les_readings_de_plusieurs_entrees_a_la_fois(services):
+    corpus = services.corpus
+    for entry_id in ("bayes", "student", "poisson"):
+        creer(corpus, entry_id)
+    corpus.change_readings(["poisson"], [7], [])
+    entrees = corpus.change_readings(["bayes", "student", "poisson"], [12, 13], [7])
+    # Une seule requête, un résultat par entrée, dans l'ordre demandé ; le 7 est retiré partout où il était.
+    assert [e.id for e in entrees] == ["bayes", "student", "poisson"]
+    assert all(e.direct_readings == (12, 13) for e in entrees)
+
+
+def test_une_entree_inconnue_dans_le_lot_n_ecrit_rien(services):
+    # Tout est vérifié avant la première écriture : un lot ne s'applique jamais à moitié.
+    corpus = services.corpus
+    creer(corpus, "bayes")
+    with pytest.raises(UnknownEntryError):
+        corpus.change_readings(["bayes", "inconnue"], [12], [])
+    assert corpus.get("bayes").direct_readings == ()
+
+
+def test_changer_les_readings_n_entre_pas_au_journal(services):
+    # Comme les liens aux questions : un rattachement n'est pas une modification du texte.
+    corpus = services.corpus
+    creer(corpus, "bayes")
+    corpus.change_readings(["bayes"], [12], [])
+    assert [(s.author, s.saves) for s in corpus.get("bayes").journal] == [("baptiste", 1)]
+
+
+def test_rattacher_et_detacher_par_l_api(api):
+    api("POST", "/api/corpus", {"id": "bayes", "type": "formule", "titre": "Bayes", **QUI})
+    status, _, body = api("PUT", "/api/corpus/bayes/readings/12", {})
+    assert (status, body["data"]["directReadings"], body["data"]["readings"]) == (200, [12], [12])
+    # La liste du corpus porte aussi ce rattachement (les pages Corpus et Reading le lisent).
+    _, _, body = api("GET", "/api/corpus")
+    assert body["data"]["entries"][0]["directReadings"] == [12]
+    status, _, body = api("DELETE", "/api/corpus/bayes/readings/12", {})
+    assert (status, body["data"]["directReadings"]) == (200, [])
+
+
+def test_changer_les_readings_d_un_lot_par_l_api(api):
+    for entry_id in ("bayes", "student"):
+        api("POST", "/api/corpus", {"id": entry_id, "type": "formule", "titre": entry_id.capitalize(), **QUI})
+    status, _, body = api("POST", "/api/corpus/readings", {"entries": ["bayes", "student"], "add": [12, 13]})
+    assert status == 200
+    assert {e["id"]: e["directReadings"] for e in body["data"]["entries"]} == {"bayes": [12, 13], "student": [12, 13]}
+    status, _, body = api("POST", "/api/corpus/readings", {"entries": ["student"], "remove": [12]})
+    assert (status, body["data"]["entries"][0]["directReadings"]) == (200, [13])
+
+
+@pytest.mark.parametrize("methode, chemin, corps, champ", [
+    ("PUT", "/api/corpus/bayes/readings/63", {}, "reading"),                                # hors programme
+    ("PUT", "/api/corpus/bayes/readings/abc", {}, "reading"),                               # pas un nombre
+    ("POST", "/api/corpus/readings", {"entries": [], "add": [12]}, "entries"),              # aucune entrée
+    ("POST", "/api/corpus/readings", {"add": [12]}, "entries"),                             # entrées manquantes
+    ("POST", "/api/corpus/readings", {"entries": ["Bayes!"], "add": [12]}, "id"),           # identifiant invalide
+    ("POST", "/api/corpus/readings", {"entries": ["bayes"]}, "add"),                        # rien à changer
+    ("POST", "/api/corpus/readings", {"entries": ["bayes"], "add": [0]}, "add"),            # reading hors programme
+    ("POST", "/api/corpus/readings", {"entries": ["bayes"], "add": ["12"]}, "add"),         # texte au lieu d'un entier
+    ("POST", "/api/corpus/readings", {"entries": ["bayes"], "add": [12], "remove": [12]}, "remove"),  # ajouté et retiré
+])
+def test_un_changement_de_readings_mal_forme_est_refuse(api, methode, chemin, corps, champ):
+    api("POST", "/api/corpus", {"id": "bayes", "type": "formule", "titre": "Bayes", **QUI})
+    status, _, body = api(methode, chemin, corps)
+    assert (status, body["field"]) == (422, champ)
+
+
+def test_rattacher_a_une_entree_inconnue_donne_404(api):
+    status, _, body = api("PUT", "/api/corpus/inconnue/readings/12", {})
     assert (status, body["title"]) == (404, "ENTRY_NOT_FOUND")
 
 

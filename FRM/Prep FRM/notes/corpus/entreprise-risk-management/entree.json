@@ -1,11 +1,14 @@
 {
   "type": "definition",
-  "titre": "Entreprise Risk Management",
+  "titre": "Entreprise Risk Management (ERM)",
   "questions": [
     {
       "id": "5",
       "reading": 1
     }
   ],
-  "valide": true
+  "valide": true,
+  "readings": [
+    1
+  ]
 }

@@ -47,6 +47,7 @@
     reading: FRM.findReading(params.get("reading")) ? Number(params.get("reading")) : null,
     authors: null,
     attach: "all", // FRM.ATTACHMENTS, within the chosen reading, else the chosen book, else any reading
+    direct: "all", // FRM.DIRECTS: readings attached by hand, same scope, independent of "attach"
     query: "",
     linked: 0, // FRM.linkedTo depth: 0 none, Infinity the whole chain (list and graph, not stats)
   };
@@ -94,8 +95,8 @@
   const matchesWhat = (entry) =>
     FRM.isChosen(filters.types, entry.type) && (filters.authors === null || FRM.contributorsOf(entry.journal).some((a) => filters.authors.has(a)));
 
-  /** The entries the filters keep; without the attachment filter for its counts. */
-  function visibleEntries({ attach = true } = {}) {
+  /** The entries the filters keep; without the attachment or the direct-reading filter for their counts. */
+  function visibleEntries({ attach = true, direct = true } = {}) {
     const query = ui.fold(filters.query.trim());
     const scope = FRM.attachmentScope(filters.reading, filters.books);
     return FRM.corpusEntries().filter(
@@ -104,16 +105,23 @@
         matchesBook(entry) &&
         (filters.reading === null || entry.readings.includes(filters.reading)) &&
         (!attach || FRM.matchesAttachment(entry, filters.attach, scope)) &&
+        (!direct || FRM.matchesDirect(entry, filters.direct, scope)) &&
         (!query || ui.fold(`${entry.titre} ${entry.id}`).includes(query))
     );
   }
 
-  /** Each "Rattachement" option with the number of entries it would show, the other filters kept. */
+  /** Each "Rattachement" and "Reading direct" option with the number of entries it would show, the other filters kept. */
   function syncAttachCounts() {
-    const counts = FRM.attachmentCounts(visibleEntries({ attach: false }), FRM.attachmentScope(filters.reading, filters.books));
+    const scope = FRM.attachmentScope(filters.reading, filters.books);
+    const counts = FRM.attachmentCounts(visibleEntries({ attach: false }), scope);
     for (const a of FRM.ATTACHMENTS) {
       const button = document.querySelector(`[data-filter="attach"][data-value="${a.id}"]`);
       if (button) button.textContent = `${a.label} (${counts[a.id]})`;
+    }
+    const directCounts = FRM.directCounts(visibleEntries({ direct: false }), scope);
+    for (const d of FRM.DIRECTS) {
+      const button = document.querySelector(`[data-filter="direct"][data-value="${d.id}"]`);
+      if (button) button.textContent = `${d.label} (${directCounts[d.id]})`;
     }
   }
 
@@ -125,16 +133,74 @@
 
   // ------------------------------------------------------------------ list
 
-  /** A row of the list; `via` (ids) for an entry added by "Entrées liées", shown greyed. */
+  // Entries picked in the list to attach readings to them in one go (server only). Kept across
+  // filters and re-renders; `shownIds` is the display order, for shift-click ranges.
+  const selected = new Set();
+  let shownIds = [];
+  let lastPicked = null;
+
+  /** A row of the list; `via` (ids) for an entry added by "Entrées liées", shown greyed. With the
+   *  server, a checkbox in front (linked entries get a blank of the same width). */
   function entryRow(entry, via = null) {
     const refs = readingRefs(entry);
-    return `
+    const row = `
 <a class="entry-row${via ? " is-linked" : ""}" href="${ui.entryHref(entry)}">
   ${ui.typeTag(entry.type)}
   <span class="etitle">${esc(entry.titre)} <span class="entry-id">${esc(entry.id)}</span>${via ? `<span class="elinked">${esc(FRM.linkedLabel(via, FRM.corpusEntries()))}</span>` : ""}</span>
   ${refs ? `<span class="ereadings">${esc(refs)}</span>` : ""}
   <span class="eauthors">${badgesOf(entry)}</span>
 </a>`;
+    if (!withServer) return row;
+    const box = via
+      ? `<span class="entry-select" aria-hidden="true"></span>`
+      : `<input type="checkbox" class="entry-select" data-select-entry="${esc(entry.id)}" aria-label="${esc(`Sélectionner ${entry.titre}`)}"${selected.has(entry.id) ? " checked" : ""}>`;
+    return `<div class="entry-line">${box}${row}</div>`;
+  }
+
+  /** The bar above the list: select, then attach readings to the selection. */
+  const selectBar = (count) =>
+    withServer
+      ? `<div class="select-bar">
+  <button type="button" class="toggle small" data-select="all" title="Sélectionne les ${count} entrées affichées (pas les entrées liées en grisé) ; maj + clic sur une case pour une plage">Tout sélectionner (${count})</button>
+  <button type="button" class="toggle small" data-select="none">Aucune</button>
+  <span class="select-count" data-select-count></span>
+  <button type="button" class="btn" data-attach-readings title="Rattache les entrées sélectionnées à un ou plusieurs readings, ou les en détache">Rattacher à des readings…</button>
+</div>`
+      : "";
+
+  function syncSelection() {
+    const count = document.querySelector("[data-select-count]");
+    if (!count) return;
+    const hidden = [...selected].filter((id) => !shownIds.includes(id)).length;
+    count.textContent = selected.size ? `${ui.plural(selected.size, "sélectionnée")}${hidden ? ` (dont ${hidden} hors filtre)` : ""}` : "Aucune sélection";
+    document.querySelector("[data-attach-readings]").disabled = !selected.size;
+    document.querySelectorAll("[data-select-entry]").forEach((box) => (box.checked = selected.has(box.dataset.selectEntry)));
+  }
+
+  /** A click on a row's checkbox; with shift, the whole range since the previous one follows it. */
+  function pickEntry(id, on, range) {
+    let ids = [id];
+    if (range && shownIds.includes(lastPicked)) {
+      const [from, to] = [shownIds.indexOf(lastPicked), shownIds.indexOf(id)].sort((a, b) => a - b);
+      ids = shownIds.slice(from, to + 1);
+    }
+    ids.forEach((other) => (on ? selected.add(other) : selected.delete(other)));
+    lastPicked = id;
+    syncSelection();
+  }
+
+  function attachSelection() {
+    const entries = [...selected].map(FRM.findEntry).filter(Boolean);
+    if (!entries.length) return;
+    FRM.readingAttach.pick({
+      title: entries.length > 1 ? `Rattacher ${entries.length} entrées à des readings` : `Readings de « ${entries[0].titre} »`,
+      entries,
+      onApply: async (add, remove) => {
+        await FRM.readingAttach.change(entries.map((entry) => entry.id), add, remove);
+        ui.flash(`Readings mis à jour : ${ui.plural(entries.length, "entrée")}`);
+        renderList();
+      },
+    });
   }
 
   function renderList() {
@@ -156,10 +222,12 @@
     }
     list.sort(SORTS[sort].compare);
     linked.sort((a, b) => SORTS[sort].compare(a.entry, b.entry));
+    shownIds = list.map((entry) => entry.id);
     const more = linked.length ? `, et ${linked.length} ${linked.length > 1 ? "entrées liées" : "entrée liée"} en grisé` : "";
     container.innerHTML = list.length
-      ? `<p class="small muted">${ui.plural(list.length, "entrée")} sur ${total}${more}</p><div class="entry-list">${list.map((entry) => entryRow(entry)).join("")}${linked.map((l) => entryRow(l.entry, l.via)).join("")}</div>`
+      ? `${selectBar(list.length)}<p class="small muted">${ui.plural(list.length, "entrée")} sur ${total}${more}</p><div class="entry-list">${list.map((entry) => entryRow(entry)).join("")}${linked.map((l) => entryRow(l.entry, l.via)).join("")}</div>`
       : `<div class="placeholder">Aucune entrée ne correspond à ces filtres.</div>`;
+    syncSelection();
   }
 
   /** A row of toggle buttons; `key` names the filter they set. */
@@ -174,7 +242,7 @@
     return ui.choiceToggles("books", filters.books, [
       { value: "all", label: `Tous les livres (${FRM.corpusEntries().length})` },
       ...FRM.books.map((b) => ({ value: b.id, label: `${b.id} · ${ui.shortTitle(b)} (${count((e) => booksOf(e).has(b.id))})`, title: b.title })),
-      { value: NO_READING, label: `Sans reading (${count((e) => !e.readings.length)})`, title: "Ni une fiche ni une question liée ne la rattache à un reading" },
+      { value: NO_READING, label: `Sans reading (${count((e) => !e.readings.length)})`, title: "Aucun reading : ni saisi à la main, ni par une fiche, ni par une question liée" },
     ]);
   }
 
@@ -217,7 +285,7 @@
       body: `
 <div class="card">
   <h2>Corpus</h2>
-  <p>Nos formules, définitions, propriétés, théorèmes et simulations, écrits par nous. Chaque entrée a un identifiant lisible, un titre et un texte commun, que chacun peut modifier ; son historique dit qui l'a créée et qui l'a modifiée. Ses readings sont ceux des fiches qui la citent ou l'insèrent, et des questions qui lui sont liées.</p>
+  <p>Nos formules, définitions, propriétés, théorèmes et simulations, écrits par nous. Chaque entrée a un identifiant lisible, un titre et un texte commun, que chacun peut modifier ; son historique dit qui l'a créée et qui l'a modifiée. Ses readings sont ceux qu'on lui attribue à la main, ceux des fiches qui la citent ou l'insèrent, et ceux des questions qui lui sont liées.</p>
   <p class="small muted">Dans une fiche : <code>#voir("id")</code> cite une entrée (son titre), <code>#entree("id")</code> l'insère en entier. Une entrée peut en citer une autre.</p>
   <div class="save-actions">${withServer ? `<a class="btn" href="${editorHref()}">+ Nouvelle entrée</a>` : serverHint("créer ou modifier une entrée")}</div>
 </div>
@@ -232,6 +300,7 @@
     <div class="filter-group"><span class="filter-label">Livre</span>${bookFilters()}</div>
     <div class="filter-group" title="A créé ou modifié l'entrée"><span class="filter-label">Contributeur</span>${authorFilters()}</div>
     <div class="filter-group" title="Dans le reading choisi, sinon dans les livres choisis, sinon dans n'importe quel reading"><span class="filter-label">Rattachement</span>${toggles("attach", FRM.ATTACHMENTS.map((a) => ({ value: a.id, label: a.label, title: a.title })))}</div>
+    <div class="filter-group" title="Les readings saisis à la main, à part des fiches et des questions : on peut lister les entrées sans reading direct quelles que soient leurs fiches et leurs questions"><span class="filter-label">Reading direct</span>${toggles("direct", FRM.DIRECTS.map((d) => ({ value: d.id, label: d.label, title: d.title })))}</div>
     <div class="filter-group" data-linked-group>${ui.linkedControl(filters.linked)}</div>
     <div class="filter-group">${readingSelect()}<input type="search" class="search" data-search placeholder="Titre ou identifiant…" aria-label="Rechercher">
       <select class="search" data-sort aria-label="Tri">${Object.entries(SORTS).map(([k, s]) => `<option value="${k}">Tri : ${esc(s.label)}</option>`).join("")}</select></div>
@@ -249,7 +318,16 @@
         document.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b === viewButton)));
         return renderList();
       }
-      const button = event.target.closest("[data-filter]"); // single choice: the attachment
+      const box = event.target.closest("[data-select-entry]");
+      if (box) return pickEntry(box.dataset.selectEntry, box.checked, event.shiftKey);
+      const selectButton = event.target.closest("[data-select]");
+      if (selectButton) {
+        if (selectButton.dataset.select === "all") shownIds.forEach((id) => selected.add(id));
+        else selected.clear();
+        return syncSelection();
+      }
+      if (event.target.closest("[data-attach-readings]")) return attachSelection();
+      const button = event.target.closest("[data-filter]"); // single choice: the attachment, the direct readings
       if (!button) return;
       const key = button.dataset.filter;
       filters[key] = button.dataset.value;
@@ -330,12 +408,12 @@
       .map(FRM.findReading)
       .filter(Boolean)
       .map((r) => {
-        const { note, question } = FRM.attachmentOf(entry, r.id);
-        const origin = [note && "fiche", question && "questions"].filter(Boolean).join(" · ");
+        const { note, question, direct } = FRM.attachmentOf(entry, r.id);
+        const origin = [direct && "direct", note && "fiche", question && "questions"].filter(Boolean).join(" · ");
         return `<a class="tag" href="${ui.readingHref(r)}" title="${esc(`${r.title} — via ${origin}`)}">${esc(r.tag)} <span class="tag-src">${esc(origin)}</span></a>`;
       });
     const actions = withServer
-      ? `<a class="btn" href="${editorHref(entry)}">${entry.hasText ? "✎ Modifier l'entrée" : "✎ Écrire le texte"}</a>`
+      ? `<a class="btn" href="${editorHref(entry)}">${entry.hasText ? "✎ Modifier l'entrée" : "✎ Écrire le texte"}</a><button type="button" class="btn ghost" data-attach-entry title="Rattacher l'entrée à des readings, ou l'en détacher">Readings…</button>`
       : serverHint("modifier l'entrée");
 
     ui.mount({
@@ -350,7 +428,7 @@
 <div class="card entry-head">
   <div class="entry-meta">${ui.typeTag(entry.type)} <span class="entry-id">${esc(entry.id)}</span></div>
   <h2>${esc(entry.titre)}</h2>
-  <div class="entry-meta">${readings.join("") || `<span class="small muted">Aucun reading : ni une fiche ni une question liée ne la rattache.</span>`}</div>
+  <div class="entry-meta">${readings.join("") || `<span class="small muted">Aucun reading : ni saisi à la main, ni par une fiche, ni par une question liée.</span>`}</div>
   ${entry.journal.length ? `<p class="small muted">${ui.journalLine(entry.journal)}</p>` : ""}
   <div class="snippets">
     <span>Citer : <code>#voir("${esc(entry.id)}")</code></span>
@@ -377,6 +455,17 @@
 </div>`,
     });
     FRM.runner.mountSlots(document.getElementById("app"));
+    document.querySelector("[data-attach-entry]")?.addEventListener("click", () =>
+      FRM.readingAttach.pick({
+        title: `Readings de « ${entry.titre} »`,
+        entries: [entry],
+        onApply: async (add, remove) => {
+          await FRM.readingAttach.change([entry.id], add, remove);
+          ui.flash("Readings mis à jour");
+          mountEntry(FRM.findEntry(entry.id));
+        },
+      })
+    );
   }
 
   // ------------------------------------------------------------------ start

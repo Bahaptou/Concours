@@ -59,6 +59,10 @@ export const deleteEntry = (id) => request("DELETE", entryUrl(id), signed({}));
 export const questionLinkUrl = (id, question) => `${entryUrl(id)}/questions/${encodeURIComponent(question)}`;
 export const linkQuestion = (id, question, reading) => request("PUT", questionLinkUrl(id, question), { reading });
 export const unlinkQuestion = (id, question) => request("DELETE", questionLinkUrl(id, question), {});
+/** Attaches (`add`) and detaches (`remove`) readings by hand on one or many entries, in one
+ *  request (not signed: like the question links, not a change of the text). The answer lists the
+ *  changed entries, in `data.entries`. */
+export const changeReadings = (ids, add, remove) => request("POST", `${CORPUS_URL}/readings`, { entries: ids, add, remove });
 /** text: { source, code?, hypotheses?, limites?, variables? } (hypotheses, limites: formulas;
  *  variables: financial products, [{ nom, valeur, unite, note }]) */
 export const saveText = (link, text) => request(link.method, link.href, signed(text));

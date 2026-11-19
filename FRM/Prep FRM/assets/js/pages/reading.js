@@ -215,7 +215,8 @@ ${pages.length ? `<div class="note-pages">${pages.join("")}</div>` : `<div class
 
   // ------------------------------------------------------------------ corpus entries of this reading
 
-  const newEntryHref = (type) => `entree.html${type ? `?type=${type}` : ""}`;
+  // A new entry made from this page arrives attached to this reading (the editor prefills it).
+  const newEntryHref = (type) => `entree.html?${type ? `type=${type}&` : ""}reading=${reading.id}`;
 
   // List or graph of the entries, a search on them, linked entries greyed (kept while the page is open).
   const corpusView = { mode: "list", query: "", linked: 0, attach: "all" }; // linked: FRM.linkedTo depth
@@ -223,7 +224,7 @@ ${pages.length ? `<div class="note-pages">${pages.join("")}</div>` : `<div class
   function renderCorpus() {
     const entries = FRM.corpusOf(reading.id);
     const actions = withServer
-      ? `<a class="btn" href="editeur.html?reading=${reading.id}">✎ Citer une entrée dans la fiche</a>`
+      ? `<button type="button" class="btn" data-add-entry title="Rattacher à ce reading des entrées qui existent déjà, sans passer par la fiche ni une question">＋ Rattacher une entrée</button><a class="btn ghost" href="${newEntryHref()}">Nouvelle entrée</a><a class="btn ghost" href="editeur.html?reading=${reading.id}">✎ Citer une entrée dans la fiche</a>`
       : `<span class="small muted">Pour écrire une entrée, lance <code>Lancer Prep FRM.bat</code>.</span>`;
     const toggle = (mode, label) => `<button type="button" class="toggle" data-corpus-mode="${mode}" aria-pressed="${corpusView.mode === mode}">${label}</button>`;
     const tools = entries.length
@@ -237,7 +238,7 @@ ${pages.length ? `<div class="note-pages">${pages.join("")}</div>` : `<div class
     document.getElementById("corpus").innerHTML = `
 ${tools}
 <div data-corpus-body></div>
-<p class="src">Une entrée rejoint ce reading dès qu'une fiche du reading la cite ou l'insère (menu « 📚 Corpus » de l'éditeur de fiche), ou qu'elle est liée à une question du reading (page Questions).</p>
+<p class="src">Une entrée rejoint ce reading quand on l'y rattache (bouton ci-dessus), dès qu'une fiche du reading la cite ou l'insère (menu « 📚 Corpus » de l'éditeur de fiche), ou qu'elle est liée à une question du reading (page Questions).</p>
 <div class="save-actions">${actions}<a class="btn ghost" href="corpus.html?reading=${reading.id}">Voir dans le corpus</a></div>`;
     renderCorpusBody();
   }
@@ -254,7 +255,7 @@ ${tools}
     });
     const body = document.querySelector("[data-corpus-body]");
     if (!all.length) {
-      body.innerHTML = `<div class="placeholder">Aucune entrée du corpus n'est citée ou insérée dans la fiche de ce reading, ni liée à une de ses questions.</div>`;
+      body.innerHTML = `<div class="placeholder">Aucune entrée du corpus n'est rattachée à ce reading : ni à la main, ni citée ou insérée dans sa fiche, ni liée à une de ses questions.</div>`;
       return;
     }
     if (!entries.length) {
@@ -276,11 +277,39 @@ ${tools}
     body.innerHTML = `<div class="entry-list">${entries.map((entry) => row(entry)).join("")}${linked.map((l) => row(l.entry, l.via)).join("")}</div>`;
   }
 
-  /** Where the entry's link to this reading comes from: a note, questions, or both. */
+  /** Where the entry's link to this reading comes from: attached by hand, a note, questions, or several. */
   function originBadges(entry) {
-    const { note, question } = FRM.attachmentOf(entry, reading.id);
+    const { note, question, direct } = FRM.attachmentOf(entry, reading.id);
     const badge = (on, label, title) => (on ? `<span class="origin-badge" title="${title}">${label}</span>` : "");
-    return `<span class="origin-badges">${badge(note, "fiche", "Citée ou insérée dans la fiche de ce reading")}${badge(question, "questions", "Liée à des questions de ce reading")}</span>`;
+    return `<span class="origin-badges">${badge(direct, "direct", "Rattachée à la main à ce reading")}${badge(note, "fiche", "Citée ou insérée dans la fiche de ce reading")}${badge(question, "questions", "Liée à des questions de ce reading")}</span>`;
+  }
+
+  /** Replaces « Rattacher une entrée » by the corpus menu, opened: Rattacher ici / Retirer d'ici on each
+   *  entry. The editors' menu (ES modules, imported when needed: server only). */
+  async function openAttachMenu(button) {
+    const moduleUrl = (path) => new URL(path, document.baseURI).href;
+    const [{ corpusPicker }, api] = await Promise.all([import(moduleUrl("assets/js/editor/corpus-picker.js")), import(moduleUrl("assets/js/editor/api.js"))]);
+    const isDirect = (entry) => (entry.directReadings || []).includes(reading.id);
+    const picker = corpusPicker(null, {
+      label: "＋ Rattacher une entrée",
+      title: "Rattacher des entrées du corpus à ce reading, ou les en détacher",
+      keepOpen: true,
+      async load() {
+        const entries = (await api.listCorpus()).data.entries;
+        FRM.registerCorpus(Object.fromEntries(entries.map((entry) => [entry.id, entry])));
+        renderCorpusBody();
+        return entries;
+      },
+      actions: [
+        {
+          label: (entry) => (isDirect(entry) ? "Retirer d'ici" : "Rattacher ici"),
+          title: "Rattacher l'entrée à ce reading (à la main), ou retirer ce rattachement ; ce que lui donnent les fiches et les questions reste",
+          run: (_, entry) => api.changeReadings([entry.id], isDirect(entry) ? [] : [reading.id], isDirect(entry) ? [reading.id] : []),
+        },
+      ],
+    });
+    button.replaceWith(picker);
+    picker.querySelector("button").click();
   }
 
   document.addEventListener("input", (event) => {
@@ -289,6 +318,11 @@ ${tools}
     renderCorpusBody();
   });
   document.addEventListener("click", (event) => {
+    const addEntry = event.target.closest("[data-add-entry]");
+    if (addEntry) {
+      openAttachMenu(addEntry).catch((error) => ui.flash(`Menu du corpus indisponible : ${error.message}`));
+      return;
+    }
     const attach = event.target.closest("[data-corpus-attach]");
     if (attach) {
       corpusView.attach = attach.dataset.corpusAttach;

@@ -1,5 +1,8 @@
 {
   "type": "definition",
   "titre": "Anti-Money Laundering Risk",
-  "valide": true
+  "valide": true,
+  "readings": [
+    1
+  ]
 }

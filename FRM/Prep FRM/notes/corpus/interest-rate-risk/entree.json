@@ -15,5 +15,8 @@
       "reading": 1
     }
   ],
-  "valide": true
+  "valide": true,
+  "readings": [
+    1
+  ]
 }

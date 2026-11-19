@@ -1,5 +1,8 @@
 {
   "type": "formule",
   "titre": "Expected Loss",
-  "valide": true
+  "valide": true,
+  "readings": [
+    1
+  ]
 }

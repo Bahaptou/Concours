@@ -1,5 +1,8 @@
 {
   "type": "definition",
   "titre": "Legal Risk",
-  "valide": true
+  "valide": true,
+  "readings": [
+    1
+  ]
 }

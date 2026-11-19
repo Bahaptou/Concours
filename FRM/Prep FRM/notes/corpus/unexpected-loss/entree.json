@@ -1,6 +1,6 @@
 {
   "type": "definition",
-  "titre": "Unexpected Loss",
+  "titre": "Unexpected Loss (UL)",
   "questions": [
     {
       "id": "8",
@@ -11,5 +11,8 @@
       "reading": 1
     }
   ],
-  "valide": true
+  "valide": true,
+  "readings": [
+    1
+  ]
 }

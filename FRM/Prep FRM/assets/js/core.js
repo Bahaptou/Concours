@@ -138,9 +138,10 @@
   let notes = {};
 
   // ------------------------------------------------------------------ attachment of an entry to readings
-  // An entry belongs to the readings of the notes citing it and of the questions linked to it; the
-  // two origins stay apart (noteReadings, questionReadings) for the "Rattachement" filters, which
-  // look at a scope: the chosen reading, else the chosen book, else any reading.
+  // An entry belongs to the readings attached to it by hand, to those of the notes citing it and to
+  // those of the questions linked to it; the origins stay apart (directReadings, noteReadings,
+  // questionReadings) for the "Rattachement" and "Reading direct" filters, which look at a scope:
+  // the chosen reading, else the chosen book, else any reading.
 
   // unscoped: only meaningful when no reading or book is chosen. With one, every entry shown is in
   // it, so "Fiche ou questions" would be everything and "Ni fiche ni question" nothing.
@@ -164,18 +165,42 @@
     return chosen.length ? chosen.flatMap((book) => book.readings.map((r) => r.id)) : null;
   }
 
-  /** { note, question }: is the entry used by a note, linked to a question, within scope — a
-   *  reading id, a list of reading ids, or null for any reading. A manifest written before
-   *  2026-10-07 has no origins. */
+  /** { note, question, direct }: is the entry used by a note, linked to a question, attached to a
+   *  reading by hand, within scope — a reading id, a list of reading ids, or null for any reading.
+   *  A manifest written before 2026-10-07 has no origins, before 2026-11-19 no direct readings. */
   function attachmentOf(entry, scope = null) {
     const noteReadings = entry.noteReadings || entry.readings || [];
     const questionReadings = entry.questionReadings || [];
+    const directReadings = entry.directReadings || [];
     if (scope === null || scope === undefined || scope === "all") {
-      return { note: noteReadings.length > 0, question: questionReadings.length > 0 };
+      return { note: noteReadings.length > 0, question: questionReadings.length > 0, direct: directReadings.length > 0 };
     }
     const ids = new Set([].concat(scope).map(Number));
-    return { note: noteReadings.some((r) => ids.has(r)), question: questionReadings.some((r) => ids.has(r)) };
+    return {
+      note: noteReadings.some((r) => ids.has(r)),
+      question: questionReadings.some((r) => ids.has(r)),
+      direct: directReadings.some((r) => ids.has(r)),
+    };
   }
+
+  // The readings attached by hand are a third origin, filtered on their own: independent of the
+  // note and question origins above (choice of Baptiste, 2026-11-19), so that the entries with no
+  // reading of their own can be listed whatever their notes and questions. Same scope as above.
+  const DIRECTS = [
+    { id: "all", label: "Tout", title: "Aucun filtre sur les readings saisis" },
+    { id: "with", label: "Avec reading direct", title: "Rattachée à la main à au moins un reading (dans le reading ou les livres choisis, le cas échéant)" },
+    { id: "without", label: "Sans reading direct", title: "Aucun reading saisi à la main, quelles que soient ses fiches et ses questions" },
+  ];
+
+  function matchesDirect(entry, filter, scope = null) {
+    if (!filter || filter === "all") return true;
+    const { direct } = attachmentOf(entry, scope);
+    return filter === "with" ? direct : !direct;
+  }
+
+  /** {option id: how many of `entries` it keeps within `scope`}: the counts shown on the options. */
+  const directCounts = (entries, scope = null) =>
+    Object.fromEntries(DIRECTS.map((d) => [d.id, entries.filter((entry) => matchesDirect(entry, d.id, scope)).length]));
 
   /** {option id: how many of `entries` it keeps within `scope`}: the counts shown on the options. */
   const attachmentCounts = (entries, scope = null) =>
@@ -312,10 +337,16 @@
     entryType: (id) => ENTRY_TYPES.find((type) => type.id === id),
     // notes/corpus/index.js, written by the server: every entry with its rendering, journal and back-links.
     registerCorpus: (manifest) => (corpus = manifest || {}),
+    // Entries as the API sends them after a change: merged over the manifest's, which keeps what the
+    // API leaves out (citedBy).
+    mergeCorpusEntries: (entries) => entries.forEach((entry) => (corpus[entry.id] = { ...corpus[entry.id], ...entry })),
     corpusEntries: () => Object.values(corpus).sort((a, b) => a.titre.localeCompare(b.titre, "fr")),
     findEntry: (id) => corpus[id],
     corpusOf: (readingId) => FRM.corpusEntries().filter((entry) => entry.readings.includes(Number(readingId))),
     ATTACHMENTS,
+    DIRECTS,
+    matchesDirect,
+    directCounts,
     attachmentScope,
     attachmentOf,
     matchesAttachment,

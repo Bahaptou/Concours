@@ -1,4 +1,7 @@
 {
   "type": "definition",
-  "titre": "Risk Appetite"
+  "titre": "Risk Appetite",
+  "readings": [
+    1
+  ]
 }

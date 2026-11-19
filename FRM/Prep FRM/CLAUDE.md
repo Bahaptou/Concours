@@ -39,8 +39,9 @@ sont dans `../CLAUDE.md`.
   vers `reading.html?id=N#notes-card`.
 - **Corpus** (`corpus.html`, `entree.html`) : formules, définitions,
   propriétés, théorèmes, produits financiers, simulations et briques de code écrits par nous. Identifiant
-  lisible, titre, type et texte communs, readings tirés des fiches qui
-  l'utilisent et des questions qui lui sont liées. Les entrées se
+  lisible, titre, type et texte communs, readings saisis à la main (un ou
+  plusieurs, un par un ou en lot), tirés des fiches qui l'utilisent et des
+  questions qui lui sont liées. Les entrées se
   citent (`#voir`) ; les fiches citent ou insèrent (`#entree`). Simulations
   et briques ont une section de code Python séparée de leur description.
   Une formule a de même deux champs, Hypothèses et Limites, affichés en blocs sous elle.
@@ -48,7 +49,7 @@ sont dans `../CLAUDE.md`.
   code reçoit un objet à remplir (`from produits import produit`).
   Vues Liste (tri titre / usage / date), Graphe et Stats
   (`corpus-stats.js`), mêmes filtres : type, livre ou « sans reading »,
-  contributeur (choix multiples), reading, rattachement, entrées liées (sauf
+  contributeur (choix multiples), reading, rattachement, reading direct, entrées liées (sauf
   Stats), recherche.
 - **Commun / propre au profil** (choix de Baptiste le 2026-10-07) : fiches,
   entrées du corpus, liens question ↔ entrée, images et boutons de maths
@@ -76,6 +77,9 @@ sont dans `../CLAUDE.md`.
   (barre de recherche du corpus : filtres, entrées liées, recherche) sert
   au menu Corpus des éditeurs et au choix des entrées d'une série ; script
   classique, pour que la page Questions marche sans serveur.
+  `reading-attach.js` (script classique : sélecteur de readings et appel du
+  serveur) sert les pages Corpus et éditeur d'entrée ; la page Reading
+  réutilise le menu Corpus des éditeurs.
 - **Données générées, jamais éditées à la main** : `data/curriculum.js`
   (`tools/extract_curriculum.py`), `data/questions/rN.js`
   (`tools/extract_questions.py`), `save/exemple-demo.json`
@@ -108,7 +112,7 @@ sont dans `../CLAUDE.md`.
   importé en `/_gabarit.typ` (`notes/` = racine Typst) ; `notes/index.js`
   (généré) donne chaque fiche (pages, journal) aux pages ouvertes en `file://`.
 - **Corpus** : `notes/corpus/<id>/entree.json` (type, titre, `valide`,
-  `questions` liées : identifiant et reading), `texte.typ`,
+  `readings` saisis : numéros, `questions` liées : identifiant et reading), `texte.typ`,
   `hypotheses.typ` et `limites.typ` (formule), `variables.json` (produit
   financier), `code.py` (simulation,
   brique), `page-<n>.svg`, `journal.jsonl`, et `valide/` tant que le texte
@@ -116,7 +120,7 @@ sont dans `../CLAUDE.md`.
   enregistrement de fiche et au démarrage :
   `notes/_corpus-titres.typ` (titres + `voir`), `notes/_corpus.typ`
   (textes qui compilent + `entree`), `notes/corpus/index.js` (pour
-  `file://`, avec `citedBy`, `usedBy`, `noteReadings` et `questionReadings`).
+  `file://`, avec `citedBy`, `usedBy`, `directReadings`, `noteReadings` et `questionReadings`).
 - **Journal** (`backend/journal.py`) : une ligne JSON par séance (même
   personne, enregistrements à moins de 30 min d'écart) : auteur, nom,
   initiales, début, fin, nombre d'enregistrements, `creation` sur la
@@ -188,7 +192,7 @@ sont dans `../CLAUDE.md`.
   avec `line`, `hints`, `explanation`, `saved` en extensions, jamais 200.
 - **Le front construit les URL `/api/notes/<reading>`,
   `/api/corpus`, `/api/corpus/<id>`, `/api/corpus/<id>/texte`,
-  `/api/corpus/<id>/questions/<q>`, `/api/images` et `/api/math-tools`** (le
+  `/api/corpus/<id>/questions/<q>`, `/api/corpus/readings`, `/api/images` et `/api/math-tools`** (le
   reste vient des `links`) : si une route change, changer aussi
   `assets/js/editor/api.js`, qui joint le profil (`author`, `name`,
   `initials`) à chaque écriture ; le serveur la refuse sans lui (422).
@@ -224,12 +228,26 @@ sont dans `../CLAUDE.md`.
 - **Identifiant d'entrée fixé à la création** (proposé depuis le titre) ;
   titre, type et texte modifiables par tous. Initiales (journal) =
   premières lettres du prénom et du nom du profil.
-- **Readings d'une entrée = ceux des fiches qui la citent ou l'insèrent
-  directement, et ceux des questions qui lui sont liées**, jamais saisis
-  (choix de Baptiste le 2026-10-01 pour les fiches, le 2026-10-07 pour
-  les questions). Les deux origines restent distinctes (`noteReadings`,
-  `questionReadings`) ; `readings` est leur union, celle que coche
-  l'étape ③. Une citation par une autre entrée ne rattache pas.
+- **Readings d'une entrée = ceux saisis à la main, ceux des fiches qui la
+  citent ou l'insèrent, et ceux des questions qui lui sont liées.** Fiches
+  (choix de Baptiste le 2026-10-01) et questions (2026-10-07) rattachaient
+  seules ; la saisie à la main a été ajoutée le 2026-11-19, le corpus devant
+  compter beaucoup d'entrées à rattacher. Les trois origines restent
+  distinctes (`directReadings`, `noteReadings`, `questionReadings`) ;
+  `readings` est leur union, celle que coche l'étape ③ et que compte
+  « Non rattachées ». Une citation par une autre entrée ne rattache pas.
+  Les 32 entrées déjà rattachées par une fiche ou une question ont reçu leurs
+  readings à la main le 2026-11-19 (migration ponctuelle).
+- **Reading direct = axe indépendant de « Rattachement »** (choix de Baptiste
+  le 2026-11-19) : filtre Tout / Avec / Sans, même portée que « Rattachement »
+  (reading choisi, sinon livres choisis, sinon tout). « Sans reading direct »
+  liste les entrées sans reading saisi quelles que soient leurs fiches et
+  leurs questions. « Sans reading » (livre) reste : aucun reading, d'où qu'il vienne.
+- **Rattacher à plusieurs endroits** : page Corpus (cases à cocher, barre
+  d'action, maj + clic), page d'une entrée, page Reading (menu Corpus : « Rattacher
+  ici »), éditeur d'entrée (pastilles + sélecteur ; reading de l'URL présélectionné
+  en création). Écriture en lot sous un seul verrou, tout ou rien ; rien au journal
+  (comme les liens aux questions).
   Le service des fiches prévient le corpus après chaque enregistrement,
   même raté (`NotesService.on_saved`, câblé dans `server.py`) : relu par
   la session WTF4 le 2026-10-01.
@@ -443,6 +461,11 @@ que souris immobile, et fermer l'ancien aperçu annulait l'ouverture du
 suivant. `entry-preview.js` garde l'élément en attente et sépare fermeture
 et attente (constaté en test le 2026-10-07).
 
+**Le menu Corpus d'une page échoue sans `corpus-search.js`.** `corpusPicker`
+appelle `FRM.corpusSearch` : une page qui l'importe doit charger ce script
+(`reading.html` ne le faisait pas ; erreur avalée par le message « Menu du
+corpus indisponible », trouvée en test le 2026-11-19).
+
 ## Ce qui n'est pas en place
 
 - **Bac à sable.** Le code exécuté peut lire les fichiers et accéder au
@@ -485,6 +508,10 @@ et attente (constaté en test le 2026-10-07).
   passe par la molette ou les boutons.
 - **Bouton « Valoriser » sur un produit.** La valorisation s'écrit dans
   une simulation ou une brique qui reçoit `produit("id")` rempli.
+- **Rattachement depuis le graphe, l'aperçu au survol ou le portail Fiches.**
+  Seuls la page Corpus, la page d'une entrée, la page Reading et l'éditeur le proposent.
+- **Rattachement en lot depuis la page Reading.** Le menu y agit entrée par entrée.
+- **Rattachements au journal.** Comme les liens aux questions, ils n'y entrent pas.
 - **Vue d'ensemble des interactions.** Le journal est enregistré mais
   affiché seulement fiche par fiche et entrée par entrée (choix de
   Baptiste le 2026-10-07 : la vue d'ensemble viendra plus tard).

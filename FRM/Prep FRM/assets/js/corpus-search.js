@@ -24,7 +24,7 @@
   function create(box, { onChange = () => {}, offer = () => true, state = {}, placeholder = "Chercher : titre ou identifiant…" } = {}) {
     // types, books, authors (contributors: created or changed the entry): null (everything) or a
     // Set (FRM.toggleChoice); reading: "all" or an id.
-    const filters = Object.assign(state, { types: null, books: null, authors: null, reading: "all", attach: "all", linked: 0, query: "", ...state });
+    const filters = Object.assign(state, { types: null, books: null, authors: null, reading: "all", attach: "all", direct: "all", linked: 0, query: "", ...state });
     let entries = [];
     box.innerHTML = `
 <div class="picker-filters" data-picker-filters></div>
@@ -46,27 +46,40 @@
       (filters.books.has(NO_READING) && !entry.readings.length) ||
       [...booksOf(entry)].some((id) => filters.books.has(String(id)));
 
-    /** Every filter but the attachment (whose options count these entries). */
+    /** Every filter but the attachment and the direct readings (whose options count these entries). */
     const matchesWhere = (entry, query) =>
       matchesWhat(entry) &&
       matchesBooks(entry) &&
       (filters.reading === "all" || entry.readings.includes(Number(filters.reading))) &&
       (!query || fold(`${entry.titre} ${entry.id}`).includes(query));
 
-    const matches = (entry, query) =>
-      matchesWhere(entry, query) && FRM.matchesAttachment(entry, filters.attach, FRM.attachmentScope(filters.reading, filters.books));
+    const scopeOf = () => FRM.attachmentScope(filters.reading, filters.books);
+    const matchesAttach = (entry) => FRM.matchesAttachment(entry, filters.attach, scopeOf());
+    const matchesDirect = (entry) => FRM.matchesDirect(entry, filters.direct, scopeOf());
+    const matches = (entry, query) => matchesWhere(entry, query) && matchesAttach(entry) && matchesDirect(entry);
 
     const attachLabel = (a) => (a.id === "all" ? "Tout rattachement" : a.label);
+    const directLabel = (d) => (d.id === "all" ? "Tout reading direct" : d.label);
 
-    /** Each attachment option with the number of entries it would show, the other filters kept. */
+    /** Each attachment and direct-reading option with the number of entries it would show, the other filters kept. */
     function refreshAttachCounts() {
+      const query = fold(filters.query.trim());
+      const kept = pool().filter((entry) => matchesWhere(entry, query));
       const select = filterBox.querySelector('[data-picker-select="attach"]');
-      if (!select) return;
-      const kept = pool().filter((entry) => matchesWhere(entry, fold(filters.query.trim())));
-      const counts = FRM.attachmentCounts(kept, FRM.attachmentScope(filters.reading, filters.books));
-      for (const option of select.options) {
-        const a = FRM.ATTACHMENTS.find((x) => x.id === option.value);
-        option.textContent = `${attachLabel(a)} (${counts[a.id]})`;
+      if (select) {
+        const counts = FRM.attachmentCounts(kept.filter(matchesDirect), scopeOf());
+        for (const option of select.options) {
+          const a = FRM.ATTACHMENTS.find((x) => x.id === option.value);
+          option.textContent = `${attachLabel(a)} (${counts[a.id]})`;
+        }
+      }
+      const directSelect = filterBox.querySelector('[data-picker-select="direct"]');
+      if (directSelect) {
+        const counts = FRM.directCounts(kept.filter(matchesAttach), scopeOf());
+        for (const option of directSelect.options) {
+          const d = FRM.DIRECTS.find((x) => x.id === option.value);
+          option.textContent = `${directLabel(d)} (${counts[d.id]})`;
+        }
       }
     }
 
@@ -100,7 +113,7 @@
       const bookRow = row("Livre", ui.choiceToggles("books", filters.books, [
         { value: "all", label: `Tous (${offered.length})` },
         ...FRM.books.map((book) => ({ value: book.id, label: counted(`${book.id} · ${ui.shortTitle(book)}`, count((entry) => booksOf(entry).has(book.id))), title: book.title })),
-        { value: NO_READING, label: `Sans reading (${count((entry) => !entry.readings.length)})`, title: "Ni une fiche ni une question liée ne la rattache à un reading" },
+        { value: NO_READING, label: `Sans reading (${count((entry) => !entry.readings.length)})`, title: "Aucun reading : ni saisi à la main, ni par une fiche, ni par une question liée" },
       ], { small: true }));
       const authors = new Map();
       offered.forEach((entry) => (entry.journal || []).forEach((session) => authors.set(session.author, session.name)));
@@ -125,7 +138,10 @@
             return option(a.id, attachLabel(a), filters.attach).replace("<option", disabled ? "<option disabled" : "<option");
           }))
         : "";
-      filterBox.innerHTML = `${typeRow}${bookRow}${authorRow}${row("", `${readingSelect}${attachSelect}${ui.linkedControl(filters.linked)}`)}`;
+      const directSelect = offered.length
+        ? select("direct", "Reading direct : readings saisis à la main, indépendamment des fiches et des questions", FRM.DIRECTS.map((d) => option(d.id, directLabel(d), filters.direct)))
+        : "";
+      filterBox.innerHTML = `${typeRow}${bookRow}${authorRow}${row("", `${readingSelect}${attachSelect}${directSelect}${ui.linkedControl(filters.linked)}`)}`;
       refreshAttachCounts();
     }
 

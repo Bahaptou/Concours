@@ -39,6 +39,8 @@ from backend.http.payload import (
     parse_note_target,
     parse_question_id,
     parse_question_link,
+    parse_reading,
+    parse_readings_change,
     parse_run_payload,
     parse_source_payload,
     parse_text_payload,
@@ -200,6 +202,25 @@ def unlink_question(request: ApiRequest, services: Services) -> ApiResponse:
     return entry_response(HTTPStatus.OK, entry, services)
 
 
+def attach_reading(request: ApiRequest, services: Services) -> ApiResponse:
+    entry_id, reading = parse_entry_id(request.params["id"]), parse_reading(request.params["reading"])
+    (entry,) = services.corpus.change_readings([entry_id], [reading], [])
+    return entry_response(HTTPStatus.OK, entry, services)
+
+
+def detach_reading(request: ApiRequest, services: Services) -> ApiResponse:
+    entry_id, reading = parse_entry_id(request.params["id"]), parse_reading(request.params["reading"])
+    (entry,) = services.corpus.change_readings([entry_id], [], [reading])
+    return entry_response(HTTPStatus.OK, entry, services)
+
+
+def change_readings(request: ApiRequest, services: Services) -> ApiResponse:
+    """Batch: attaches and detaches readings on many entries; answers with the entries as changed."""
+    ids, add, remove = parse_readings_change(request.body)
+    ctx = CorpusContext(entries=services.corpus.change_readings(ids, add, remove))
+    return ApiResponse(HTTPStatus.OK, CorpusPresenter().present(ctx, services.notes.root))
+
+
 def get_text(request: ApiRequest, services: Services) -> ApiResponse:
     entry_id = parse_entry_id(request.params["id"])
     files = services.corpus.load_texts(entry_id)
@@ -270,6 +291,7 @@ NOTE = r"^/api/notes/(?P<reading>[^/]+)$"
 ENTRY = r"^/api/corpus/(?P<id>[^/]+)$"
 TEXT = r"^/api/corpus/(?P<id>[^/]+)/texte$"
 QUESTION_LINK = r"^/api/corpus/(?P<id>[^/]+)/questions/(?P<question>[^/]+)$"
+READING_LINK = r"^/api/corpus/(?P<id>[^/]+)/readings/(?P<reading>[^/]+)$"
 
 ROUTES = [
     Route("GET", re.compile(r"^/api/?$"), "api_root", api_root),
@@ -279,6 +301,7 @@ ROUTES = [
     Route("PUT", re.compile(NOTE), "save_note", save_note),
     Route("GET", re.compile(r"^/api/corpus$"), "corpus", list_corpus),
     Route("POST", re.compile(r"^/api/corpus$"), "create_entry", create_entry),
+    Route("POST", re.compile(r"^/api/corpus/readings$"), "change_readings", change_readings),
     Route("POST", re.compile(r"^/api/compile/entry$"), "preview_entry", preview_entry),
     Route("POST", re.compile(r"^/api/run$"), "run", run_code),
     Route("GET", re.compile(r"^/api/images$"), "images", list_images),
@@ -291,6 +314,8 @@ ROUTES = [
     Route("DELETE", re.compile(ENTRY), "delete_entry", delete_entry),
     Route("PUT", re.compile(QUESTION_LINK), "link_question", link_question),
     Route("DELETE", re.compile(QUESTION_LINK), "unlink_question", unlink_question),
+    Route("PUT", re.compile(READING_LINK), "attach_reading", attach_reading),
+    Route("DELETE", re.compile(READING_LINK), "detach_reading", detach_reading),
     Route("GET", re.compile(TEXT), "text", get_text),
     Route("PUT", re.compile(TEXT), "save_text", save_text),
 ]

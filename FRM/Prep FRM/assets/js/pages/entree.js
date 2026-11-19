@@ -2,8 +2,9 @@
 // entree.html?id=bayes edits one. An entry belongs to everyone: on top its metadata (identifier,
 // type, title) and who created and changed it; below, its one shared text in CodeMirror with a
 // live preview in its box, the assumptions and limits of a formula, and the Python code of a
-// simulation. The profile only says who writes, for the entry's journal. Readings are not chosen
-// here: they come from the notes citing or inserting the entry and the questions linked to it.
+// simulation. The profile only says who writes, for the entry's journal. Readings can be attached
+// by hand here (several, applied at once, also while creating); the entry also belongs to those of
+// the notes citing or inserting it and of the questions linked to it, shown beside them.
 // Saved on demand (button or Ctrl+S), not while typing: a saved text replaces everyone's at once
 // and recompiles the notes that insert it, so it should be a deliberate act.
 // Loaded as an ES module after the classic scripts, which provide window.FRM.
@@ -129,19 +130,6 @@ function typeOptions(selected) {
   return FRM.ENTRY_TYPES.map((t) => `<option value="${t.id}"${t.id === selected ? " selected" : ""}>${esc(t.label)}</option>`).join("");
 }
 
-/** Readings of an entry, read-only: those of the notes using it and of the questions linked to it. */
-function readingsLine(entry) {
-  const uses = entry ? entry.data.usedBy : [];
-  const questionReadings = entry ? entry.data.questionReadings || [] : [];
-  if (!uses.length && !questionReadings.length) {
-    return "Readings : aucun pour l'instant. Cite ou insère l'entrée dans une fiche (menu « 📚 Corpus »), ou lie-la à une question (page Questions), pour la rattacher à un reading.";
-  }
-  const tag = (id) => FRM.findReading(id)?.tag || `R${id}`;
-  const fromNotes = uses.map((use) => `${tag(use.reading)} (fiche)`);
-  const fromQuestions = questionReadings.map((id) => `${tag(id)} (questions)`);
-  return `Readings, d'après les fiches et les questions liées : ${[...fromNotes, ...fromQuestions].join(", ")}`;
-}
-
 function layout({ creating, meta }) {
   return `
 <div class="editor-head">
@@ -169,7 +157,7 @@ function layout({ creating, meta }) {
     <button type="button" class="btn ghost" data-add-variable>＋ Ajouter une variable</button>
     <div class="variables-code"><span class="small muted">Dans le code :</span><div data-variables-code></div></div>
   </div>
-  <p class="small" data-readings></p>
+  <div class="readings-line" data-readings></div>
   <p class="small muted"><span data-journal></span> Le texte est commun : ce que tu enregistres remplace celui de tout le monde (git garde les anciens textes).</p>
   <div class="form-error" data-form-error hidden></div>
   <div class="rebuild-report" data-report hidden></div>
@@ -301,11 +289,61 @@ async function start() {
     schedulePreview();
   });
 
+  // ---------------------------------------------------------- readings
+  // Attached by hand (several at once, applied as soon as chosen once the entry exists; kept
+  // until the first save while creating), beside the readings the entry gets from the notes using
+  // it and from its linked questions, which are not chosen here.
+
+  const pendingReadings = new Set(!entry && FRM.findReading(params.get("reading")) ? [Number(params.get("reading"))] : []);
+  const directReadings = () => (entry ? entry.data.directReadings : [...pendingReadings].sort((a, b) => a - b));
+
+  function renderReadings() {
+    const direct = directReadings();
+    const fromNotes = entry ? entry.data.noteReadings || [] : [];
+    const fromQuestions = entry ? entry.data.questionReadings || [] : [];
+    const tag = (id) => FRM.findReading(id)?.tag || `R${id}`;
+    const chip = (id) => {
+      const origin = [direct.includes(id) && "direct", fromNotes.includes(id) && "fiche", fromQuestions.includes(id) && "questions"].filter(Boolean).join(" · ");
+      const detach = direct.includes(id)
+        ? `<button type="button" class="tag-remove" data-detach-reading="${id}" title="Détacher de ${esc(tag(id))} (ce que lui donnent les fiches et les questions reste)" aria-label="Détacher de ${esc(tag(id))}">×</button>`
+        : "";
+      return `<span class="tag" title="${esc(FRM.findReading(id)?.title || "")}">${esc(tag(id))} <span class="tag-src">${esc(origin)}</span>${detach}</span>`;
+    };
+    const ids = [...new Set([...direct, ...fromNotes, ...fromQuestions])].sort((a, b) => a - b);
+    $("[data-readings]").innerHTML = `<span class="small muted">Readings :</span>${ids.map(chip).join("")}${ids.length ? "" : `<span class="small muted">aucun pour l'instant.</span>`}<button type="button" class="btn ghost" data-attach-readings title="Rattacher l'entrée à un ou plusieurs readings, sans passer par une fiche ni une question">＋ Rattacher à des readings</button>`;
+  }
+
+  /** Attaches and detaches readings: on the server once the entry exists, else kept for the first save. */
+  async function changeReadings(add, remove) {
+    if (!entry) {
+      add.forEach((id) => pendingReadings.add(id));
+      remove.forEach((id) => pendingReadings.delete(id));
+    } else {
+      await api.changeReadings([entry.data.id], add, remove);
+      entry = await api.getEntry(entry.data.id);
+    }
+    renderReadings();
+  }
+
+  $("[data-readings]").addEventListener("click", (event) => {
+    const detach = event.target.closest("[data-detach-reading]");
+    if (detach) {
+      changeReadings([], [Number(detach.dataset.detachReading)]).catch((error) => ui.flash(error.message, "error"));
+      return;
+    }
+    if (!event.target.closest("[data-attach-readings]")) return;
+    FRM.readingAttach.pick({
+      title: "Rattacher l'entrée à des readings",
+      entries: [{ directReadings: directReadings() }],
+      onApply: changeReadings,
+    });
+  });
+
   function refreshMetaDisplay() {
     const meta = metaOf();
     $("[data-heading]").textContent = meta.titre || "Nouvelle entrée";
     if (entry) $("[data-kicker]").textContent = FRM.entryType(meta.type).label;
-    $("[data-readings]").textContent = readingsLine(entry);
+    renderReadings();
     $("[data-code-pane]").hidden = !hasCode();
     for (const section of SECTIONS) $(`[data-section-pane="${section.id}"]`).hidden = !hasSections();
     $("[data-variables-pane]").hidden = !hasVariables();
@@ -497,6 +535,12 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
       if (!entry) {
         const created = await api.createEntry(corpus.links.create, { id: form.id.value.trim(), ...metaOf() });
         adopt(created);
+        if (pendingReadings.size) {
+          // Chosen before the entry existed: attached now that it does.
+          const chosen = [...pendingReadings];
+          pendingReadings.clear();
+          await changeReadings(chosen, []);
+        }
       } else if (metaChanged()) {
         const updated = await api.updateEntry(entry.links.update, metaOf());
         adopt(updated);

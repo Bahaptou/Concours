@@ -121,6 +121,36 @@ def parse_entry_id(value: str) -> str:
     return value
 
 
+MAX_BATCH = 500  # entries changed in one request
+
+
+def _reading_list(data: dict, name: str) -> list[int]:
+    """A list of reading numbers (1 to 62), without duplicates; absent means empty."""
+    value = data.get(name, [])
+    if not isinstance(value, list):
+        raise InvalidRequestError(name, "liste de numéros de readings attendue")
+    for reading in value:
+        if isinstance(reading, bool) or not isinstance(reading, int) or reading not in READINGS:
+            raise InvalidRequestError(name, f"entiers entre {READINGS.start} et {READINGS.stop - 1} attendus")
+    return sorted(set(value))
+
+
+def parse_readings_change(body: bytes) -> tuple[list[str], list[int], list[int]]:
+    """{"entries": [id…], "add": [reading…], "remove": [reading…]}: readings attached to or detached
+    from many entries at once. At least one entry and one reading; no reading both added and removed."""
+    data = _json_object(body)
+    entries = data.get("entries")
+    if not isinstance(entries, list) or not 0 < len(entries) <= MAX_BATCH:
+        raise InvalidRequestError("entries", f"liste de 1 à {MAX_BATCH} identifiants d'entrées attendue")
+    ids = [parse_entry_id(entry if isinstance(entry, str) else "") for entry in entries]
+    add, remove = _reading_list(data, "add"), _reading_list(data, "remove")
+    if not add and not remove:
+        raise InvalidRequestError("add", "au moins un reading à ajouter ou à retirer")
+    if set(add) & set(remove):
+        raise InvalidRequestError("remove", "un reading ne peut pas être à la fois ajouté et retiré")
+    return ids, add, remove
+
+
 # ---------------------------------------------------------------- bodies
 
 
