@@ -111,52 +111,15 @@ class BrickInUseError(AppError):
 class ImageExistsError(AppError):
     """Adding an image whose name is already taken: images are never replaced."""
 
-    def __init__(self, name: str, typst_path: str):
+    def __init__(self, name: str, link: str):
         self.name = name
-        self.typst_path = typst_path
+        self.link = link  # what to write in a note: ![[<link>]]
 
     def __str__(self) -> str:
         return f"Une image s'appelle déjà « {self.name} »."
 
     def extensions(self) -> dict:
-        return {"name": self.name, "typstPath": self.typst_path}
-
-
-class CorpusImportForbiddenError(InvalidRequestError):
-    """An entry may only cite (#voir): importing the full corpus could create an import cycle."""
-
-    def __init__(self):
-        super().__init__(
-            "source",
-            "une entrée du corpus peut citer (#voir) mais pas importer « _corpus.typ » ni insérer une entrée (#entree)",
-        )
-
-
-class TypstCompileError(AppError):
-    """The Typst source does not compile: an expected, user-fixable outcome."""
-
-    def __init__(self, message: str, hints: list[str], explanation: str | None, line: int | None, saved: bool = False):
-        self.message = message
-        self.hints = hints
-        self.explanation = explanation
-        self.line = line
-        self.saved = saved  # True when the source was written to disk before compiling
-        # Corpus only: what happened to the notes depending on the failed entry (RebuildReport.to_dict()).
-        self.rebuild: dict | None = None
-        # Corpus only: which text of an entry holds the error ("source", "hypotheses" or "limites");
-        # ``line`` counts inside that text. None when the failing text is not told apart.
-        self.part: str | None = None
-
-    def __str__(self) -> str:
-        return self.message
-
-    def extensions(self) -> dict:
-        members = {"hints": self.hints, "explanation": self.explanation, "line": self.line, "saved": self.saved}
-        if self.rebuild is not None:
-            members["rebuild"] = self.rebuild
-        if self.part is not None:
-            members["part"] = self.part
-        return members
+        return {"name": self.name, "link": self.link}
 
 
 class SimulationRunnerError(AppError):

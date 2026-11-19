@@ -8,10 +8,8 @@ from dataclasses import dataclass
 
 from backend.corpus import entry_to_dict
 from backend.http.context import (
-    CompileContext,
     CorpusContext,
     EntryContext,
-    EntryPreviewContext,
     ImageContext,
     ImagesContext,
     NoteContext,
@@ -19,12 +17,10 @@ from backend.http.context import (
     SavedNoteContext,
     TextContext,
 )
-from backend.journal import as_dicts
 from backend.notes import NoteTarget
 
 API_ROOT = "/api"
 HEALTH = "/api/health"
-COMPILE = "/api/compile"
 
 
 def note_href(target: NoteTarget) -> str:
@@ -52,7 +48,6 @@ class RootPresenter:
             {"name": "prep-frm"},
             Link("self", API_ROOT, "Racine de l'API"),
             Link("health", HEALTH, "État du serveur"),
-            Link("compile", COMPILE, "Compiler une source Typst", "POST"),
             Link("run", RUN, "Exécuter du code Python", "POST"),
         )
 
@@ -65,46 +60,19 @@ class HealthPresenter:
 class NotePresenter:
     def present(self, ctx: NoteContext) -> dict:
         href = note_href(ctx.target)
-        links = [
-            Link("self", href, "Fiche"),
-            Link("save", href, "Enregistrer la fiche", "PUT"),
-            Link("compile", COMPILE, "Aperçu de la fiche", "POST"),
-        ]
-        if ctx.pdf:
-            links.append(Link("pdf", ctx.pdf, "Fiche en PDF"))
-        data = {
-            "reading": ctx.target.reading,
-            "exists": ctx.source is not None,
-            "source": ctx.source,
-            "pages": ctx.pages,
-            "pdf": ctx.pdf,
-            "journal": as_dicts(ctx.journal),
-        }
-        return envelope(data, *links)
-
-
-class CompilePresenter:
-    def present(self, ctx: CompileContext) -> dict:
-        return envelope({"pages": ctx.pages}, Link("self", COMPILE, "Compiler une source Typst", "POST"))
+        data = {"exists": ctx.exists, **ctx.note}
+        return envelope(data, Link("self", href, "Fiche"), Link("save", href, "Enregistrer la fiche", "PUT"))
 
 
 class SavedNotePresenter:
     def present(self, ctx: SavedNoteContext) -> dict:
-        href = note_href(ctx.target)
-        data = {
-            "reading": ctx.target.reading,
-            "pages": ctx.pages,
-            "pdf": ctx.pdf,
-            "savedAt": ctx.saved_at,
-            "journal": as_dicts(ctx.journal),
-        }
-        return envelope(data, Link("self", href, "Fiche"), Link("pdf", ctx.pdf, "Fiche en PDF"))
+        data = {**ctx.note, "savedAt": ctx.saved_at}
+        return envelope(data, Link("self", note_href(ctx.target), "Fiche"))
 
 
 # ---------------------------------------------------------------- corpus
 
 CORPUS = "/api/corpus"
-ENTRY_PREVIEW = "/api/compile/entry"
 
 
 def entry_href(entry_id: str) -> str:
@@ -116,28 +84,24 @@ def text_href(entry_id: str) -> str:
 
 
 class CorpusPresenter:
-    def present(self, ctx: CorpusContext, notes_root) -> dict:
+    def present(self, ctx: CorpusContext) -> dict:
         return envelope(
-            {"entries": [entry_to_dict(e, notes_root) for e in ctx.entries]},
+            {"entries": [entry_to_dict(e) for e in ctx.entries]},
             Link("self", CORPUS, "Corpus"),
             Link("create", CORPUS, "Créer une entrée", "POST"),
-            Link("preview", ENTRY_PREVIEW, "Aperçu d'une entrée", "POST"),
         )
 
 
 class EntryPresenter:
-    def present(self, ctx: EntryContext, notes_root) -> dict:
+    def present(self, ctx: EntryContext) -> dict:
         entry, deps = ctx.entry, ctx.dependents
-        data = entry_to_dict(entry, notes_root) | {
+        data = entry_to_dict(entry) | {
             "citedBy": sorted(deps.entries),
             "importedBy": list(ctx.imported_by),
         }
-        if ctx.report is not None:
-            data["rebuild"] = ctx.report.to_dict()
         links = [
             Link("self", entry_href(entry.id), entry.meta.titre),
             Link("update", entry_href(entry.id), "Modifier l'entrée", "PUT"),
-            Link("preview", ENTRY_PREVIEW, "Aperçu de l'entrée", "POST"),
             Link("text", text_href(entry.id), "Texte de l'entrée"),
             Link("corpus", CORPUS, "Corpus"),
         ]
@@ -145,8 +109,8 @@ class EntryPresenter:
 
 
 class DeletedEntryPresenter:
-    def present(self, entry_id: str, report) -> dict:
-        return envelope({"deleted": entry_id, "rebuild": report.to_dict()}, Link("corpus", CORPUS, "Corpus"))
+    def present(self, entry_id: str, rewritten: list[str]) -> dict:
+        return envelope({"deleted": entry_id, "rewritten": rewritten}, Link("corpus", CORPUS, "Corpus"))
 
 
 class TextPresenter:
@@ -166,7 +130,6 @@ class TextPresenter:
             data,
             Link("self", href, "Texte de l'entrée"),
             Link("save", href, "Enregistrer le texte", "PUT"),
-            Link("preview", ENTRY_PREVIEW, "Aperçu de l'entrée", "POST"),
             Link("entry", entry_href(ctx.entry_id), "Entrée"),
         )
 
@@ -188,11 +151,6 @@ class RunPresenter:
             "bricks": [{"id": b.entry_id, "module": b.module} for b in r.bricks],
         }
         return envelope(data, Link("self", RUN, "Exécuter du code Python", "POST"))
-
-
-class EntryPreviewPresenter:
-    def present(self, ctx: EntryPreviewContext) -> dict:
-        return envelope({"pages": ctx.pages}, Link("self", ENTRY_PREVIEW, "Aperçu d'une entrée", "POST"))
 
 
 # ---------------------------------------------------------------- math buttons
@@ -221,7 +179,7 @@ def image_to_dict(image, url: str) -> dict:
         "size": image.size,
         "updatedAt": image.updated_at,
         "url": url,  # to show it in the site
-        "typstPath": image.typst_path,  # to write in a note: #image("…")
+        "link": image.link,  # to write in a note: ![[…]]
     }
 
 

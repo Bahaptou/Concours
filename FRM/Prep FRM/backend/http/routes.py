@@ -10,16 +10,14 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Callable
 
-from backend.compiler import TypstCompiler
 from backend.errors import RouteNotFoundError
 from backend.corpus import CorpusService
+from backend.history import HistoryService
 from backend.images import ImagesService
 from backend.math_tools import MathToolsService
 from backend.http.context import (
-    CompileContext,
     CorpusContext,
     EntryContext,
-    EntryPreviewContext,
     ImageContext,
     ImagesContext,
     NoteContext,
@@ -28,9 +26,7 @@ from backend.http.context import (
     TextContext,
 )
 from backend.http.payload import (
-    parse_contributor,
     parse_entry_id,
-    parse_entry_preview,
     parse_image_payload,
     parse_math_tool,
     parse_meta_payload,
@@ -42,15 +38,12 @@ from backend.http.payload import (
     parse_reading,
     parse_readings_change,
     parse_run_payload,
-    parse_source_payload,
     parse_text_payload,
 )
 from backend.http.presenter import (
-    CompilePresenter,
     CorpusPresenter,
     DeletedEntryPresenter,
     EntryPresenter,
-    EntryPreviewPresenter,
     HealthPresenter,
     ImagePresenter,
     MathToolsPresenter,
@@ -68,7 +61,7 @@ from backend.simulations import SimulationRunner
 @dataclass(frozen=True)
 class Services:
     notes: NotesService
-    compiler: TypstCompiler
+    history: HistoryService
     corpus: CorpusService
     simulations: SimulationRunner
     images: ImagesService
@@ -114,14 +107,9 @@ def health(request: ApiRequest, services: Services) -> ApiResponse:
 
 
 def note_context(target: NoteTarget, services: Services) -> NoteContext:
-    pdf = services.notes.pdf_path(target)
-    return NoteContext(
-        target=target,
-        source=services.notes.load(target),
-        pages=[url_of(p, services) for p in services.notes.page_paths(target)],
-        pdf=url_of(pdf, services) if pdf.exists() else None,
-        journal=services.notes.journal(target),
-    )
+    source = services.notes.load(target)
+    note = services.notes.to_dict(target, source or "", services.history.snapshot())
+    return NoteContext(target=target, exists=source is not None, note=note)
 
 
 def get_note(request: ApiRequest, services: Services) -> ApiResponse:
@@ -129,24 +117,12 @@ def get_note(request: ApiRequest, services: Services) -> ApiResponse:
     return ApiResponse(HTTPStatus.OK, NotePresenter().present(note_context(target, services)))
 
 
-def compile_source(request: ApiRequest, services: Services) -> ApiResponse:
-    payload = parse_source_payload(request.body)
-    ctx = CompileContext(pages=services.compiler.svg_pages(payload.source))
-    return ApiResponse(HTTPStatus.OK, CompilePresenter().present(ctx))
-
-
 def save_note(request: ApiRequest, services: Services) -> ApiResponse:
     target = parse_note_target(request.params["reading"])
     payload = parse_note_payload(request.body)
-    saved = services.notes.save(target, payload.source, payload.who)
-    ctx = SavedNoteContext(
-        target=target,
-        pages=[url_of(p, services) for p in services.notes.page_paths(target)],
-        pdf=url_of(services.notes.pdf_path(target), services),
-        saved_at=saved.saved_at,
-        journal=services.notes.journal(target),
-    )
-    return ApiResponse(HTTPStatus.OK, SavedNotePresenter().present(ctx))
+    saved = services.notes.save(target, payload.source)
+    note = services.notes.to_dict(target, payload.source, services.history.snapshot())
+    return ApiResponse(HTTPStatus.OK, SavedNotePresenter().present(SavedNoteContext(target, saved.saved_at, note)))
 
 
 # ---------------------------------------------------------------- corpus
@@ -154,23 +130,21 @@ def save_note(request: ApiRequest, services: Services) -> ApiResponse:
 
 def list_corpus(request: ApiRequest, services: Services) -> ApiResponse:
     ctx = CorpusContext(entries=services.corpus.list())
-    return ApiResponse(HTTPStatus.OK, CorpusPresenter().present(ctx, services.notes.root))
+    return ApiResponse(HTTPStatus.OK, CorpusPresenter().present(ctx))
 
 
-def entry_response(status: HTTPStatus, entry, services: Services, report=None) -> ApiResponse:
+def entry_response(status: HTTPStatus, entry, services: Services) -> ApiResponse:
     ctx = EntryContext(
         entry=entry,
         dependents=services.corpus.dependents(entry.id),
-        report=report,
         imported_by=tuple(services.corpus.importers(entry.id)),
     )
-    return ApiResponse(status, EntryPresenter().present(ctx, services.notes.root))
+    return ApiResponse(status, EntryPresenter().present(ctx))
 
 
 def create_entry(request: ApiRequest, services: Services) -> ApiResponse:
-    entry_id, meta, who = parse_new_entry(request.body)
-    entry, report = services.corpus.create(entry_id, meta, who)
-    return entry_response(HTTPStatus.CREATED, entry, services, report)
+    entry_id, meta = parse_new_entry(request.body)
+    return entry_response(HTTPStatus.CREATED, services.corpus.create(entry_id, meta), services)
 
 
 def get_entry(request: ApiRequest, services: Services) -> ApiResponse:
@@ -179,15 +153,14 @@ def get_entry(request: ApiRequest, services: Services) -> ApiResponse:
 
 def update_entry(request: ApiRequest, services: Services) -> ApiResponse:
     entry_id = parse_entry_id(request.params["id"])
-    meta, who = parse_meta_payload(request.body)
-    entry, report = services.corpus.update_meta(entry_id, meta, who)
-    return entry_response(HTTPStatus.OK, entry, services, report)
+    meta = parse_meta_payload(request.body)
+    return entry_response(HTTPStatus.OK, services.corpus.update_meta(entry_id, meta), services)
 
 
 def delete_entry(request: ApiRequest, services: Services) -> ApiResponse:
     entry_id = parse_entry_id(request.params["id"])
-    report = services.corpus.delete(entry_id, parse_contributor(request.body))
-    return ApiResponse(HTTPStatus.OK, DeletedEntryPresenter().present(entry_id, report))
+    rewritten = services.corpus.delete(entry_id)
+    return ApiResponse(HTTPStatus.OK, DeletedEntryPresenter().present(entry_id, rewritten))
 
 
 def link_question(request: ApiRequest, services: Services) -> ApiResponse:
@@ -218,7 +191,7 @@ def change_readings(request: ApiRequest, services: Services) -> ApiResponse:
     """Batch: attaches and detaches readings on many entries; answers with the entries as changed."""
     ids, add, remove = parse_readings_change(request.body)
     ctx = CorpusContext(entries=services.corpus.change_readings(ids, add, remove))
-    return ApiResponse(HTTPStatus.OK, CorpusPresenter().present(ctx, services.notes.root))
+    return ApiResponse(HTTPStatus.OK, CorpusPresenter().present(ctx))
 
 
 def get_text(request: ApiRequest, services: Services) -> ApiResponse:
@@ -232,20 +205,14 @@ def get_text(request: ApiRequest, services: Services) -> ApiResponse:
 def save_text(request: ApiRequest, services: Services) -> ApiResponse:
     entry_id = parse_entry_id(request.params["id"])
     payload = parse_text_payload(request.body)
-    entry, report = services.corpus.save_text(entry_id, payload.who, payload.source, payload.code, payload.hypotheses, payload.limites, payload.variables)
-    return entry_response(HTTPStatus.OK, entry, services, report)
+    entry = services.corpus.save_text(entry_id, payload.source, payload.code, payload.hypotheses, payload.limites, payload.variables)
+    return entry_response(HTTPStatus.OK, entry, services)
 
 
 def run_code(request: ApiRequest, services: Services) -> ApiResponse:
     payload = parse_run_payload(request.body)
     result = services.simulations.run(payload.code, payload.timeout)
     return ApiResponse(HTTPStatus.OK, RunPresenter().present(RunContext(result)))
-
-
-def preview_entry(request: ApiRequest, services: Services) -> ApiResponse:
-    payload = parse_entry_preview(request.body)
-    pages = services.corpus.preview(payload.type, payload.titre, payload.source, payload.hypotheses, payload.limites, payload.variables)
-    return ApiResponse(HTTPStatus.OK, EntryPreviewPresenter().present(EntryPreviewContext(pages)))
 
 
 # ---------------------------------------------------------------- images
@@ -276,7 +243,7 @@ def list_math_tools(request: ApiRequest, services: Services) -> ApiResponse:
 
 def add_math_tool(request: ApiRequest, services: Services) -> ApiResponse:
     payload = parse_math_tool(request.body)
-    services.math_tools.add(payload.label, payload.typst, payload.select)
+    services.math_tools.add(payload.label, payload.latex, payload.select)
     return math_tools_response(HTTPStatus.CREATED, services)
 
 
@@ -296,13 +263,11 @@ READING_LINK = r"^/api/corpus/(?P<id>[^/]+)/readings/(?P<reading>[^/]+)$"
 ROUTES = [
     Route("GET", re.compile(r"^/api/?$"), "api_root", api_root),
     Route("GET", re.compile(r"^/api/health$"), "health", health),
-    Route("POST", re.compile(r"^/api/compile$"), "compile", compile_source),
     Route("GET", re.compile(NOTE), "note", get_note),
     Route("PUT", re.compile(NOTE), "save_note", save_note),
     Route("GET", re.compile(r"^/api/corpus$"), "corpus", list_corpus),
     Route("POST", re.compile(r"^/api/corpus$"), "create_entry", create_entry),
     Route("POST", re.compile(r"^/api/corpus/readings$"), "change_readings", change_readings),
-    Route("POST", re.compile(r"^/api/compile/entry$"), "preview_entry", preview_entry),
     Route("POST", re.compile(r"^/api/run$"), "run", run_code),
     Route("GET", re.compile(r"^/api/images$"), "images", list_images),
     Route("POST", re.compile(r"^/api/images$"), "add_image", add_image),

@@ -2,3 +2,5 @@
 .venv/
 # Outil de maintenance CodeMirror
 tools/vendor_codemirror/node_modules/
+# Outil de maintenance markdown-it / KaTeX
+tools/vendor_markdown/node_modules/

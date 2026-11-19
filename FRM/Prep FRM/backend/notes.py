@@ -1,10 +1,12 @@
-"""Notes service: one shared note per reading, ``<root>/r<reading>/fiche.typ``, and its renderings.
+"""Notes service: one shared note per reading, ``<root>/fiches/r<reading>.md``.
 
-A note belongs to everyone: whoever has the editor open writes into it. Its ``journal.jsonl``
-(backend/journal.py) keeps who created it and who changed it when; git keeps the texts.
+A note is Markdown, shared with Obsidian (``notes/`` is the vault): whoever has the editor open
+writes into it, and Obsidian may change it at any time. git keeps the texts and says who changed
+them (backend/history.py).
 
-Saving always writes the source first (no work is ever lost), then the SVG pages and the PDF
-when it compiles, then ``<root>/index.js``, the manifest that lets file:// pages show the notes.
+``<root>/index.js`` is the manifest that lets file:// pages show the notes: source and history of
+each note. It is written after every save and rewritten whenever a page asks for it through the
+server (Obsidian or a commit may have changed things since).
 """
 from __future__ import annotations
 
@@ -16,15 +18,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from backend import journal
-from backend.compiler import TypstCompiler
-from backend.errors import StorageError, TypstCompileError
-from backend.files import remove, write_atomic
-from backend.journal import Contributor
+from backend.errors import StorageError
+from backend.files import write_atomic
+from backend.history import HistoryService, Snapshot
 
-SOURCE = "fiche.typ"
-PDF = "fiche.pdf"
-PAGE_FILE = re.compile(r"^fiche-(?P<page>\d+)\.svg$")
+FOLDER = "fiches"
+NOTE_FILE = re.compile(r"^r(?P<reading>\d+)\.md$")
 
 
 @dataclass(frozen=True)
@@ -35,13 +34,12 @@ class NoteTarget:
 
     @property
     def label(self) -> str:
-        return f"notes/r{self.reading}/fiche"
+        return f"notes/{FOLDER}/r{self.reading}"
 
 
 @dataclass(frozen=True)
 class SavedNote:
     target: NoteTarget
-    pages: int
     saved_at: int
 
 
@@ -50,31 +48,20 @@ def now_ms() -> int:
 
 
 class NotesService:
-    def __init__(self, root: Path, compiler: TypstCompiler):
+    def __init__(self, root: Path, history: HistoryService):
         self.root = root
-        self.compiler = compiler
+        self.history = history
         # ThreadingHTTPServer runs requests in parallel: one lock keeps a save's writes
-        # (source, journal, pages, PDF, manifest) from interleaving with another's.
+        # (source, manifest) from interleaving with another's.
         self._writes = threading.Lock()
-        # Extension point, wired by server.py: called after every save, even a failed one (the
-        # text may be written). Notes do not know who listens (the corpus, whose readings come
-        # from the notes' citations).
+        # Extension point, wired by server.py: called after every save. Notes do not know who
+        # listens (the corpus, whose readings come from the notes' citations).
         self.on_saved: Callable[[], None] | None = None
 
     # -------------------------------------------------------------- paths
 
-    def folder(self, target: NoteTarget) -> Path:
-        return self.root / f"r{target.reading}"
-
     def source_path(self, target: NoteTarget) -> Path:
-        return self.folder(target) / SOURCE
-
-    def pdf_path(self, target: NoteTarget) -> Path:
-        return self.folder(target) / PDF
-
-    def page_paths(self, target: NoteTarget) -> list[Path]:
-        pages = [p for p in self.folder(target).glob("fiche-*.svg") if PAGE_FILE.match(p.name)]
-        return sorted(pages, key=lambda p: int(PAGE_FILE.match(p.name)["page"]))
+        return self.root / FOLDER / f"r{target.reading}.md"
 
     # -------------------------------------------------------------- operations
 
@@ -85,80 +72,47 @@ class NotesService:
         except OSError as error:
             raise StorageError(str(path), str(error)) from error
 
-    def journal(self, target: NoteTarget) -> list[journal.Session]:
-        return journal.read(self.folder(target))
-
-    def save(self, target: NoteTarget, source: str, who: Contributor) -> SavedNote:
+    def save(self, target: NoteTarget, source: str) -> SavedNote:
         try:
             with self._writes:
-                return self._save(target, source, who)
+                try:
+                    write_atomic(self.source_path(target), source)
+                except OSError as error:
+                    raise StorageError(str(self.source_path(target)), str(error)) from error
+                saved = SavedNote(target, now_ms())
+                self.write_manifest()
+                return saved
         finally:
             # Outside the lock: the listener takes its own, locks are never nested.
             if self.on_saved:
                 self.on_saved()
 
-    def _save(self, target: NoteTarget, source: str, who: Contributor) -> SavedNote:
-        saved_at = now_ms()
-        try:
-            self.folder(target).mkdir(parents=True, exist_ok=True)
-            created = not self.source_path(target).exists()
-            write_atomic(self.source_path(target), source)
-        except OSError as error:
-            raise StorageError(str(self.source_path(target)), str(error)) from error
-        journal.record(self.folder(target), who, saved_at, creation=created)
-        try:
-            pages = self.compiler.svg_pages(source)
-            pdf = self.compiler.pdf(source)
-        except TypstCompileError as error:
-            error.saved = True  # text kept on disk; the previous rendering stays for the reading page
-            self.write_manifest()  # the journal changed
-            raise
-        self._write_renderings(target, pages, pdf)
-        self.write_manifest()
-        return SavedNote(target, len(pages), saved_at)
-
-    def rebuild(self, target: NoteTarget) -> None:
-        """Recompile an existing note (an entry it uses changed): not a change of the note, so the
-        journal is left alone. Raises TypstCompileError."""
-        with self._writes:
-            source = self.load(target)
-            if source is None:
-                return
-            self._write_renderings(target, self.compiler.svg_pages(source), self.compiler.pdf(source))
-            self.write_manifest()
+    def targets(self) -> list[NoteTarget]:
+        folder = self.root / FOLDER
+        found = [NoteTarget(int(m["reading"])) for p in folder.glob("r*.md") if (m := NOTE_FILE.match(p.name))] if folder.exists() else []
+        return sorted(found, key=lambda t: t.reading)
 
     def sources(self):
         """(target, source) of every note: lets the corpus find the notes that use an entry."""
-        for path in sorted(self.root.glob(f"r*/{SOURCE}")):
-            reading = path.parent.name[1:]
-            if reading.isdigit():
-                yield NoteTarget(int(reading)), path.read_text(encoding="utf-8")
+        for target in self.targets():
+            yield target, self.source_path(target).read_text(encoding="utf-8")
 
-    def _write_renderings(self, target: NoteTarget, pages: list[str], pdf: bytes) -> None:
-        try:
-            for old in self.page_paths(target)[len(pages):]:
-                remove(old)
-            for number, page in enumerate(pages, 1):
-                write_atomic(self.folder(target) / f"fiche-{number}.svg", page)
-            write_atomic(self.pdf_path(target), pdf)
-        except OSError as error:
-            raise StorageError(str(self.folder(target)), str(error)) from error
+    def to_dict(self, target: NoteTarget, source: str, snapshot: Snapshot) -> dict:
+        """What the site shows of a note (manifest and API)."""
+        mtime = int(self.source_path(target).stat().st_mtime * 1000) if self.source_path(target).exists() else 0
+        return {
+            "reading": target.reading,
+            "source": source,
+            "updatedAt": max(snapshot.updated_at("note", target.reading), mtime if snapshot.is_modified("note", target.reading) else 0)
+            or mtime,
+            "modified": snapshot.is_modified("note", target.reading),
+            "journal": snapshot.sessions("note", target.reading),
+        }
 
     def write_manifest(self) -> None:
-        """``index.js``: the notes by reading (pages, last change, journal), readable from file:// pages."""
-        notes: dict[str, dict] = {}
-        for source in sorted(self.root.glob(f"r*/{SOURCE}")):
-            reading = source.parent.name[1:]
-            if not reading.isdigit():
-                continue
-            target = NoteTarget(int(reading))
-            sessions = self.journal(target)
-            notes[reading] = {
-                "pages": len(self.page_paths(target)),
-                "pdf": self.pdf_path(target).exists(),
-                "updatedAt": max([s.end for s in sessions], default=int(source.stat().st_mtime * 1000)),
-                "journal": journal.as_dicts(sessions),
-            }
+        """``index.js``: the notes by reading (source, last change, history), readable from file:// pages."""
+        snapshot = self.history.snapshot()
+        notes = {str(t.reading): self.to_dict(t, source, snapshot) for t, source in self.sources()}
         manifest = self.root / "index.js"
         try:
             write_atomic(

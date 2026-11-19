@@ -9,24 +9,15 @@ from backend.notes import NoteTarget
 @dataclass(frozen=True)
 class NoteContext:
     target: NoteTarget
-    source: str | None
-    pages: list[str]  # URLs of the compiled SVG pages, empty if never compiled
-    pdf: str | None  # URL of the compiled PDF
-    journal: list  # list[backend.journal.Session]: who created and changed the note, when
-
-
-@dataclass(frozen=True)
-class CompileContext:
-    pages: list[str]  # SVG markup, one string per page
+    exists: bool
+    note: dict  # NotesService.to_dict: source, updatedAt, modified, journal (git history)
 
 
 @dataclass(frozen=True)
 class SavedNoteContext:
     target: NoteTarget
-    pages: list[str]
-    pdf: str
     saved_at: int
-    journal: list  # list[backend.journal.Session]
+    note: dict
 
 
 @dataclass(frozen=True)
@@ -43,7 +34,6 @@ class RunContext:
 class EntryContext:
     entry: object  # backend.corpus.Entry
     dependents: object  # backend.corpus.Dependents
-    report: object | None = None  # backend.corpus.RebuildReport, after a change
     imported_by: tuple[str, ...] = ()  # entries whose code imports this brick
 
 
@@ -56,11 +46,6 @@ class TextContext:
     hypotheses: str | None
     limites: str | None
     variables: list | None = None  # financial products only
-
-
-@dataclass(frozen=True)
-class EntryPreviewContext:
-    pages: list[str]
 
 
 @dataclass(frozen=True)

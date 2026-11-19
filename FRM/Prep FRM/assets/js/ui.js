@@ -348,28 +348,37 @@
     });
   }
 
-  // ------------------------------------------------------------------ journals of the shared notes and entries
+  // ------------------------------------------------------------------ history of the shared notes and entries
+  // Read from git by the server (backend/history.py): one item per commit,
+  // { author, name, initials, start, end, saves, creation }.
 
   const day = (ms) => new Date(ms).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 
-  /** "Créée par Baptiste Durand le 7 oct. 2026 · modifiée par Marie Martin (3 séances, la dernière
-   *  le 9 oct. 2026)": who created and changed a shared note or entry (both feminine), from its
-   *  journal. The creation session does not count as a change. "" without a journal. */
+  /** "Créée par Baptiste Durand le 7 oct. 2026 · modifiée par Cécile Diana (3 commits, le dernier
+   *  le 9 oct. 2026)": who created and changed a shared note or entry (both feminine), from git.
+   *  The creating commit does not count as a change. "" without a history. */
   function journalLine(journal) {
     const { creator, contributors } = FRM.journalSummary(journal);
     if (!creator) return "";
     const changes = contributors
       .map((c) => ({ ...c, sessions: c.sessions - (c.creator ? 1 : 0) }))
       .filter((c) => c.sessions > 0)
-      .map((c) => `${esc(c.name)} (${c.sessions > 1 ? `${c.sessions} séances, la dernière` : "1 séance,"} le ${day(c.last)})`);
+      .map((c) => `${esc(c.name)} (${c.sessions > 1 ? `${c.sessions} commits, le dernier` : "1 commit,"} le ${day(c.last)})`);
     return `Créée par ${esc(creator.name)} le ${day(creator.at)}${changes.length ? ` · modifiée par ${changes.join(", ")}` : ""}`;
+  }
+
+  /** journalLine, plus a word when the file changed since the last commit (Obsidian or the site). */
+  function historyLine(item) {
+    const line = journalLine(item.journal || []);
+    const pending = item.modified ? "modifiée depuis le dernier commit" : "";
+    return [line, pending].filter(Boolean).join(" · ") || (item.updatedAt ? `Mise à jour : ${dateTime(item.updatedAt)}` : "");
   }
 
   /** Initials of everyone who created or changed it, the creator first; the title says who did what. */
   function contributorBadges(journal) {
     return FRM.journalSummary(journal)
       .contributors.map((c) => {
-        const what = c.creator ? `créée par ${c.name}${c.sessions > 1 ? `, puis ${c.sessions - 1} séance${c.sessions > 2 ? "s" : ""}` : ""}` : `${c.name} : ${plural(c.sessions, "séance")}`;
+        const what = c.creator ? `créée par ${c.name}${c.sessions > 1 ? `, puis ${plural(c.sessions - 1, "commit")}` : ""}` : `${c.name} : ${plural(c.sessions, "commit")}`;
         return `<span class="initials${c.creator ? " is-creator" : ""}" title="${esc(what)}">${esc(c.initials)}</span>`;
       })
       .join("");
@@ -471,6 +480,7 @@
     choiceToggles,
     watchChoiceToggles,
     journalLine,
+    historyLine,
     contributorBadges,
   };
 })(window.FRM);

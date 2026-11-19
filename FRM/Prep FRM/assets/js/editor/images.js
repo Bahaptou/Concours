@@ -1,7 +1,6 @@
 // "Images" menu of the editors: add an image to the shared folder notes/images/ (chosen file,
-// pasted screenshot or dropped file), or pick one already there, then insert
-// #image("/images/…") at the cursor. The path starts at the Typst root, so it works in a note,
-// in an entry and in a note inserting that entry.
+// pasted screenshot or dropped file), or pick one already there, then insert ![[name.png|500]]
+// at the cursor, as Obsidian writes it: the file name (unique in the vault) and a width in pixels.
 // Images are compressed here, before sending: the server only checks what it receives.
 import * as api from "./api.js";
 import { insertBlock } from "./toolbar.js";
@@ -17,8 +16,8 @@ const MAX_BYTES = 4_000_000; // same bound as backend/images.py
 const NAME = /^[a-z0-9][a-z0-9-]{1,59}$/; // same rule as backend/images.py
 const ACCEPT = "image/png,image/jpeg,image/gif,image/webp,image/svg+xml";
 
-/** Line inserted in the source; the width is easy to change by hand. */
-export const imageLine = (typstPath) => `#image("${typstPath}", width: 70%)`;
+/** Line inserted in the source; the width (pixels) is easy to change by hand. */
+export const imageLine = (link) => `![[${link}|500]]`;
 
 /** Readable file name: "Courbe des taux.png" -> "courbe-des-taux". */
 const slugify = (text) => fold(text).replace(/\.[a-z0-9]+$/, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 60).replace(/-+$/, "");
@@ -101,12 +100,12 @@ export function imageMenu(view) {
   let images = [];
   let pending = null; // compressed image waiting for a name
 
-  function insertPath(typstPath) {
+  function insertPath(link) {
     resetAdd(); // an image waiting for a name is dropped: the panel opens clean next time
     close();
     const editor = target();
     keepCursorBelowHeader(editor);
-    insertBlock(editor, imageLine(typstPath));
+    insertBlock(editor, imageLine(link));
   }
 
   function showError(html) {
@@ -124,7 +123,7 @@ export function imageMenu(view) {
 <li class="picker-item">
   <img src="${esc(image.url)}" alt="" loading="lazy">
   <span class="ptitle">${esc(image.name)} <span class="entry-id">${esc(image.format)} · ${kilobytes(image.size)}</span></span>
-  <button type="button" class="tool" data-img-insert="${esc(image.typstPath)}">Insérer</button>
+  <button type="button" class="tool" data-img-insert="${esc(image.link)}">Insérer</button>
 </li>`
         )
         .join("") || `<li class="picker-item muted">${images.length ? "Aucune image ne correspond." : "Aucune image pour l'instant."}</li>`;
@@ -186,10 +185,10 @@ export function imageMenu(view) {
     showError("");
     try {
       const saved = await api.addImage({ name: nameInput.value, format: pending.format, data: pending.data });
-      insertPath(saved.data.typstPath);
+      insertPath(saved.data.link);
     } catch (error) {
       if (error instanceof api.ApiProblem && error.title === "IMAGE_CONFLICT") {
-        showError(`Une image s'appelle déjà « ${esc(error.problem.name)} ». Choisis un autre nom, ou <button type="button" class="link-btn" data-img-insert="${esc(error.problem.typstPath)}">insère l'image existante</button>.`);
+        showError(`Une image s'appelle déjà « ${esc(error.problem.name)} ». Choisis un autre nom, ou <button type="button" class="link-btn" data-img-insert="${esc(error.problem.link)}">insère l'image existante</button>.`);
       } else {
         showError(esc(error.message));
       }

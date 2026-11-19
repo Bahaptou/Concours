@@ -2,7 +2,8 @@
 
 Site local de préparation au FRM Part I. On le lance par **`Lancer Prep FRM.bat`** (double-clic) : un
 petit serveur démarre et le navigateur s'ouvre sur l'accueil. Ouvrir `index.html` directement reste
-possible pour lire, mais les éditeurs (fiches, corpus) ont besoin du serveur.
+possible pour lire, mais les éditeurs (fiches, corpus) ont besoin du serveur. Les fiches et le corpus
+s'ouvrent aussi dans **Obsidian** : le dossier `notes/` est un coffre (voir « Obsidian »).
 
 **Usage personnel.** Les questions sont extraites des banques AnalystPrep, dont la redistribution est
 interdite : ne pas publier ce dossier en ligne (le dépôt GitHub privé fait exception) ni le partager
@@ -13,7 +14,7 @@ avec quelqu'un qui n'a pas les PDFs.
 1. Installer **uv** : dans PowerShell, `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`.
    Python n'est pas nécessaire : uv télécharge Python 3.13 tout seul.
 2. Double-cliquer sur `Lancer Prep FRM.bat`. Au premier lancement, uv installe les dépendances
-   (Typst, numpy, scipy, pandas, matplotlib : environ 150 Mo) ; les fois suivantes, le site s'ouvre
+   (numpy, scipy, pandas, matplotlib, ruamel.yaml : environ 150 Mo) ; les fois suivantes, le site s'ouvre
    tout de suite.
 
 Garder la fenêtre noire ouverte pendant le travail ; la fermer arrête le serveur. Relancer le `.bat`
@@ -80,34 +81,31 @@ des corrigés, repris tels quels dans la carte « Things to Remember » de chaqu
 
 ## Fiches (étape ④)
 
-Chaque reading a **une fiche, commune** : chacun l'écrit et la modifie, en **Typst**, dans l'éditeur du
-site (le profil 👤 sert seulement à dire qui l'a créée et qui l'a modifiée) :
+Chaque reading a **une fiche, commune** : chacun l'écrit et la modifie, en **Markdown** (formules en
+LaTeX), dans l'éditeur du site ou dans Obsidian :
 
 - à gauche le texte, à droite l'aperçu, mis à jour pendant la frappe ;
-- **Taille** (menu à côté de Italique, aussi dans l'éditeur d'entrée) entoure la sélection de
-  `#text(size: …)[…]` : Petit, Grand, Très grand (en `em`, relatifs au texte de la fiche) ou Autre… pour
-  taper sa valeur (`14pt`, `1.1em`). Sans effet sur les titres, dont la taille est fixée par le gabarit ;
-- **∑ Maths** (Ctrl+M) entoure la sélection de `$…$` ; dès que le curseur est dans une formule, une
-  barre « Mode maths » propose fraction, racine, exposant, indice, somme, lettres grecques… ;
-- **＋ dans la barre « Mode maths »** : ajouter un bouton (libellé, Typst inséré, partie à sélectionner,
+- **Gras** (Ctrl+B, `**…**`), **Italique** (Ctrl+I, `*…*`), **Titre** (`## `), **Liste** (`- `) ;
+- **∑ Maths** (Ctrl+M) entoure la sélection de `$…$`, **Équation** de `$$…$$` ; dès que le curseur est
+  dans une formule, une barre « Mode maths » propose fraction (`\frac{}{}`), racine, exposant, indice,
+  somme, lettres grecques… ;
+- **＋ dans la barre « Mode maths »** : ajouter un bouton (libellé, LaTeX inséré, partie à sélectionner,
   aperçu). Les boutons ajoutés sont partagés (`notes/_outils-maths.json`) ; « × » au survol les retire,
   pour tout le monde ;
 - **📚 Corpus** cherche une entrée du corpus (mêmes filtres que la page Corpus, entrées liées
-  comprises) et la **cite** (`#voir("bayes")` : son titre, en couleur)
-  ou l'**insère** (`#entree("bayes")` : l'entrée entière) ; la ligne `#import` nécessaire
-  est ajoutée toute seule ;
+  comprises) et la **cite** (`[[bayes]]` : son titre, en couleur) ou l'**insère** (`![[bayes]]` :
+  l'entrée entière) ;
 - **🖼 Images** : colle une capture (Ctrl+V), glisse un fichier ou choisis-le ; l'image est compressée,
-  nommée (nom obligatoire, commun à tous) et rangée dans `notes/images/`, puis `#image(…)` est inséré.
-  Un nom pris ne se remplace pas ; le menu liste aussi les images existantes. Marche aussi dans les entrées.
-- encadrés **À retenir**, **Piège**, **Définition** (définis dans `notes/_gabarit.typ`) ;
-- une erreur affiche un bandeau avec sa ligne et une explication ; l'aperçu garde la dernière version
-  valide ;
-- enregistrement automatique (Ctrl+S pour tout de suite), même si la fiche contient une erreur : le
-  texte n'est jamais perdu.
+  nommée (nom obligatoire, commun à tous) et rangée dans `notes/images/`, puis `![[nom.png|500]]` est
+  inséré (500 : la largeur en pixels). Un nom pris ne se remplace pas ; le menu liste aussi les images
+  existantes. Marche aussi dans les entrées ;
+- encadrés **À retenir**, **Piège**, **Définition** : les « callouts » d'Obsidian (`> [!tip] À retenir`) ;
+- `%% … %%` : un commentaire, visible dans l'éditeur, caché à l'affichage (les learning objectives du
+  modèle de fiche) ;
+- enregistrement automatique (Ctrl+S pour tout de suite).
 
-Fichiers : `notes/r<N>/fiche.typ` (la source), avec son rendu `fiche-<page>.svg` et `fiche.pdf`, et
-`journal.jsonl` (qui l'a créée et modifiée, quand). La page Reading l'affiche, même sans serveur, avec
-« Créée par … · modifiée par … ». Deux personnes qui modifient la même fiche sur deux machines auront un
+Fichier : `notes/fiches/r<N>.md`. La page Reading l'affiche, même sans serveur, avec « Créée par … ·
+modifiée par … » (tiré de git). Deux personnes qui modifient la même fiche sur deux machines auront un
 conflit git en fusionnant : récupérer les changements de l'autre avant d'écrire.
 
 ## Corpus
@@ -123,21 +121,16 @@ formules y sont, créées par BD). Tout y est commun : chacun crée, modifie et 
   des entrées, « Rattacher à des readings… »), depuis la page d'une entrée, depuis la page d'un
   reading (« ＋ Rattacher une entrée ») ou depuis l'éditeur d'entrée. Une citation par une autre entrée
   ne rattache pas.
-- Une entrée a **un seul texte**, que chacun modifie. Son **historique** dit qui l'a créée et qui l'a
-  modifiée, quand (« Créée par … · modifiée par … », et les initiales des contributeurs, le créateur
-  d'abord) ; git garde les anciens textes.
-- Une entrée peut en **citer** une autre (`#voir`), jamais l'insérer : c'est ce qui rend les boucles
-  impossibles (A cite B, B cite A : aucun problème). Le serveur refuse une entrée qui tente d'insérer.
-- Un texte qui ne compile pas est enregistré quand même (« ! » rouge dans le corpus), et les fiches
-  gardent le **dernier texte qui compilait** jusqu'à correction : l'erreur de l'un ne bloque personne.
+- Une entrée a **un seul texte**, que chacun modifie. Son **historique**, tiré de git, dit qui l'a créée
+  et qui l'a modifiée, quand (« Créée par … · modifiée par … », et les initiales des contributeurs, le
+  créateur d'abord) ; une entrée changée depuis le dernier commit est signalée (« • » dans la liste).
+- Une entrée peut en **citer** une autre (`[[id]]`) ; A cite B, B cite A : aucun problème.
 - Enregistrement **à la demande** (bouton ou Ctrl+S), pas pendant la frappe : le texte enregistré
-  remplace celui de tout le monde et recompile les fiches qui l'insèrent. Le navigateur prévient avant de quitter
-  une page non enregistrée. Si une fiche ou une entrée liée ne compile plus après un changement, l'éditeur
-  le signale (son dernier rendu reste affiché).
+  remplace celui de tout le monde. Le navigateur prévient avant de quitter une page non enregistrée.
 - **Simulations et briques** : en plus de leur texte, elles ont une section de code Python à part (voir
   « Python » ci-dessous).
 - **Hypothèses et limites des formules** : une formule a deux champs de plus sous son texte, écrits en
-  Typst comme le reste. Ils s'affichent en deux petits blocs sous la formule,
+  Markdown comme le reste. Ils s'affichent en deux petits blocs sous la formule,
   dans son encadré (hypothèses en cadre plein, limites en tirets), sur la page du corpus et dans les
   fiches qui insèrent la formule. Un champ vide n'affiche rien. Les autres types n'en ont pas.
 - **Produits financiers** : en plus du texte, la liste des **variables** dont le produit a besoin
@@ -145,20 +138,32 @@ formules y sont, créées par BD). Tout y est commun : chacun crée, modifie et 
   produit`, puis `p = produit("obligation-5-ans")` donne un objet dont ces variables sont vides :
   `p.fixed_rate = 0.03`… Un nom non déclaré est refusé, pour attraper les fautes de frappe.
 - **Supprimer une entrée** : bouton dans l'éditeur d'entrée. Ses références sont retirées des fiches et
-  des autres entrées (`#voir` devient son titre en texte simple, `#entree` disparaît) ; ces réécritures
-  comptent comme des modifications de la personne qui supprime. Une brique encore
+  des autres entrées (`[[id]]` devient son titre en texte simple, `![[id]]` disparaît). Une brique encore
   importée par une simulation ne se supprime pas : retirer l'import d'abord.
 - **Questions liées** : la page d'une entrée liste les questions qui lui sont liées (lien vers chacune)
   et propose une série sur ces questions. Les liens sont partagés comme le reste du corpus ; chacun
   rattache l'entrée au reading de la question.
 
-Fichiers : `notes/corpus/<id>/entree.json` (type, titre, questions liées), `texte.typ` (le texte),
-`hypotheses.typ` et `limites.typ` (une formule), `variables.json` (un produit financier), `code.py` (le code d'une simulation ou d'une brique),
-`page-<n>.svg` (le rendu), `journal.jsonl` (l'historique), `valide/` (le dernier texte qui compilait,
-tant que le texte ne compile pas). Le serveur génère
-`notes/_corpus-titres.typ` (titres, pour `#voir`), `notes/_corpus.typ` (textes qui compilent, pour
-`#entree`) et `notes/corpus/index.js` (le corpus pour les pages ouvertes sans serveur) : ne pas les
+Fichier : `notes/corpus/<id>.md`, un par entrée. En tête, les propriétés (`type`, `titre`, `readings`
+saisis à la main, `questions` liées, `variables` d'un produit) ; puis le texte, et à la fin les sections
+`## Hypothèses`, `## Limites` (une formule) ou `## Code` (une simulation ou une brique). Le site ne
+modifie que ces propriétés-là : celles qu'on ajoute dans Obsidian (`tags`, `aliases`…) restent. Le
+serveur génère `notes/corpus/index.js` (le corpus pour les pages ouvertes sans serveur) : ne pas le
 modifier à la main.
+
+## Obsidian
+
+Le dossier `notes/` est un **coffre Obsidian** (Ouvrir un dossier comme coffre → `notes/`) : fiches et
+entrées y ont leurs liens, leur graphe, leurs rétroliens et leurs formules, et s'y modifient comme sur
+le site. Seul `notes/` est un coffre, pas `Concours/` : les PDFs (sous droits) restent dehors. Ne pas
+activer Obsidian Sync ni Publish.
+
+- Un lien `[[bayes]]` vise le fichier `corpus/bayes.md` : l'identifiant est le nom du fichier.
+- Le site relit les fichiers à chaque chargement de page (serveur lancé) : une modification faite dans
+  Obsidian s'y voit au rechargement.
+- Si le site et Obsidian modifient le même fichier en même temps, le dernier enregistrement l'emporte.
+- L'historique (« Créée par … ») vient de git : une modification n'a d'auteur qu'une fois commitée. Pour
+  des initiales justes, chacun règle son nom une fois : `git config user.name "Prénom Nom"`.
 
 ## Python (étape ③)
 
@@ -188,26 +193,30 @@ modifier à la main.
 ```
 Lancer Prep FRM.bat           lancement : uv run … server.py
 server.py                     démarrage du serveur local (127.0.0.1:8765)
-backend/                      serveur : erreurs, services (compilation Typst, fiches, corpus, exécution Python), couche HTTP
+backend/                      serveur : erreurs, services (fiches, corpus, en-têtes YAML, historique git, exécution Python), couche HTTP
 tests/                        tests du serveur (uv run pytest)
-pyproject.toml · uv.lock      projet uv « prep-frm » (Python 3.13, dépendance typst)
+pyproject.toml · uv.lock      projet uv « prep-frm » (Python 3.13)
 index.html · dashboard.html · quiz.html · livre.html · reading.html · corpus.html · fiches.html   pages lisibles sans serveur
 editeur.html · entree.html    éditeurs de fiche et d'entrée du corpus (serveur nécessaire)
 assets/css/style.css          thème, couleurs des graphiques, éditeur
 assets/js/*.js                scripts classiques partagés (store, core, questions, ui, save, profile, charts, runner…)
 assets/js/pages/*.js          un script par page
-assets/js/editor/*.js         modules des éditeurs (CodeMirror, langage Typst, barre d'outils, menu Corpus, gabarit, API)
+assets/js/markdown.js         rendu Markdown des fiches et entrées (markdown-it, KaTeX, liens [[ ]], callouts)
+assets/js/editor/*.js         modules des éditeurs (CodeMirror, langage Markdown, barre d'outils, menu Corpus, modèle, API)
 assets/vendor/codemirror/     CodeMirror 6 regroupé en un fichier (licence MIT jointe)
+assets/vendor/markdown-it/ · assets/vendor/katex/   markdown-it et KaTeX (licences jointes)
 data/curriculum.js            GÉNÉRÉ depuis les PDFs, ne pas modifier à la main
 data/questions/rN.js          GÉNÉRÉ : questions du reading N, chargées à la demande
-notes/                        nos fiches Typst, le gabarit commun et index.js (GÉNÉRÉ par le serveur)
-notes/corpus/                 le corpus : une entrée par dossier, index.js GÉNÉRÉ
+notes/                        coffre Obsidian : nos fiches, le corpus, les images ; index.js GÉNÉRÉ par le serveur
+notes/fiches/                 une fiche par reading (r<N>.md)
+notes/corpus/                 le corpus : une entrée par fichier (<id>.md), index.js GÉNÉRÉ
 notes/images/                 images des fiches et des entrées (dossier commun)
 save/                         sauvegardes JSON exportées depuis le navigateur
 tools/extract_curriculum.py   générateur de data/curriculum.js
 tools/extract_questions.py    générateur de data/questions/
 tools/make_demo_save.py       générateur de save/exemple-demo.json (données fictives)
 tools/vendor_codemirror/      regroupement de CodeMirror (npm + esbuild, maintenance uniquement)
+tools/vendor_markdown/        copie de markdown-it et KaTeX (npm, maintenance uniquement)
 ```
 
 ## Règles
@@ -253,8 +262,8 @@ Ce qui est **commun** (fiches, corpus, liens entre questions et corpus, images, 
 confiance, étapes cochées) vit dans le `localStorage` du navigateur (clé `frm-part1.state.v1`) : vider
 les données du site l'efface. D'où les boutons de l'en-tête de chaque page :
 
-- **👤 Profil** : prénom et nom, un simple repère écrit dans la sauvegarde et dans le nom du fichier ;
-  il dit aussi qui crée et modifie les fiches et les entrées (il en faut un pour écrire).
+- **👤 Profil** : prénom et nom, un simple repère écrit dans la sauvegarde et dans le nom du fichier.
+  Qui crée et modifie les fiches et les entrées vient de git, pas du profil.
 - **💾 Sauvegarder** : un fichier par export, `prep-frm_prenom-nom_AAAA-MM-JJ_HHhMM.json`.
   Chrome / Edge ouvrent « Enregistrer sous » : choisir `save/` la première fois, il est reproposé ensuite.
   Autres navigateurs : le fichier arrive dans Téléchargements, à ranger dans `save/`.
@@ -279,4 +288,5 @@ uv run python tools/extract_questions.py  # régénérer les questions (idem)
 uv run python tools/make_demo_save.py     # régénérer la sauvegarde de démonstration
 ```
 
-Mettre à jour CodeMirror : dans `tools/vendor_codemirror/`, `npm install` puis `npm run build`.
+Mettre à jour CodeMirror : dans `tools/vendor_codemirror/`, `npm install` puis `npm run build`. De même
+pour markdown-it et KaTeX dans `tools/vendor_markdown/`.

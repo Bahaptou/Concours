@@ -7,8 +7,6 @@
 # Copyrighted documents (CFA Institute, GARP, AnalystPrep): never on GitHub.
 /CFA/
 *.pdf
-# ...except the renderings of our own notes (Prep FRM).
-!/FRM/Prep FRM/notes/**/*.pdf
 
 .cache
 .venv

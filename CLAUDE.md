@@ -30,12 +30,13 @@ d'entraînement, et un seul projet de code : Prep FRM.
   Not for distribution. » ; AnalystPrep : « Reproduction and/or distribution
   of this document is prohibited. » Usage personnel uniquement. Ils ne sont
   plus versionnés depuis le 2026-10-07 (décision de Baptiste) : `.gitignore`
-  exclut `/CFA/` et tous les `*.pdf`, sauf les rendus des fiches de Prep FRM
-  (`FRM/Prep FRM/notes/**/*.pdf`, notre travail). Ils restent dans
+  exclut `/CFA/` et tous les `*.pdf`. Ils restent dans
   l'historique du dépôt GitHub **privé** `Bahaptou/Concours`. Ne jamais les
   publier ni les téléverser ailleurs (artifact, service en ligne, dépôt
   public) ; rendre le dépôt public publierait cet historique : en parler à
-  Baptiste avant.
+  Baptiste avant. Le coffre Obsidian de Prep FRM est `FRM/Prep FRM/notes/`
+  seul, justement pour que les PDFs n'y soient pas : ne jamais ouvrir
+  `Concours/` comme coffre, ni activer Obsidian Sync ou Publish.
 - **Les PDFs ne se renomment ni ne se déplacent.** Les outils de Prep FRM
   les lisent par leur nom de fichier.
 - **CFA et FRM restent séparés.** Baptiste a refusé le 2026-10-01 tout

@@ -7,8 +7,8 @@ dependencies = [
     "matplotlib>=3.11.2",
     "numpy>=2.5.3",
     "pandas>=3.0.6",
+    "ruamel-yaml>=0.19.1",
     "scipy>=1.18.1",
-    "typst>=0.15.0",
 ]
 
 [tool.uv]

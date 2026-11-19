@@ -216,9 +216,9 @@
     return !note && !question; // none
   }
 
-  // ------------------------------------------------------------------ journals of the shared notes and entries
-  // Notes and entries belong to everyone; their journal (backend/journal.py) lists sessions:
-  // { author, name, initials, start, end, saves, creation }.
+  // ------------------------------------------------------------------ history of the shared notes and entries
+  // Notes and entries belong to everyone; their history comes from git (backend/history.py), one
+  // item per commit: { author, name, initials, start, end, saves, creation }.
 
   /** { creator: {author, name, initials, at} | null, contributors, last }: who created a note or
    *  an entry, and everyone who changed it (creator included) with { author, name, initials,
@@ -262,7 +262,7 @@
   const isChosen = (selection, value) => selection === null || selection.has(String(value));
 
   // ------------------------------------------------------------------ entries linked to search results
-  // "Entrées liées" adds the entries linked to the results: citations (#voir) and code imports, both
+  // "Entrées liées" adds the entries linked to the results: citations ([[id]], ![[id]]) and code imports, both
   // ways, up to a depth (0: none, 1: direct neighbours, Infinity: the whole chain). They are shown
   // pale, like the graph's neighbours. The control itself is ui.linkedControl.
 
@@ -329,13 +329,12 @@
     completionOf: scoped(completion),
     confidenceOfScope: scoped(confidenceOf),
     nextStep,
-    // notes/index.js, written by the server: compiled notes by reading then author.
-    // notes/index.js, written by the server: the shared note of each reading ({ pages, pdf, updatedAt, journal }).
+    // notes/index.js, written by the server: the shared note of each reading ({ source, updatedAt, modified, journal }).
     registerNotes: (manifest) => (notes = manifest || {}),
     noteOf: (readingId) => notes[String(readingId)] || null,
     ENTRY_TYPES,
     entryType: (id) => ENTRY_TYPES.find((type) => type.id === id),
-    // notes/corpus/index.js, written by the server: every entry with its rendering, journal and back-links.
+    // notes/corpus/index.js, written by the server: every entry with its texts, git history and back-links.
     registerCorpus: (manifest) => (corpus = manifest || {}),
     // Entries as the API sends them after a change: merged over the manifest's, which keeps what the
     // API leaves out (citedBy).

@@ -1,0 +1,4 @@
+---
+type: definition
+titre: Systemic Risk
+---

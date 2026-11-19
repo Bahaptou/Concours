@@ -9,3 +9,4 @@ export { StreamLanguage, syntaxHighlighting, HighlightStyle, bracketMatching, in
 export { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 export { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 export { tags } from "@lezer/highlight";
+export { markdown, markdownLanguage } from "@codemirror/lang-markdown";

@@ -30,7 +30,7 @@ def make_handler(services: Services) -> type[SimpleHTTPRequestHandler]:
             ".js": "text/javascript",
             ".mjs": "text/javascript",
             ".svg": "image/svg+xml",
-            ".typ": "text/plain; charset=utf-8",
+            ".md": "text/markdown; charset=utf-8",
             ".json": "application/json",
         }
 
@@ -57,7 +57,20 @@ def make_handler(services: Services) -> type[SimpleHTTPRequestHandler]:
             if self._is_api():
                 return self._handle_api("GET")
             if self._static_host_ok():
+                self._refresh_manifest()
                 super().do_GET()
+
+        def _refresh_manifest(self) -> None:
+            """Rewrite a manifest before serving it: Obsidian or a commit may have changed the
+            notes since the last write. A failure leaves the previous file served."""
+            path = urlparse(self.path).path
+            try:
+                if path == "/notes/index.js":
+                    services.notes.write_manifest()
+                elif path == "/notes/corpus/index.js":
+                    services.corpus.regenerate()
+            except Exception as exc:  # noqa: BLE001 - the old manifest is still worth serving
+                logger.warning("Manifest not refreshed (%s): %s", path, exc)
 
         def do_HEAD(self):
             if self._static_host_ok():

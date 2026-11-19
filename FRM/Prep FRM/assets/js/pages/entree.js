@@ -1,29 +1,30 @@
 // Corpus entry editor: entree.html creates an entry (optionally ?type=… to prefill),
 // entree.html?id=bayes edits one. An entry belongs to everyone: on top its metadata (identifier,
-// type, title) and who created and changed it; below, its one shared text in CodeMirror with a
-// live preview in its box, the assumptions and limits of a formula, and the Python code of a
-// simulation. The profile only says who writes, for the entry's journal. Readings can be attached
+// type, title) and who created and changed it (git); below, its one shared text in CodeMirror
+// with a live preview in its box, the assumptions and limits of a formula, and the Python code of
+// a simulation. All of it is one Markdown file, notes/corpus/<id>.md, that Obsidian edits too.
+// Readings can be attached
 // by hand here (several, applied at once, also while creating); the entry also belongs to those of
 // the notes citing or inserting it and of the questions linked to it, shown beside them.
 // Saved on demand (button or Ctrl+S), not while typing: a saved text replaces everyone's at once
-// and recompiles the notes that insert it, so it should be a deliberate act.
+// and shows in the notes that insert it, so it should be a deliberate act.
 // Loaded as an ES module after the classic scripts, which provide window.FRM.
 import { EditorState, EditorView } from "../../vendor/codemirror/codemirror.js";
-import { isInMath } from "../editor/typst-language.js";
-import { baseExtensions, showProblem, setErrorLine } from "../editor/setup.js";
+import { isInMath } from "../editor/markdown-language.js";
+import { baseExtensions } from "../editor/setup.js";
 import { renderToolbar, formattingKeys, insert, ENTRY_TOOLS } from "../editor/toolbar.js";
-import { corpusPicker, ensureImport } from "../editor/corpus-picker.js";
+import { corpusPicker } from "../editor/corpus-picker.js";
 import { imageMenu, attachImageInput } from "../editor/images.js";
 import { customMathTools } from "../editor/math-tools.js";
 import * as api from "../editor/api.js";
 
 const { FRM } = window;
-const { ui, store } = FRM;
+const { ui } = FRM;
 const { esc } = ui;
 
-const PREVIEW_DELAY = 400;
+const PREVIEW_DELAY = 150;
 const params = new URLSearchParams(location.search);
-const NEW_TEXT = "// Texte de l'entrée, commun à tous. Pour citer une autre entrée : menu « 📚 Corpus », puis Citer.\n";
+const NEW_TEXT = "";
 // Starting code of a new entry, by type. A brick's demo runs with ▶ Exécuter on the brick
 // itself, never when a simulation imports it.
 const CODE_TEMPLATES = {
@@ -45,7 +46,8 @@ const CODE_TEMPLATES = {
 const CODE_TYPES = Object.keys(CODE_TEMPLATES);
 const codeTemplate = (type) => CODE_TEMPLATES[type] || CODE_TEMPLATES.simulation;
 // Texts a formula carries under its formula: small blocks in its box, on the corpus page and in
-// the notes inserting it. Typst like the rest (formulas allowed), written in their own fields.
+// the notes inserting it. Markdown like the rest (formulas allowed), written in their own fields
+// and stored as the sections ## Hypothèses and ## Limites at the end of the file.
 // Keep the types in step with SECTION_TYPES in backend/corpus.py.
 const SECTIONS = [
   { id: "hypotheses", label: "Hypothèses", hint: "Conditions pour que la formule soit valable. Une puce par hypothèse (bouton Liste)." },
@@ -99,9 +101,9 @@ function addBrickImport(view, brick) {
 /** Readable identifier from a title: "Règle de Bayes" -> "regle-de-bayes". */
 const slugify = (text) => ui.fold(text).replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 50).replace(/-+$/, "");
 
-/** "notes/r12/fiche" -> "Fiche QA-1"; "corpus/bayes" -> "Entrée « bayes »". */
+/** "notes/fiches/r12" -> "Fiche QA-1"; "corpus/bayes" -> "Entrée « bayes »". */
 function targetLabel(target) {
-  const note = /^notes\/r(\d+)\/fiche$/.exec(target);
+  const note = /^notes\/fiches\/r(\d+)$/.exec(target);
   if (note) {
     const reading = FRM.findReading(note[1]);
     return `Fiche ${reading ? reading.tag : `R${note[1]}`}`;
@@ -133,10 +135,10 @@ function typeOptions(selected) {
 function layout({ creating, meta }) {
   return `
 <div class="editor-head">
-  <div><div class="kicker">Corpus · <span data-kicker>${creating ? "Nouvelle entrée" : esc(FRM.entryType(meta.type).label)}</span> · entrée commune · tu écris en tant que ${esc(store.profile.displayName())}</div><h2 data-heading>${esc(meta.titre || "Nouvelle entrée")}</h2></div>
+  <div><div class="kicker">Corpus · <span data-kicker>${creating ? "Nouvelle entrée" : esc(FRM.entryType(meta.type).label)}</span> · entrée commune</div><h2 data-heading>${esc(meta.titre || "Nouvelle entrée")}</h2></div>
   <div class="editor-actions">
     <span class="save-status" data-save-status></span>
-    <button type="button" class="btn ghost danger" data-delete${creating ? " hidden" : ""} title="Supprime l'entrée (texte, code, historique) et retire ses références des fiches et des autres entrées">Supprimer l'entrée</button>
+    <button type="button" class="btn ghost danger" data-delete${creating ? " hidden" : ""} title="Supprime l'entrée (son fichier) et retire ses références des fiches et des autres entrées">Supprimer l'entrée</button>
     <a class="btn ghost" data-entry-link href="corpus.html"${creating ? " hidden" : ""}>Voir dans le corpus</a>
     <button type="button" class="btn" data-save title="Ctrl+S">${creating ? "Créer l'entrée" : "Enregistrer"}</button>
   </div>
@@ -145,7 +147,7 @@ function layout({ creating, meta }) {
   <form class="meta-form" data-meta novalidate>
     <label class="field" data-field="titre">Titre<input name="titre" maxlength="120" placeholder="ex. Règle de Bayes" value="${esc(meta.titre)}"></label>
     <label class="field" data-field="type">Type<select name="type">${typeOptions(meta.type)}</select></label>
-    <label class="field" data-field="id">Identifiant <span class="hint">pour citer : #voir("…") · fixé à la création</span><input name="id" maxlength="50" value="${esc(meta.id)}"${creating ? "" : " readonly"}></label>
+    <label class="field" data-field="id">Identifiant <span class="hint">pour citer : [[…]] · fixé à la création</span><input name="id" maxlength="50" value="${esc(meta.id)}"${creating ? "" : " readonly"}></label>
   </form>
   <div class="variables-pane" data-variables-pane hidden>
     <h3>Variables</h3>
@@ -160,7 +162,6 @@ function layout({ creating, meta }) {
   <div class="readings-line" data-readings></div>
   <p class="small muted"><span data-journal></span> Le texte est commun : ce que tu enregistres remplace celui de tout le monde (git garde les anciens textes).</p>
   <div class="form-error" data-form-error hidden></div>
-  <div class="rebuild-report" data-report hidden></div>
 </div>
 <div class="toolbar" data-text-tools></div>
 <div class="toolbar math" data-math-tools hidden></div>
@@ -182,11 +183,10 @@ ${SECTIONS.map(
     </div>
   </div>
   <div class="preview-pane">
-    <div class="editor-error" data-error hidden></div>
-    <div class="preview-pages" data-preview></div>
+    <div class="preview-md" data-preview></div>
   </div>
 </div>
-<p class="src">Fichier : <code data-file>notes/corpus/${esc(meta.id || "…")}/texte.typ</code> · Ctrl+S pour enregistrer.</p>`;
+<p class="src">Fichier : <code data-file>notes/corpus/${esc(meta.id || "…")}.md</code> (aussi ouvrable dans Obsidian) · Ctrl+S pour enregistrer.</p>`;
 }
 
 // ---------------------------------------------------------------- editor
@@ -196,11 +196,6 @@ async function start() {
   if (location.protocol === "file:") {
     return mountPage(title, notice("L'éditeur a besoin du serveur", "Lance <code>Lancer Prep FRM.bat</code> (double-clic), puis rouvre cette page depuis le navigateur qui s'ouvre."));
   }
-  if (!store.profile.authorSlug()) {
-    mountPage(title, notice("Qui modifie cette entrée ?", `L'entrée est commune : ton profil sert seulement à noter qui la crée et qui la modifie. <button type="button" class="btn" data-profile>Indiquer mon prénom et mon nom</button>`));
-    document.addEventListener("frm:change", () => store.profile.authorSlug() && location.reload(), { once: true });
-    return;
-  }
 
   // ---------------------------------------------------------- loading
 
@@ -209,6 +204,7 @@ async function start() {
   let text = null; // the entry's shared text ({data, links})
   try {
     corpus = await api.listCorpus();
+    FRM.mergeCorpusEntries(corpus.data.entries); // the preview shows the titles of cited entries
     if (params.has("id")) {
       entry = await api.getEntry(params.get("id"));
       text = await api.getText(entry.data.id);
@@ -230,7 +226,7 @@ async function start() {
 
   // What the server has: to know what to send on save, and to warn before leaving.
   let savedMeta = entry ? JSON.stringify(metaOf()) : null;
-  let savedSource = text && text.data.exists ? text.data.source : null;
+  let savedSource = text ? text.data.source : null;
   let savedCode = text ? text.data.code : null;
   const savedSections = Object.fromEntries(SECTIONS.map((section) => [section.id, (text && text.data[section.id]) || ""]));
   let savedVariables = (text && text.data.variables) || [];
@@ -352,8 +348,7 @@ async function start() {
     $("[data-code-title]").textContent = form.type.value === "brique"
       ? `Code de la brique · une simulation l'importe avec : from briques.${moduleName(form.id.value || "identifiant")} import …`
       : "Code Python de la simulation";
-    const extraFiles = hasCode() ? " + code.py" : hasSections() ? ` + ${SECTIONS.map((section) => `${section.id}.typ`).join(" + ")}` : hasVariables() ? " + variables.json" : "";
-    $("[data-file]").textContent = `notes/corpus/${form.id.value || "…"}/texte.typ${extraFiles}`;
+    $("[data-file]").textContent = `notes/corpus/${form.id.value || "…"}.md`;
   }
 
   // While creating, the identifier follows the title until it is edited by hand.
@@ -376,9 +371,9 @@ async function start() {
     }
   });
 
-  /** Who created and changed the entry, from its journal. */
+  /** Who created and changed the entry, from git. */
   function showJournal() {
-    const line = entry ? ui.journalLine(entry.data.journal) : "";
+    const line = entry ? ui.historyLine(entry.data) : "";
     $("[data-journal]").textContent = "";
     $("[data-journal]").insertAdjacentHTML("beforeend", line ? `${line}.` : "");
   }
@@ -400,20 +395,6 @@ async function start() {
     box.hidden = false;
   }
 
-  function showReport(rebuild) {
-    const box = $("[data-report]");
-    if (!rebuild || (!rebuild.failed.length && !rebuild.skipped.length)) {
-      box.hidden = true;
-      return;
-    }
-    const failed = rebuild.failed.map((f) => `<li>${esc(targetLabel(f.target))} : <code>${esc(f.message)}</code></li>`).join("");
-    const skipped = rebuild.skipped.map((t) => `<li>${esc(targetLabel(t))}</li>`).join("");
-    box.innerHTML = `
-${failed ? `<strong>Ne compilent plus après ce changement</strong> (leur dernier rendu reste affiché) :<ul>${failed}</ul>` : ""}
-${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) : elles le seront à leur prochain enregistrement.<ul>${skipped}</ul>` : ""}`;
-    box.hidden = false;
-  }
-
   /** Turns a failed save into a message next to what caused it. */
   function explainFailure(error) {
     if (!(error instanceof api.ApiProblem)) return formError(esc(error.message));
@@ -422,34 +403,18 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     switch (error.title) {
       case "ENTRY_CONFLICT":
         return formError(`L'identifiant « ${esc(problem.entryId)} » est déjà pris (${esc(FRM.entryType(problem.existingType).label.toLowerCase())}) : <a href="corpus.html?id=${encodeURIComponent(problem.entryId)}">voir cette entrée</a>, ou choisis-en un autre.`, "id");
-      case "CORPUS_IMPORT_FORBIDDEN":
-        return showCompileError({ explanation: "Import interdit dans une entrée", detail: reason }, "Une entrée cite les autres avec #voir, jamais en les insérant : ça évite les boucles.");
       case "INVALID_REQUEST_PAYLOAD":
-        if (["author", "name", "initials"].includes(problem.field)) return formError(`Profil incomplet pour noter qui modifie l'entrée (${esc(reason)}). <button type="button" class="link-btn" data-profile>Modifier le profil</button>`);
         return formError(`${esc(reason)}`, problem.field);
       default:
         return formError(esc(problem.detail || error.message));
     }
   }
 
-  // ---------------------------------------------------------- compile errors
-
   /** Texts of the sections, as the server takes them: only formulas have them. */
   const sectionTexts = () => (hasSections() ? Object.fromEntries(SECTIONS.map((section) => [section.id, sectionViews[section.id].state.doc.toString()])) : {});
 
-  /** Shows a compile error next to the text that holds it (the server says which: `part`), or
-   *  clears the marks of every field when `problem` is null. */
-  function showCompileError(problem, note) {
-    for (const field of [view, ...Object.values(sectionViews)]) field.dispatch({ effects: setErrorLine.of(null) });
-    const box = $("[data-error]");
-    if (!problem) return showProblem(box, view, null);
-    const section = SECTIONS.find((candidate) => candidate.id === problem.part);
-    showProblem(box, section ? sectionViews[section.id] : view, problem, note, section ? section.label : "");
-  }
-
   // ---------------------------------------------------------- preview
 
-  let previewSeq = 0;
   let previewTimer = null;
 
   function schedulePreview() {
@@ -457,27 +422,19 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     previewTimer = setTimeout(refreshPreview, PREVIEW_DELAY);
   }
 
-  async function refreshPreview() {
-    const seq = ++previewSeq;
+  /** The entry in its box, rendered in the browser as everywhere else: nothing goes to the server. */
+  function refreshPreview() {
     const meta = metaOf();
-    try {
-      const result = await api.previewEntry(corpus.links.preview, {
-        type: meta.type,
-        titre: meta.titre || "Sans titre",
-        source: view.state.doc.toString(),
-        ...sectionTexts(),
-        // Only the valid names, once each: a name being typed must not stop the preview (saving reports it).
-        ...(hasVariables() ? { variables: readVariables().filter((v, i, all) => VARIABLE_NAME.test(v.nom) && all.findIndex((w) => w.nom === v.nom) === i) } : {}),
-      });
-      if (seq !== previewSeq) return; // an older request answered late: ignore it
-      $("[data-preview]").innerHTML = result.data.pages.join("");
-      showCompileError(null);
-    } catch (error) {
-      if (seq !== previewSeq) return;
-      if (error instanceof api.ApiProblem && error.title === "TYPST_COMPILE_ERROR") showCompileError(error.problem);
-      else if (error instanceof api.ApiProblem) explainFailure(error);
-      else showCompileError({ detail: error.message, explanation: "Aperçu indisponible" });
-    }
+    const sections = sectionTexts();
+    $("[data-preview]").innerHTML = FRM.renderEntryBox({
+      id: form.id.value || "nouvelle-entree",
+      type: meta.type,
+      titre: meta.titre || "Sans titre",
+      source: view.state.doc.toString(),
+      hypotheses: sections.hypotheses || "",
+      limites: sections.limites || "",
+      variables: hasVariables() ? readVariables().filter((v) => VARIABLE_NAME.test(v.nom)) : [],
+    });
   }
 
   // ---------------------------------------------------------- save
@@ -520,9 +477,6 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     refreshMetaDisplay();
   }
 
-  /** Recompiled notes and other entries; the entry itself re-rendered does not count. */
-  const dependentsIn = (rebuild) => rebuild.rebuilt.filter((target) => target !== `corpus/${entry.data.id}`).length;
-
   const savedAt = () => new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
   async function saveNow() {
@@ -530,7 +484,6 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     saving = true;
     clearFieldErrors();
     status("Enregistrement…");
-    let rebuilt = 0;
     try {
       if (!entry) {
         const created = await api.createEntry(corpus.links.create, { id: form.id.value.trim(), ...metaOf() });
@@ -542,53 +495,25 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
           await changeReadings(chosen, []);
         }
       } else if (metaChanged()) {
-        const updated = await api.updateEntry(entry.links.update, metaOf());
-        adopt(updated);
-        showReport(updated.data.rebuild);
-        rebuilt += dependentsIn(updated.data.rebuild);
+        adopt(await api.updateEntry(entry.links.update, metaOf()));
       }
       if (sourceChanged() || codeChanged() || sectionsChanged() || variablesChanged()) {
         const source = view.state.doc.toString();
         const code = hasCode() ? codeView.state.doc.toString() : undefined;
         const sections = sectionTexts();
         const variables = hasVariables() ? readVariables() : undefined;
-        const written = () => {
-          savedSource = source;
-          if (code !== undefined) savedCode = code;
-          Object.assign(savedSections, sections);
-          if (variables !== undefined) savedVariables = variables;
-        };
-        try {
-          const saved = await api.saveText({ method: "PUT", href: api.textUrl(entry.data.id) }, { source, code, ...sections, ...(variables !== undefined ? { variables } : {}) });
-          written();
-          adopt(saved);
-          showReport(saved.data.rebuild);
-          rebuilt += dependentsIn(saved.data.rebuild);
-        } catch (error) {
-          // Written even when it does not compile (the server says so): nothing typed is lost.
-          if (error instanceof api.ApiProblem && error.problem.saved) written();
-          throw error;
-        }
+        const saved = await api.saveText({ method: "PUT", href: api.textUrl(entry.data.id) }, { source, code, ...sections, ...(variables !== undefined ? { variables } : {}) });
+        savedSource = source;
+        if (code !== undefined) savedCode = code;
+        Object.assign(savedSections, sections);
+        if (variables !== undefined) savedVariables = variables;
+        adopt(saved);
       }
-      showCompileError(null);
       saving = false;
-      const s = rebuilt > 1 ? "s" : "";
-      status(`✓ Enregistré à ${savedAt()}${rebuilt ? ` · ${rebuilt} fiche${s} ou entrée${s} liée${s} recompilée${s}` : ""}`, "ok");
+      status(`✓ Enregistré à ${savedAt()}`, "ok");
     } catch (error) {
       saving = false;
-      if (error instanceof api.ApiProblem && error.title === "TYPST_COMPILE_ERROR" && error.problem.saved) {
-        status(`✓ Texte enregistré à ${savedAt()} · ne compile pas : les fiches gardent le dernier texte qui compilait`, "warn");
-        showCompileError(error.problem, "Corrige puis enregistre : les fiches reprendront ce texte.");
-        showReport(error.problem.rebuild);
-        api.getEntry(entry.data.id).then(adopt, () => {});
-        return;
-      }
-      if (error instanceof api.ApiProblem && error.title === "TYPST_COMPILE_ERROR") {
-        // Not saved: only the entry's text can fail to compile before being written.
-        showCompileError(error.problem);
-      } else {
-        explainFailure(error);
-      }
+      explainFailure(error);
       status("⚠ Non enregistré", "error");
     }
   }
@@ -597,7 +522,7 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
 
   const saveKey = { key: "Mod-s", preventDefault: true, run: () => (saveNow(), true) };
   let toggleMath = () => {};
-  // The Typst fields (text, assumptions, limits) share one toolbar: it acts on the one last focused.
+  // The Markdown fields (text, assumptions, limits) share one toolbar: it acts on the one last focused.
   let active = null;
 
   function onFieldUpdate(update) {
@@ -610,15 +535,15 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     }
   }
 
-  const typstField = (parent, doc) =>
+  const markdownField = (parent, doc) =>
     new EditorView({
       parent,
       state: EditorState.create({ doc, extensions: baseExtensions({ keys: [saveKey, ...formattingKeys], onUpdate: onFieldUpdate }) }),
     });
 
-  const view = typstField($("[data-editor]"), savedSource ?? NEW_TEXT);
+  const view = markdownField($("[data-editor]"), savedSource ?? NEW_TEXT);
   active = view;
-  const sectionViews = Object.fromEntries(SECTIONS.map((section) => [section.id, typstField($(`[data-section="${section.id}"]`), savedSections[section.id])]));
+  const sectionViews = Object.fromEntries(SECTIONS.map((section) => [section.id, markdownField($(`[data-section="${section.id}"]`), savedSections[section.id])]));
   for (const field of [view, ...Object.values(sectionViews)]) {
     field.dom.addEventListener("focusin", () => {
       active = field;
@@ -630,20 +555,18 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     parent: $("[data-code]"),
     state: EditorState.create({
       doc: savedCode ?? codeTemplate(initialMeta.type),
-      extensions: baseExtensions({ typst: false, keys: [saveKey], onUpdate: (update) => update.docChanged && markDirty() }),
+      extensions: baseExtensions({ markdown: false, keys: [saveKey], onUpdate: (update) => update.docChanged && markDirty() }),
     }),
   });
 
-  // An entry cites others by title only (#voir from _corpus-titres.typ): no cycle possible.
+  // An entry cites others by their title ([[id]]), as Obsidian does.
   const picker = corpusPicker(() => active, {
-    load: async () => (await api.listCorpus()).data.entries,
-    actions: [
-      {
-        label: "Citer",
-        title: "Le titre de l'entrée, en couleur : #voir(\"id\")",
-        run: (v, other) => (ensureImport(v, "/_corpus-titres.typ", ["voir"]), insert(v, `#voir("${other.id}")`)),
-      },
-    ],
+    load: async () => {
+      const entries = (await api.listCorpus()).data.entries;
+      FRM.mergeCorpusEntries(entries);
+      return entries;
+    },
+    actions: [{ label: "Citer", title: "Le titre de l'entrée, en couleur : [[id]]", run: (v, other) => insert(v, `[[${other.id}]]`) }],
     exclude: () => (entry ? entry.data.id : null),
   });
   const images = imageMenu(() => active);
@@ -670,13 +593,13 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
   /** Confirmation text: what goes, and where references are removed (the server does it). */
   function deletionSummary() {
     const { titre, usedBy, citedBy } = entry.data;
-    const lines = [`Supprimer « ${titre} » pour tout le monde (texte, code, historique) ? C'est définitif (sauf retour par git).`];
+    const lines = [`Supprimer « ${titre} » pour tout le monde (son fichier notes/corpus/${entry.data.id}.md) ? C'est définitif (sauf retour par git).`];
     const places = [
-      ...usedBy.map((use) => targetLabel(`notes/r${use.reading}/fiche`)),
+      ...usedBy.map((use) => targetLabel(`notes/fiches/r${use.reading}`)),
       ...citedBy.map((id) => `Entrée « ${corpus.data.entries.find((e) => e.id === id)?.titre || id} »`),
     ];
     if (places.length) {
-      lines.push("", "Ses références seront retirées (#voir devient le titre en texte simple, #entree disparaît) :", ...places.map((place) => `• ${place}`));
+      lines.push("", "Ses références seront retirées ([[…]] devient le titre en texte simple, ![[…]] disparaît) :", ...places.map((place) => `• ${place}`));
     }
     return lines.join("\n");
   }
@@ -687,12 +610,8 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
     if (!confirm(deletionSummary())) return;
     status("Suppression…");
     try {
-      const result = await api.deleteEntry(entry.data.id);
+      await api.deleteEntry(entry.data.id);
       deleted = true;
-      const failed = result.data.rebuild.failed;
-      if (failed.length) {
-        alert(`Entrée supprimée. Ces textes ont été réécrits mais ne compilent pas (une erreur à eux) :\n${failed.map((f) => `• ${targetLabel(f.target)} : ${f.message}`).join("\n")}`);
-      }
       location.href = "corpus.html";
     } catch (error) {
       status("⚠ Non supprimée", "error");
@@ -714,7 +633,7 @@ ${skipped ? `<strong>Pas recompilées tout de suite</strong> (trop nombreuses) :
 
   refreshMetaDisplay();
   showJournal();
-  status(entry ? (savedSource === null ? "Pas encore de texte : écris-le puis enregistre" : "✓ À jour") : "Nouvelle entrée : titre, type, puis son texte", entry && savedSource !== null ? "ok" : "");
+  status(entry ? (!savedSource ? "Pas encore de texte : écris-le puis enregistre" : "✓ À jour") : "Nouvelle entrée : titre, type, puis son texte", entry && savedSource ? "ok" : "");
   refreshPreview();
   (entry ? view : form.titre).focus();
 }

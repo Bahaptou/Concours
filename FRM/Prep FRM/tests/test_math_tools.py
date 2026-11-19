@@ -18,10 +18,10 @@ def test_sans_bouton_ajoute_la_liste_est_vide(services, site):
 
 
 def test_ajouter_un_bouton_l_ecrit_dans_le_projet(services, site):
-    outil = services.math_tools.add("Cov", 'op("Cov")(X, Y)', "X, Y")
-    assert (outil.label, outil.typst, outil.select) == ("Cov", 'op("Cov")(X, Y)', "X, Y")
+    outil = services.math_tools.add("Cov", '\\operatorname{Cov}(X, Y)', "X, Y")
+    assert (outil.label, outil.latex, outil.select) == ("Cov", '\\operatorname{Cov}(X, Y)', "X, Y")
     fichier = json.loads((site / "notes" / "_outils-maths.json").read_text(encoding="utf-8"))
-    assert fichier == {"tools": [{"id": outil.id, "label": "Cov", "typst": 'op("Cov")(X, Y)', "select": "X, Y"}]}
+    assert fichier == {"tools": [{"id": outil.id, "label": "Cov", "latex": '\\operatorname{Cov}(X, Y)', "select": "X, Y"}]}
 
 
 def test_les_boutons_gardent_leur_ordre_d_ajout_et_un_identifiant_unique(services):
@@ -35,16 +35,16 @@ def test_une_partie_a_selectionner_vide_vaut_aucune(services):
     assert services.math_tools.add("Cov", 'op("Cov")', "  ").select is None
 
 
-@pytest.mark.parametrize("label, typst, select, champ", [
+@pytest.mark.parametrize("label, latex, select, champ", [
     ("", "x", None, "label"),                      # libellé vide
     ("x" * 17, "x", None, "label"),                # libellé trop long pour un bouton
-    ("Cov", " ", None, "typst"),                   # rien à insérer
-    ("Cov", "x" * 201, None, "typst"),             # trop long
-    ("Cov", 'op("Cov")(X, Y)', "Z", "select"),     # la partie à sélectionner doit exister
+    ("Cov", " ", None, "latex"),                   # rien à insérer
+    ("Cov", "x" * 201, None, "latex"),             # trop long
+    ("Cov", '\\operatorname{Cov}(X, Y)', "Z", "select"),     # la partie à sélectionner doit exister
 ])
-def test_un_bouton_mal_forme_est_refuse(services, label, typst, select, champ):
+def test_un_bouton_mal_forme_est_refuse(services, label, latex, select, champ):
     with pytest.raises(InvalidRequestError) as raised:
-        services.math_tools.add(label, typst, select)
+        services.math_tools.add(label, latex, select)
     assert raised.value.field == champ
     assert services.math_tools.list() == []
 
@@ -61,11 +61,11 @@ def test_retirer_un_bouton(services):
 def test_le_parcours_par_l_api(api):
     status, _, body = api("GET", "/api/math-tools")
     assert (status, body["data"]["tools"]) == (200, [])
-    status, _, body = api("POST", "/api/math-tools", {"label": "Cov", "typst": 'op("Cov")(X, Y)', "select": "X, Y"})
+    status, _, body = api("POST", "/api/math-tools", {"label": "Cov", "latex": '\\operatorname{Cov}(X, Y)', "select": "X, Y"})
     assert status == 201
     [outil] = body["data"]["tools"]
     assert outil["label"] == "Cov"
-    status, _, body = api("POST", "/api/math-tools", {"label": "Cov", "typst": "x", "select": "y"})
+    status, _, body = api("POST", "/api/math-tools", {"label": "Cov", "latex": "x", "select": "y"})
     assert (status, body["field"]) == (422, "select")
     status, _, body = api("DELETE", f"/api/math-tools/{outil['id']}", {})
     assert (status, body["data"]["tools"]) == (200, [])

@@ -6,26 +6,27 @@ It listens on 127.0.0.1 only and opens the browser on the home page (``--no-brow
 API, under ``/api`` (responses ``{"data", "links"}``, errors as RFC 9457 problem details):
     GET  /api                            root, links to the other resources
     GET  /api/health                     server status
-    POST /api/compile                    {"source"}: live preview, SVG pages, nothing written
-    GET  /api/notes/<reading>            the reading's shared note: source, compiled files, journal
-    PUT  /api/notes/<reading>            {"source", who}: saves, then writes SVG pages and PDF if it compiles
-    GET  /api/corpus                     corpus entries (formulas, definitions, properties, theorems, simulations)
-    POST /api/corpus                     {"id", "type", "titre", who}: creates an entry
-    GET  /api/corpus/<id>                an entry, its journal, who cites it
-    PUT  /api/corpus/<id>                {"type", "titre", who}: updates it, recompiles dependents
-    DELETE /api/corpus/<id>              {who}: deletes it and removes its references from notes and entries
+    GET  /api/notes/<reading>            the reading's shared note (Markdown): source, git history
+    PUT  /api/notes/<reading>            {"source"}: saves it
+    GET  /api/corpus                     corpus entries (formulas, definitions, properties, theorems, products, simulations, bricks)
+    POST /api/corpus                     {"id", "type", "titre"}: creates an entry
+    GET  /api/corpus/<id>                an entry, its git history, who cites it
+    PUT  /api/corpus/<id>                {"type", "titre"}: updates it
+    DELETE /api/corpus/<id>              deletes it and removes its references from notes and entries
     PUT|DELETE /api/corpus/<id>/questions/<q>  {"reading"} / {}: links or unlinks an AnalystPrep question
     PUT|DELETE /api/corpus/<id>/readings/<n>  {} : attaches or detaches a reading by hand
     POST /api/corpus/readings            {"entries": [id…], "add": [n…], "remove": [n…]}: same, for many entries
-    GET  /api/corpus/<id>/texte          the entry's shared text (and Python code, assumptions, limits)
-    PUT  /api/corpus/<id>/texte          {"source", "code"?, "hypotheses"?, "limites"?, "variables"? ([{"nom", "note"}]), who}: saves it
-    POST /api/compile/entry              {"type", "titre", "source", "hypotheses"?, "limites"?, "variables"?}: preview of an entry
+    GET  /api/corpus/<id>/texte          the entry's text (and Python code, assumptions, limits, variables)
+    PUT  /api/corpus/<id>/texte          {"source", "code"?, "hypotheses"?, "limites"?, "variables"? ([{"nom", "note"}])}: saves it
     POST /api/run                        {"code", "timeout"}: runs simulation or brick code
-"who" is the profile of the person writing, for the journal: "author" (slug), "name", "initials".
     GET  /api/images                     shared images (notes/images/)
     POST /api/images                     {"name", "format", "data" (base64)}: adds an image, never replaces one
-    GET|POST /api/math-tools             math buttons added from the editors ({"label", "typst", "select"?})
+    GET|POST /api/math-tools             math buttons added from the editors ({"label", "latex", "select"?})
     DELETE /api/math-tools/<id>          removes one of them
+
+notes/ is an Obsidian vault: notes and entries are Markdown files that Obsidian may change at any
+time. The manifests notes/index.js and notes/corpus/index.js are rewritten whenever a page loads
+them through this server, so that pages always show the files as they are.
 """
 from __future__ import annotations
 
@@ -38,10 +39,10 @@ import webbrowser
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-from backend.compiler import TypstCompiler
 from backend.corpus import CorpusService
 from backend.http.handler import make_handler
 from backend.http.routes import Services
+from backend.history import HistoryService
 from backend.images import ImagesService
 from backend.math_tools import MathToolsService
 from backend.notes import NotesService
@@ -54,16 +55,16 @@ PORTS = range(8765, 8776)
 
 
 def build_services(static_root: Path, notes_root: Path) -> Services:
-    compiler = TypstCompiler(notes_root)
-    notes = NotesService(notes_root, compiler)
-    corpus = CorpusService(notes_root, compiler, notes)
+    history = HistoryService(notes_root)
+    notes = NotesService(notes_root, history)
+    corpus = CorpusService(notes_root, notes, history)
     # Entries' readings come from the notes' citations: the corpus files follow every note save.
     notes.on_saved = corpus.regenerate
     simulations = SimulationRunner(corpus)
     images = ImagesService(notes_root)
     math_tools = MathToolsService(notes_root)
     return Services(
-        notes=notes, compiler=compiler, corpus=corpus, simulations=simulations, images=images, math_tools=math_tools, static_root=static_root
+        notes=notes, history=history, corpus=corpus, simulations=simulations, images=images, math_tools=math_tools, static_root=static_root
     )
 
 
@@ -94,7 +95,7 @@ def main() -> None:
             webbrowser.open(already)
         return
     services = build_services(ROOT, NOTES)
-    services.corpus.regenerate()  # _corpus-titres.typ and _corpus.typ must exist before any note compiles
+    services.corpus.regenerate()
     services.notes.write_manifest()
     port = free_port()
     if port != PORTS.start:

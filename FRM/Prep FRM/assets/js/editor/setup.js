@@ -1,11 +1,11 @@
 // CodeMirror setup shared by the editors (notes and corpus entries): editing extensions,
-// highlight of the line holding a compile error, and the error box above the preview.
+// Markdown colouring, and the error box above the preview (errors of the server).
 import {
   EditorView, StateEffect, StateField, Decoration, keymap, lineNumbers, highlightActiveLine,
   highlightActiveLineGutter, drawSelection, history, historyKeymap, defaultKeymap, indentWithTab,
   bracketMatching, closeBrackets, closeBracketsKeymap, searchKeymap, highlightSelectionMatches,
 } from "../../vendor/codemirror/codemirror.js";
-import { typstLanguage, typstHighlight } from "./typst-language.js";
+import { markdownSupport, markdownHighlight } from "./markdown-language.js";
 
 const { esc } = window.FRM.ui;
 
@@ -33,9 +33,9 @@ const errorLine = StateField.define({
 
 /**
  * Editing extensions. `keys` come before the default keymaps so that they win (Ctrl+S…);
- * `typst: false` for the Python code of a simulation (no Typst colouring, no line wrapping).
+ * `markdown: false` for the Python code of a simulation (no Markdown colouring, no line wrapping).
  */
-export function baseExtensions({ keys = [], onUpdate = null, typst = true } = {}) {
+export function baseExtensions({ keys = [], onUpdate = null, markdown = true } = {}) {
   return [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -45,7 +45,7 @@ export function baseExtensions({ keys = [], onUpdate = null, typst = true } = {}
     bracketMatching(),
     closeBrackets(),
     highlightSelectionMatches(),
-    ...(typst ? [typstLanguage, typstHighlight, errorLine, EditorView.lineWrapping] : []),
+    ...(markdown ? [markdownSupport, markdownHighlight, errorLine, EditorView.lineWrapping] : []),
     keymap.of([...keys, ...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
     ...(onUpdate ? [EditorView.updateListener.of(onUpdate)] : []),
   ];
@@ -68,8 +68,8 @@ export function showProblem(box, view, problem, note = "L'aperçu garde la derni
   const where = place ? `${place} · ` : "";
   const hints = (problem.hints || []).map((hint) => `<li>${esc(hint)}</li>`).join("");
   box.innerHTML = `
-<strong>${where}${esc(problem.explanation || "Erreur de compilation")}</strong>
-<div class="small">Message du compilateur : <code>${esc(problem.detail)}</code></div>
+<strong>${where}${esc(problem.explanation || problem.detail || "Erreur")}</strong>
+${problem.explanation ? `<div class="small"><code>${esc(problem.detail)}</code></div>` : ""}
 ${hints ? `<ul class="small">${hints}</ul>` : ""}
 ${note ? `<div class="small muted">${esc(note)}</div>` : ""}`;
   box.hidden = false;

@@ -46,7 +46,7 @@
 
   // ------------------------------------------------------------------ things to watch
 
-  /** Links between entries, both ways: citations (#voir) and code imports (bricks). Built on the
+  /** Links between entries, both ways: citations ([[id]]) and code imports (bricks). Built on the
    *  whole corpus, so that a page filter never makes an entry look isolated. */
   function linkGraph() {
     const all = FRM.corpusEntries();
@@ -109,7 +109,6 @@
     return `<ul class="watch-list">
   ${item(isolated.length, "Isolées : liées à aucune autre entrée (ni citation ni import)", `${names(isolated)}${isolatedNoReading.length ? `<div class="muted">dont ${isolatedNoReading.length} sans reading non plus : ${names(isolatedNoReading, 6)}</div>` : ""}`)}
   ${item(floatingCount, `Non rattachées : ${floating.length > 1 ? `${floating.length} groupes` : "un groupe"} d'entrées liées entre elles dont aucune n'appartient à un reading (ni saisi, ni fiche, ni question liée)`, `<ul class="watch-groups">${groupLines}</ul>${moreGroups}<div class="muted">Rattacher une seule entrée d'un groupe à un reading, la citer dans une fiche ou la lier à une question, rattache tout le groupe.</div>`)}
-  ${item(entries.filter((e) => e.hasText && !e.valid).length, "Ne compile pas : les fiches gardent le dernier texte qui compilait", names(entries.filter((e) => e.hasText && !e.valid)))}
   ${item(entries.filter((e) => !e.hasText).length, "Pas encore de texte", names(entries.filter((e) => !e.hasText)))}
 </ul>`;
   }
@@ -424,7 +423,7 @@ ${tiles(entries)}
   <section><h3>Code le plus complexe</h3><p class="small muted">Simulations et briques, par nombre de briques utilisées, directement ou à travers d'autres briques.</p>${complexCode(entries)}</section>
 </div>
 <details class="q-table-toggle"><summary>Voir en tableau (${entries.length})</summary><p class="small muted">Clique sur un en-tête pour trier.</p>${tableView(entries)}</details>
-<p class="src">Calculé sur les entrées affichées par les filtres. Readings : ceux des fiches (<code>#voir</code>, <code>#entree</code>) et des questions liées depuis la page Questions.</p>`;
+<p class="src">Calculé sur les entrées affichées par les filtres. Readings : ceux des fiches (<code>[[…]]</code>, <code>![[…]]</code>) et des questions liées depuis la page Questions.</p>`;
     mostUsedLimit = MIN_MOST_USED;
     container.querySelector("[data-most-used]").innerHTML = `${mostUsedLegend()}${mostUsedBars(entries)}`;
     fitMostUsed(container);

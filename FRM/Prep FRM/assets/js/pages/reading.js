@@ -1,5 +1,5 @@
 /* Page d'un reading (reading.html?id=N) : références aux PDFs, étapes, learning
- * objectives, puis nos contenus : simulations, fiches Typst et entrées du corpus
+ * objectives, puis nos contenus : simulations, fiches (Markdown) et entrées du corpus
  * rattachées au reading. */
 (function (FRM, ui) {
   "use strict";
@@ -174,7 +174,7 @@ ${pager()}`,
   renderQuestions();
   document.addEventListener("frm:change", renderQuestions); // chargement d'une sauvegarde, autre onglet
 
-  // ------------------------------------------------------------------ our notes (Typst, step 4)
+  // ------------------------------------------------------------------ our notes (Markdown, step 4)
 
   const withServer = location.protocol.startsWith("http");
 
@@ -191,23 +191,24 @@ ${pager()}`,
       container.innerHTML = `<div class="placeholder">Pas encore de fiche pour ce reading : elle est commune, la première personne qui l'écrit la crée.</div><div class="save-actions">${editButton(false)}</div>`;
       return;
     }
-    const base = `notes/r${reading.id}/fiche`;
-    const version = `?v=${note.updatedAt}`; // the browser must not show a cached older rendering
-    const pages = Array.from({ length: note.pages }, (_, i) => `<img class="note-page" src="${base}-${i + 1}.svg${version}" alt="Fiche ${esc(reading.tag)}, page ${i + 1}">`);
     container.innerHTML = `
-${pages.length ? `<div class="note-pages">${pages.join("")}</div>` : `<div class="placeholder">La fiche ne compile pas encore : ouvre-la dans l'éditeur pour voir l'erreur.</div>`}
+<div class="note-md md">${FRM.renderMarkdown(note.source || "")}</div>
 <div class="save-actions">
-  ${note.pdf ? `<a class="btn ghost" href="${base}.pdf${version}" target="_blank" rel="noopener">PDF</a>` : ""}
   ${editButton(true)}
-  <span class="small muted">${ui.journalLine(note.journal) || `Mise à jour : ${ui.dateTime(note.updatedAt)}`}</span>
+  <span class="small muted">${ui.historyLine(note)}</span>
 </div>`;
   }
 
-  ui.loadScript("notes/index.js")
-    .catch(() => {
+  // The note's [[links]] show the entries' titles: the corpus manifest must be there first.
+  const corpusLoaded = ui.loadScript("notes/corpus/index.js").catch(() => {
+    /* no corpus yet: the server writes the manifest when it starts */
+  });
+  Promise.all([
+    ui.loadScript("notes/index.js").catch(() => {
       /* no notes yet: the manifest appears with the first saved note */
-    })
-    .then(() => {
+    }),
+    corpusLoaded,
+  ]).then(() => {
       renderNotes();
       // The page is built by script: the browser cannot jump to #notes-card by itself.
       if (location.hash === "#notes-card") document.getElementById("notes-card").scrollIntoView();
@@ -359,12 +360,8 @@ ${FRM.runner.slot(entry)}`
     FRM.runner.mountSlots(container);
   }
 
-  ui.loadScript("notes/corpus/index.js")
-    .catch(() => {
-      /* no corpus yet: the server writes the manifest when it starts */
-    })
-    .then(() => {
-      renderCorpus();
-      renderSimulations();
-    });
+  corpusLoaded.then(() => {
+    renderCorpus();
+    renderSimulations();
+  });
 })(window.FRM, window.FRM.ui);

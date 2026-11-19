@@ -1,12 +1,12 @@
 """Shared images for notes and corpus entries: one common folder, ``notes/images/``.
 
-Under the Typst root, so that ``#image("/images/courbe-des-taux.png")`` works from a note, from
-an entry, and from a note inserting that entry. Typst embeds the image in the SVG and PDF it
-produces: pages opened without the server show it too.
+Inside the Obsidian vault: a note or an entry shows one with ``![[courbe-des-taux.png|500]]``
+(the file name, unique in the vault, and an optional width in pixels). Obsidian finds it by name,
+the site by ``notes/images/<name>``.
 
 An image is never replaced: a name is taken once, whatever the format, so that a note always
-shows the image it was written with (its SVG would not change anyway until recompiled). The
-browser compresses images before sending them; the server only checks what it receives.
+shows the image it was written with. The browser compresses images before sending them; the
+server only checks what it receives.
 """
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ def _is_svg(data: bytes) -> bool:
     return head.startswith(b"<svg") or (head.startswith(b"<?xml") and b"<svg" in head)
 
 
-# Formats Typst reads (checked with typst 0.15), recognised by their first bytes, not by the
-# extension announced by the client.
+# Formats browsers and Obsidian show, recognised by their first bytes, not by the extension
+# announced by the client.
 FORMATS = {
     "png": lambda data: data.startswith(b"\x89PNG\r\n\x1a\n"),
     "jpg": lambda data: data.startswith(b"\xff\xd8\xff"),
@@ -47,9 +47,9 @@ class Image:
     updated_at: int  # ms since the epoch
 
     @property
-    def typst_path(self) -> str:
-        """Path to write in a note or an entry: from the Typst root (notes/)."""
-        return f"/images/{self.path.name}"
+    def link(self) -> str:
+        """What to write in a note or an entry: ``![[<link>]]``."""
+        return self.path.name
 
 
 class ImagesService:
@@ -85,7 +85,7 @@ class ImagesService:
         with self._writes:
             existing = self._find(name)
             if existing:
-                raise ImageExistsError(name, self._image(existing).typst_path)
+                raise ImageExistsError(name, self._image(existing).link)
             path = self.folder / f"{name}.{image_format}"
             try:
                 write_atomic(path, data)

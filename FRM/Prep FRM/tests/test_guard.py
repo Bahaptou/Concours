@@ -44,8 +44,8 @@ def raw(services):
 def test_le_site_lui_meme_passe(raw):
     # Ce qu'envoie le navigateur depuis http://127.0.0.1:<port> : même hôte, même origine, JSON.
     call, port = raw
-    status, body = call("POST", "/api/compile", {"Host": f"127.0.0.1:{port}", "Origin": f"http://127.0.0.1:{port}",
-                                                 "Content-Type": "application/json"}, {"source": "= Titre"})
+    status, body = call("PUT", "/api/notes/1", {"Host": f"127.0.0.1:{port}", "Origin": f"http://127.0.0.1:{port}",
+                                                 "Content-Type": "application/json"}, {"source": "## Titre"})
     assert status == 200
     # localhost désigne la même machine : accepté aussi.
     status, _ = call("GET", "/api/health", {"Host": f"localhost:{port}"})
@@ -55,8 +55,8 @@ def test_le_site_lui_meme_passe(raw):
 def test_une_page_d_un_autre_site_est_refusee(raw):
     # Une page ouverte sur un autre site envoie son origine : refus avant toute action.
     call, port = raw
-    status, body = call("POST", "/api/compile", {"Host": f"127.0.0.1:{port}", "Origin": "https://exemple.com",
-                                                 "Content-Type": "application/json"}, {"source": "= Titre"})
+    status, body = call("PUT", "/api/notes/1", {"Host": f"127.0.0.1:{port}", "Origin": "https://exemple.com",
+                                                 "Content-Type": "application/json"}, {"source": "## Titre"})
     assert (status, body["title"]) == (403, "FORBIDDEN_REQUEST")
     # Une page ouverte en double-clic (file://) envoie l'origine « null » : refusée aussi.
     status, _ = call("GET", "/api/health", {"Host": f"127.0.0.1:{port}", "Origin": "null"})

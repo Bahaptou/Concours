@@ -1,0 +1,9 @@
+{
+  "alwaysUpdateLinks": true,
+  "newLinkFormat": "shortest",
+  "useMarkdownLinks": false,
+  "attachmentFolderPath": "images",
+  "newFileLocation": "folder",
+  "newFileFolderPath": "corpus",
+  "showFrontmatter": true
+}

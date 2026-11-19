@@ -8,11 +8,11 @@ from http import HTTPStatus
 
 from backend.errors import (
     AppError,
+    EntryExistsError,
     InvalidRequestError,
     PayloadTooLargeError,
     RouteNotFoundError,
     StorageError,
-    TypstCompileError,
 )
 from backend.http.problem import ErrorTitle, build_problem_details, find_mapping
 
@@ -37,7 +37,7 @@ def test_une_sous_classe_absente_de_la_table_herite_de_son_parent():
 def test_une_exception_inattendue_donne_un_500_generique_sans_fuite():
     # Une erreur qui n'est pas une AppError (bug, KeyError…) : on renvoie un message neutre,
     # jamais le texte interne de l'exception.
-    problem = build_problem_details(KeyError("secret interne"), "/api/compile")
+    problem = build_problem_details(KeyError("secret interne"), "/api/corpus")
     assert problem.status == 500
     assert problem.title == ErrorTitle.INTERNAL_SERVER_ERROR
     assert "secret" not in problem.detail
@@ -53,21 +53,17 @@ def test_une_app_error_sans_correspondance_donne_aussi_un_500():
 
 def test_l_erreur_de_stockage_ne_montre_pas_le_chemin_disque():
     # StorageError a un détail fixe dans la table : le chemin et la raison restent dans les journaux.
-    problem = build_problem_details(StorageError("C:/secret/fiche.typ", "disque plein"), "/api/notes/1/a")
+    problem = build_problem_details(StorageError("C:/secret/r1.md", "disque plein"), "/api/notes/1/a")
     assert problem.status == 500
     assert "C:/secret" not in problem.detail
 
 
-def test_l_erreur_typst_porte_ses_champs_d_extension():
-    # L'éditeur a besoin de la ligne, des indices et de l'explication pour son bandeau d'erreur.
-    error = TypstCompileError("unknown variable: sigmaa", ["essaie s i g m a a"], "Nom inconnu.", line=4, saved=True)
-    problem = build_problem_details(error, "/api/compile").to_dict()
-    assert problem["status"] == 422
-    assert problem["title"] == ErrorTitle.TYPST_COMPILE_ERROR
-    assert problem["detail"] == "unknown variable: sigmaa"
-    assert problem["line"] == 4
-    assert problem["hints"] == ["essaie s i g m a a"]
-    assert problem["saved"] is True
+def test_un_conflit_d_entree_porte_ses_champs_d_extension():
+    # L'éditeur d'entrée a besoin de l'identifiant pris et de son type pour proposer un lien.
+    problem = build_problem_details(EntryExistsError("bayes", "formule"), "/api/corpus").to_dict()
+    assert problem["status"] == 409
+    assert problem["title"] == ErrorTitle.ENTRY_CONFLICT
+    assert (problem["entryId"], problem["existingType"]) == ("bayes", "formule")
     # Les membres standard de la RFC sont toujours présents.
     assert {"type", "status", "title", "detail", "instance"} <= problem.keys()
 
@@ -87,7 +83,7 @@ def test_aucune_extension_n_utilise_un_nom_reserve_par_la_rfc():
         InvalidRequestError("x", "y"),
         PayloadTooLargeError(2, 1),
         RouteNotFoundError("GET", "/api/x"),
-        TypstCompileError("m", [], None, None),
+        EntryExistsError("bayes", "formule"),
         StorageError("p", "r"),
     ]
     for erreur in exemples:

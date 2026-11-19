@@ -1,12 +1,12 @@
 // Client for the notes and corpus API (see server.py). Successes come as {data, links};
-// errors as RFC 9457 problem details, raised here as ApiProblem. Notes and entries are shared:
-// every write carries the current profile, for their journal (who changed what, when).
+// errors as RFC 9457 problem details, raised here as ApiProblem. Notes and entries are shared;
+// who changed what is read from git (backend/history.py), not sent by the site.
 
 export class ApiProblem extends Error {
   constructor(problem) {
     super(problem.detail || problem.title);
     this.problem = problem;
-    this.title = problem.title; // stable error code, e.g. TYPST_COMPILE_ERROR
+    this.title = problem.title; // stable error code, e.g. ENTRY_CONFLICT
   }
 }
 
@@ -30,9 +30,6 @@ async function request(method, url, body) {
   return payload;
 }
 
-/** A write's body, with who writes: { author, name, initials } of the current profile. */
-const signed = (body) => ({ ...body, ...window.FRM.store.profile.contributor() });
-
 // The only URLs built by the client; the others come from the resources' links.
 export const noteUrl = (reading) => `/api/notes/${reading}`;
 export const CORPUS_URL = "/api/corpus";
@@ -41,38 +38,33 @@ export const textUrl = (id) => `${entryUrl(id)}/texte`;
 export const IMAGES_URL = "/api/images";
 
 export const getNote = (reading) => request("GET", noteUrl(reading));
-export const compile = (link, source) => request(link.method, link.href, { source });
-export const save = (link, source) => request(link.method, link.href, signed({ source }));
+export const save = (link, source) => request(link.method, link.href, { source });
 
 // Corpus. Bodies follow backend/http/payload.py.
 export const listCorpus = () => request("GET", CORPUS_URL);
 export const getEntry = (id) => request("GET", entryUrl(id));
 export const getText = (id) => request("GET", textUrl(id));
 /** meta: { id, type, titre }; link: the corpus' "create" link. */
-export const createEntry = (link, meta) => request(link.method, link.href, signed(meta));
+export const createEntry = (link, meta) => request(link.method, link.href, meta);
 /** meta: { type, titre } */
-export const updateEntry = (link, meta) => request(link.method, link.href, signed(meta));
-/** Deletes an entry and removes its references from notes and entries (changes by the current
- *  profile, in their journals). */
-export const deleteEntry = (id) => request("DELETE", entryUrl(id), signed({}));
+export const updateEntry = (link, meta) => request(link.method, link.href, meta);
+/** Deletes an entry and removes its references from notes and entries. */
+export const deleteEntry = (id) => request("DELETE", entryUrl(id), {});
 /** Links an AnalystPrep question to an entry, or removes the link (both idempotent). */
 export const questionLinkUrl = (id, question) => `${entryUrl(id)}/questions/${encodeURIComponent(question)}`;
 export const linkQuestion = (id, question, reading) => request("PUT", questionLinkUrl(id, question), { reading });
 export const unlinkQuestion = (id, question) => request("DELETE", questionLinkUrl(id, question), {});
 /** Attaches (`add`) and detaches (`remove`) readings by hand on one or many entries, in one
- *  request (not signed: like the question links, not a change of the text). The answer lists the
- *  changed entries, in `data.entries`. */
+ *  request. The answer lists the changed entries, in `data.entries`. */
 export const changeReadings = (ids, add, remove) => request("POST", `${CORPUS_URL}/readings`, { entries: ids, add, remove });
 /** text: { source, code?, hypotheses?, limites?, variables? } (hypotheses, limites: formulas;
- *  variables: financial products, [{ nom, valeur, unite, note }]) */
-export const saveText = (link, text) => request(link.method, link.href, signed(text));
-/** draft: { type, titre, source, hypotheses?, limites?, variables? } */
-export const previewEntry = (link, draft) => request(link.method, link.href, draft);
+ *  variables: financial products, [{ nom, note }]) */
+export const saveText = (link, text) => request(link.method, link.href, text);
 
 // Math buttons added from the editors (notes/_outils-maths.json), shared by everyone.
 export const MATH_TOOLS_URL = "/api/math-tools";
 export const listMathTools = () => request("GET", MATH_TOOLS_URL);
-/** tool: { label, typst, select? } */
+/** tool: { label, latex, select? } */
 export const addMathTool = (tool) => request("POST", MATH_TOOLS_URL, tool);
 export const deleteMathTool = (id) => request("DELETE", `${MATH_TOOLS_URL}/${encodeURIComponent(id)}`, {});
 
@@ -87,6 +79,6 @@ export function saveOnExit(link, source) {
     method: link.method,
     keepalive: true,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(signed({ source })),
+    body: JSON.stringify({ source }),
   }).catch(() => {});
 }

@@ -11,17 +11,13 @@ import pytest
 
 from backend.corpus import EntryMeta
 from backend.errors import InvalidRequestError
-from backend.journal import Contributor
-
-BAPTISTE = Contributor("baptiste", "Baptiste Durand", "BD")
-MARIE = Contributor("marie", "Marie Martin", "MM")
 
 
-def brique(corpus, entry_id, code, who=BAPTISTE, create=True):
-    """Raccourci : crée la brique (si besoin) et enregistre son code commun, écrit par `who`."""
+def brique(corpus, entry_id, code, create=True):
+    """Raccourci : crée la brique (si besoin) et enregistre son code commun (section ## Code)."""
     if create:
-        corpus.create(entry_id, EntryMeta("brique", entry_id), BAPTISTE)
-    corpus.save_text(entry_id, who, "Une brique.", code)
+        corpus.create(entry_id, EntryMeta("brique", entry_id))
+    corpus.save_text(entry_id, "Une brique.", code)
 
 
 # ---------------------------------------------------------------- ce que l'utilisateur voit
@@ -83,7 +79,7 @@ def test_une_brique_a_un_seul_code_commun(services):
     # prennent le sien, quel que soit leur auteur.
     corpus = services.corpus
     brique(corpus, "valeur", "VALEUR = 'baptiste'\n")
-    brique(corpus, "valeur", "VALEUR = 'marie'\n", who=MARIE, create=False)
+    brique(corpus, "valeur", "VALEUR = 'marie'\n", create=False)
     result = services.simulations.run("from briques.valeur import VALEUR\nprint(VALEUR)")
     assert result.stdout.strip() == "marie"
 
@@ -101,15 +97,15 @@ def test_seules_les_briques_importees_sont_rapportees_meme_indirectement(service
 def test_l_identifiant_d_une_brique_commence_par_une_lettre(services):
     # « 2-actifs » donnerait le module briques.2_actifs, qu'aucun import Python n'accepte.
     with pytest.raises(InvalidRequestError) as raised:
-        services.corpus.create("2-actifs", EntryMeta("brique", "Deux actifs"), BAPTISTE)
+        services.corpus.create("2-actifs", EntryMeta("brique", "Deux actifs"))
     assert raised.value.field == "id"
 
 
 def test_les_imports_de_briques_sont_releves_dans_le_corpus(services, site):
     corpus = services.corpus
     brique(corpus, "donnees-aleatoires", "def f():\n    return 1\n")
-    corpus.create("var-historique", EntryMeta("simulation", "VaR historique"), BAPTISTE)
-    corpus.save_text("var-historique", BAPTISTE, "Texte.", "from briques.donnees_aleatoires import f\n")
+    corpus.create("var-historique", EntryMeta("simulation", "VaR historique"))
+    corpus.save_text("var-historique", "Texte.", "from briques.donnees_aleatoires import f\n")
     assert corpus.get("var-historique").imports == ("donnees-aleatoires",)
     assert corpus.importers("donnees-aleatoires") == ["var-historique"]
     manifest = (site / "notes" / "corpus" / "index.js").read_text(encoding="utf-8")

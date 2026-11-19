@@ -10,36 +10,25 @@ from dataclasses import dataclass
 
 from backend.corpus import ENTRY_TYPES, EntryMeta
 from backend.errors import InvalidRequestError, PayloadTooLargeError
-from backend.journal import Contributor
 from backend.notes import NoteTarget
 from backend.simulations import MAX_TIMEOUT
 
 READINGS = range(1, 63)
-AUTHOR = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 ENTRY_ID = re.compile(r"^[a-z0-9][a-z0-9-]{1,49}$")
-INITIALS = re.compile(r"^[A-ZÀ-ÖØ-Þ]{1,4}$")
 TITLE_MAX = 120
-NAME_MAX = 80
 MAX_BODY = 6_000_000  # an image of 4 MB (backend/images.py) weighs about 5.4 MB in base64
 CODE_MAX = 200_000
 MIN_TIMEOUT = 1
 
 
 @dataclass(frozen=True)
-class SourcePayload:
-    source: str
-
-
-@dataclass(frozen=True)
 class NotePayload:
     source: str
-    who: Contributor
 
 
 @dataclass(frozen=True)
 class TextPayload:
     source: str
-    who: Contributor
     code: str | None
     hypotheses: str | None  # None: not sent, left as is; blank: the block is removed
     limites: str | None
@@ -55,7 +44,7 @@ class RunPayload:
 @dataclass(frozen=True)
 class MathToolPayload:
     label: str
-    typst: str
+    latex: str
     select: str | None
 
 
@@ -66,16 +55,6 @@ class ImagePayload:
     data: bytes  # decoded; name, format and content are checked by backend/images.py
 
 
-@dataclass(frozen=True)
-class EntryPreviewPayload:
-    type: str
-    titre: str
-    source: str
-    hypotheses: str | None
-    limites: str | None
-    variables: list[dict] | None = None
-
-
 # ---------------------------------------------------------------- path parameters
 
 
@@ -83,12 +62,6 @@ def parse_reading(value: str) -> int:
     if not value.isdigit() or int(value) not in READINGS:
         raise InvalidRequestError("reading", f"entier entre {READINGS.start} et {READINGS.stop - 1} attendu")
     return int(value)
-
-
-def parse_author(value: str) -> str:
-    if not AUTHOR.match(value):
-        raise InvalidRequestError("author", "minuscules, chiffres et tirets uniquement (40 caractères au plus)")
-    return value
 
 
 def parse_note_target(reading: str) -> NoteTarget:
@@ -180,10 +153,6 @@ def _text(data: dict, name: str, *, max_length: int | None = None, required: boo
     return value
 
 
-def parse_source_payload(body: bytes) -> SourcePayload:
-    return SourcePayload(_text(_json_object(body), "source"))
-
-
 def _entry_type(data: dict) -> str:
     value = data.get("type")
     if value not in ENTRY_TYPES:
@@ -191,46 +160,21 @@ def _entry_type(data: dict) -> str:
     return value
 
 
-def _initials(data: dict) -> str:
-    value = (_text(data, "initials") or "").strip().upper()
-    if not INITIALS.match(value):
-        raise InvalidRequestError("initials", "1 à 4 lettres (ex. « BD »)")
-    return value
-
-
-def _contributor(data: dict) -> Contributor:
-    """Who makes the change (the profile of the person at the keyboard), for the journal:
-    "author" (slug), "name", "initials"."""
-    return Contributor(
-        author=parse_author(str(data.get("author", ""))),
-        name=_text(data, "name", max_length=NAME_MAX).strip(),
-        initials=_initials(data),
-    )
-
-
 def _meta(data: dict) -> EntryMeta:
-    # No readings: they come from the notes using the entry (see backend/corpus.py).
     return EntryMeta(_entry_type(data), _text(data, "titre", max_length=TITLE_MAX).strip())
 
 
 def parse_note_payload(body: bytes) -> NotePayload:
+    return NotePayload(_text(_json_object(body), "source"))
+
+
+def parse_new_entry(body: bytes) -> tuple[str, EntryMeta]:
     data = _json_object(body)
-    return NotePayload(_text(data, "source"), _contributor(data))
+    return parse_entry_id(str(data.get("id", ""))), _meta(data)
 
 
-def parse_new_entry(body: bytes) -> tuple[str, EntryMeta, Contributor]:
-    data = _json_object(body)
-    return parse_entry_id(str(data.get("id", ""))), _meta(data), _contributor(data)
-
-
-def parse_meta_payload(body: bytes) -> tuple[EntryMeta, Contributor]:
-    data = _json_object(body)
-    return _meta(data), _contributor(data)
-
-
-def parse_contributor(body: bytes) -> Contributor:
-    """A body carrying only who acts (deleting an entry rewrites the notes citing it)."""
-    return _contributor(_json_object(body))
+def parse_meta_payload(body: bytes) -> EntryMeta:
+    return _meta(_json_object(body))
 
 
 def _variables(data: dict) -> list[dict] | None:
@@ -263,7 +207,6 @@ def parse_text_payload(body: bytes) -> TextPayload:
     data = _json_object(body)
     return TextPayload(
         source=_text(data, "source"),
-        who=_contributor(data),
         code=_text(data, "code", required=False),
         hypotheses=_text(data, "hypotheses", required=False),
         limites=_text(data, "limites", required=False),
@@ -294,18 +237,6 @@ def parse_image_payload(body: bytes) -> ImagePayload:
 
 
 def parse_math_tool(body: bytes) -> MathToolPayload:
-    """{"label", "typst", "select"?}: lengths and select checked by backend/math_tools.py."""
+    """{"label", "latex", "select"?}: lengths and select checked by backend/math_tools.py."""
     data = _json_object(body)
-    return MathToolPayload(_text(data, "label"), _text(data, "typst"), _text(data, "select", required=False))
-
-
-def parse_entry_preview(body: bytes) -> EntryPreviewPayload:
-    data = _json_object(body)
-    return EntryPreviewPayload(
-        type=_entry_type(data),
-        titre=_text(data, "titre", max_length=TITLE_MAX).strip(),
-        source=_text(data, "source"),
-        hypotheses=_text(data, "hypotheses", required=False),
-        limites=_text(data, "limites", required=False),
-        variables=_variables(data),
-    )
+    return MathToolPayload(_text(data, "label"), _text(data, "latex"), _text(data, "select", required=False))

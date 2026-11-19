@@ -15,18 +15,15 @@
 
   const editorHref = (entry) => (entry ? `entree.html?id=${encodeURIComponent(entry.id)}` : "entree.html");
   const readingLabel = (reading) => `${reading.tag} · ${reading.title}`;
-  const pageUrl = (path, entry) => `${path}?v=${entry.updatedAt}`; // never show a cached older rendering
 
   function serverHint(what) {
     return `<span class="small muted">Pour ${what}, lance <code>Lancer Prep FRM.bat</code>.</span>`;
   }
 
-  /** Initials of whoever created and changed the entry; a red "!" when its text does not compile. */
+  /** Initials of whoever created and changed the entry (git), and a "•" when changed since the last commit. */
   function badgesOf(entry) {
-    const broken = entry.hasText && !entry.valid
-      ? `<span class="initials is-invalid" title="Ne compile pas : les fiches gardent le dernier texte qui compilait">!</span>`
-      : "";
-    return ui.contributorBadges(entry.journal) + broken;
+    const pending = entry.modified ? `<span class="initials is-pending" title="Modifiée depuis le dernier commit">•</span>` : "";
+    return ui.contributorBadges(entry.journal) + pending;
   }
 
   const readingRefs = (entry) =>
@@ -286,7 +283,7 @@
 <div class="card">
   <h2>Corpus</h2>
   <p>Nos formules, définitions, propriétés, théorèmes et simulations, écrits par nous. Chaque entrée a un identifiant lisible, un titre et un texte commun, que chacun peut modifier ; son historique dit qui l'a créée et qui l'a modifiée. Ses readings sont ceux qu'on lui attribue à la main, ceux des fiches qui la citent ou l'insèrent, et ceux des questions qui lui sont liées.</p>
-  <p class="small muted">Dans une fiche : <code>#voir("id")</code> cite une entrée (son titre), <code>#entree("id")</code> l'insère en entier. Une entrée peut en citer une autre.</p>
+  <p class="small muted">Dans une fiche : <code>[[id]]</code> cite une entrée (son titre), <code>![[id]]</code> l'insère en entier. Une entrée peut en citer une autre.</p>
   <div class="save-actions">${withServer ? `<a class="btn" href="${editorHref()}">+ Nouvelle entrée</a>` : serverHint("créer ou modifier une entrée")}</div>
 </div>
 <div class="card">
@@ -362,15 +359,10 @@
 
   // ------------------------------------------------------------------ one entry
 
-  /** The entry's shared text: its rendering (the last that compiled) and its code. */
+  /** The entry's shared text, in its box (Markdown), and its code. */
   function textBlock(entry) {
-    const pages = entry.pages.map((path, i) => `<img class="note-page" src="${pageUrl(path, entry)}" alt="${esc(`${entry.titre}, page ${i + 1}`)}">`);
-    const broken = entry.hasText && !entry.valid
-      ? `<p><span class="tag accent">Ne compile pas : les fiches gardent le dernier texte qui compilait, jusqu'à correction</span></p>`
-      : "";
     const code = entry.code ? `<h3>Code Python</h3>${ui.codeBlock(entry.code)}${FRM.runner.slot(entry)}` : "";
-    const empty = entry.hasText ? "" : `<div class="placeholder">Pas encore de texte.</div>`;
-    return `${broken}${pages.length ? `<div class="note-pages">${pages.join("")}</div>` : empty}${code}`;
+    return `${FRM.renderEntryBox(entry)}${code}`;
   }
 
   function entryLinks(ids) {
@@ -429,10 +421,10 @@
   <div class="entry-meta">${ui.typeTag(entry.type)} <span class="entry-id">${esc(entry.id)}</span></div>
   <h2>${esc(entry.titre)}</h2>
   <div class="entry-meta">${readings.join("") || `<span class="small muted">Aucun reading : ni saisi à la main, ni par une fiche, ni par une question liée.</span>`}</div>
-  ${entry.journal.length ? `<p class="small muted">${ui.journalLine(entry.journal)}</p>` : ""}
+  ${ui.historyLine(entry) ? `<p class="small muted">${ui.historyLine(entry)}</p>` : ""}
   <div class="snippets">
-    <span>Citer : <code>#voir("${esc(entry.id)}")</code></span>
-    <span>Insérer dans une fiche : <code>#entree("${esc(entry.id)}")</code></span>
+    <span>Citer : <code>[[${esc(entry.id)}]]</code></span>
+    <span>Insérer dans une fiche : <code>![[${esc(entry.id)}]]</code></span>
     ${entry.type === "produit" ? `<span>Dans le code : <code>from produits import produit</code> puis <code>p = produit("${esc(entry.id)}")</code>, et on remplit ses variables (<code>p.${esc((entry.variables || [])[0]?.nom || "nom")} = …</code>)</span>` : ""}
   </div>
   <div class="save-actions">${actions}${(entry.questions || []).length ? `<a class="btn ghost" href="quiz.html?entries=${encodeURIComponent(entry.id)}">Série sur ses questions (${entry.questions.length})</a>` : ""}</div>
@@ -451,7 +443,7 @@
     ${(entry.imports || []).length || entry.type === "simulation" ? `<div><h3>Briques importées</h3>${entryLinks(entry.imports || [])}</div>` : ""}
     ${entry.type === "brique" ? `<div><h3>Importée par</h3>${entryLinks(entry.importedBy || [])}</div>` : ""}
   </div>
-  <p class="src">Liens relevés dans les textes (<code>#voir</code>, <code>#entree</code>, <code>from briques.… import</code>), mis à jour à chaque enregistrement.</p>
+  <p class="src">Liens relevés dans les textes (<code>[[…]]</code>, <code>![[…]]</code>, <code>from briques.… import</code>), mis à jour à chaque enregistrement.</p>
 </div>`,
     });
     FRM.runner.mountSlots(document.getElementById("app"));

@@ -1,80 +1,26 @@
-// "Corpus" menu of the editors: search an entry, then cite it (#voir) or insert it (#entree).
-// The needed #import line is added at the top of the source when missing, so the pote never
-// has to know about it.
+// "Corpus" menu of the editors: search an entry, then cite it ([[id]]) or insert it (![[id]]),
+// the links Obsidian understands.
 const { FRM } = window;
 const { ui } = FRM;
 const { esc, typeTag } = ui;
 
-const IMPORT_LINE = /^#import\s+"([^"]+)"\s*(?::\s*(.*))?$/;
-
-/** Last #import line of the source, or null. */
-function lastImportLine(doc) {
-  let last = null;
-  for (let number = 1; number <= doc.lines; number += 1) {
-    const line = doc.line(number);
-    if (IMPORT_LINE.test(line.text.trim())) last = line;
-  }
-  return last;
-}
-
-/** Makes sure the source imports `names` from `path`: completes the #import line, or adds one
- *  after the last import (first line when there is none). Then moves the cursor below the
- *  imports if needed: Typst rejects a name used before its import. */
-export function ensureImport(view, path, names) {
-  const { doc } = view.state;
-  let found = false;
-  for (let number = 1; number <= doc.lines && !found; number += 1) {
-    const line = doc.line(number);
-    const match = IMPORT_LINE.exec(line.text.trim());
-    if (!match || match[1] !== path) continue;
-    found = true;
-    const imported = (match[2] || "").split(",").map((name) => name.trim()).filter(Boolean);
-    const missing = names.filter((name) => !imported.includes(name));
-    if (!imported.includes("*") && missing.length) {
-      view.dispatch({ changes: { from: line.from, to: line.to, insert: `#import "${path}": ${[...imported, ...missing].join(", ")}` } });
-    }
-  }
-  if (!found) {
-    const text = `#import "${path}": ${names.join(", ")}`;
-    const last = lastImportLine(doc);
-    view.dispatch({ changes: last ? { from: last.to, insert: `\n${text}` } : { from: 0, insert: `${text}\n` } });
-  }
-  keepCursorBelowHeader(view);
-}
-
-/** Last line of the header: the leading #import lines and #show rules (a multi-line
- *  `#show: fiche.with(…)` ends at its closing parenthesis), comments and blank lines allowed. */
-function headerEnd(doc) {
-  let end = null;
-  for (let number = 1; number <= doc.lines; number += 1) {
-    const text = doc.line(number).text.trim();
-    if (IMPORT_LINE.test(text)) {
-      end = doc.line(number);
-    } else if (text.startsWith("#show")) {
-      let depth = 0;
-      for (; number <= doc.lines; number += 1) {
-        for (const char of doc.line(number).text) depth += char === "(" ? 1 : char === ")" ? -1 : 0;
-        if (depth <= 0) break;
-      }
-      end = doc.line(Math.min(number, doc.lines));
-    } else if (text && !text.startsWith("//")) {
-      break; // first real content
-    }
-  }
-  return end;
-}
-
-/** Moves the cursor below the header when it is in or above it: Typst rejects a name used
- *  before its import, and content placed before `#show: fiche.with(…)` escapes the note's
- *  layout (it would make a page of its own). */
+/** Moves the cursor below the YAML header (--- … ---) when it is in it: text written there would
+ *  break the header, for the site and for Obsidian. */
 export function keepCursorBelowHeader(view) {
   const { doc, selection } = view.state;
-  const last = headerEnd(doc);
-  if (!last || selection.main.head > last.to) return;
-  if (last.number < doc.lines) {
-    view.dispatch({ selection: { anchor: doc.line(last.number + 1).from } });
+  if (doc.lines < 2 || doc.line(1).text.trim() !== "---") return;
+  let end = null;
+  for (let number = 2; number <= doc.lines; number += 1) {
+    if (doc.line(number).text.trim() === "---") {
+      end = doc.line(number);
+      break;
+    }
+  }
+  if (!end || selection.main.head > end.to) return;
+  if (end.number < doc.lines) {
+    view.dispatch({ selection: { anchor: doc.line(end.number + 1).from } });
   } else {
-    view.dispatch({ changes: { from: last.to, insert: "\n" }, selection: { anchor: last.to + 1 } });
+    view.dispatch({ changes: { from: end.to, insert: "\n" }, selection: { anchor: end.to + 1 } });
   }
 }
 

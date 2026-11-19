@@ -1,6 +1,6 @@
 /* Graph view of corpus entries (reading page "Corpus de ce reading", corpus page "Graphe" view):
  * one box per entry (type dot, title, "Livres : 1, 3" from the readings of the notes using it),
- * an arrow from A to B when A cites B (#voir), dotted when A's code imports brick B. Hovering or
+ * an arrow from A to B when A cites B ([[B]]), dotted when A's code imports brick B. Hovering or
  * clicking an entry shows its links: what it cites in dark slate, what cites it in mid slate (the
  * kinds-of-use ramp validated in style.css: never a type colour), the rest fades. Entries linked
  * to the shown ones but outside them (another reading, another filter) can appear pale.

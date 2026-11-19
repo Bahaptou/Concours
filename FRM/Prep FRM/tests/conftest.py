@@ -2,10 +2,15 @@
 
 Chaque test travaille dans un dossier temporaire : on ne touche jamais au vrai dossier
 `notes/` du projet. Le serveur de test tourne dans un thread, sur un port choisi par le système.
+
+Le dossier temporaire n'est pas un dépôt git : l'historique des textes (backend/history.py) y est
+vide, ce qui est le comportement voulu sans git. Les tests de l'historique créent leur propre dépôt
+(fixture `git_site`).
 """
 from __future__ import annotations
 
 import json
+import subprocess
 import threading
 import urllib.error
 import urllib.request
@@ -17,16 +22,11 @@ import pytest
 from backend.http.handler import make_handler
 from server import build_services
 
-# Le vrai gabarit du projet : les entrées du corpus ont besoin de ses encadrés (bloc-entree…).
-GABARIT = (Path(__file__).resolve().parent.parent / "notes" / "_gabarit.typ").read_text(encoding="utf-8")
-
 
 @pytest.fixture
 def site(tmp_path: Path) -> Path:
-    """Un faux site : la racine statique, avec un dossier notes/ contenant le gabarit."""
-    notes = tmp_path / "notes"
-    notes.mkdir()
-    (notes / "_gabarit.typ").write_text(GABARIT, encoding="utf-8")
+    """Un faux site : la racine statique, avec un dossier notes/ vide (le coffre Obsidian)."""
+    (tmp_path / "notes").mkdir()
     (tmp_path / "index.html").write_text("<!doctype html><title>test</title>", encoding="utf-8")
     return tmp_path
 
@@ -35,10 +35,27 @@ def site(tmp_path: Path) -> Path:
 def services(site: Path):
     """Les services métier branchés sur le faux site (même assemblage que server.py).
 
-    Comme au démarrage du serveur, on génère d'abord les fichiers du corpus (vide ici)."""
+    Comme au démarrage du serveur, on génère d'abord le manifeste du corpus (vide ici)."""
     services = build_services(static_root=site, notes_root=site / "notes")
     services.corpus.regenerate()
     return services
+
+
+def git(folder: Path, *args: str, author: str = "Baptiste Durand") -> None:
+    """Lance une commande git dans `folder`, au nom de `author` (e-mail fictif dérivé du nom)."""
+    email = author.lower().replace(" ", ".") + "@exemple.test"
+    env = {"GIT_AUTHOR_NAME": author, "GIT_AUTHOR_EMAIL": email, "GIT_COMMITTER_NAME": author, "GIT_COMMITTER_EMAIL": email}
+    import os
+
+    subprocess.run(["git", *args], cwd=folder, check=True, capture_output=True, env={**os.environ, **env})
+
+
+@pytest.fixture
+def git_site(site: Path) -> Path:
+    """Le faux site, devenu un dépôt git (sans aucun commit pour l'instant)."""
+    git(site, "init", "-q")
+    git(site, "config", "commit.gpgsign", "false")
+    return site
 
 
 @pytest.fixture

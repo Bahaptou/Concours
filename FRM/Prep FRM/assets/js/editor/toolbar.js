@@ -1,6 +1,6 @@
 // Toolbar of the editors (notes and corpus entries): text tools, math tools (shown only in
-// math mode) and extra menus such as the corpus picker. Every tool inserts plain Typst, so the
-// source stays readable.
+// math mode) and extra menus such as the corpus picker. Every tool inserts plain Markdown and
+// LaTeX, as Obsidian reads them, so the source stays readable.
 import { EditorSelection } from "../../vendor/codemirror/codemirror.js";
 
 // ---------------------------------------------------------------- editing primitives
@@ -71,33 +71,22 @@ export function insertBlock(view, text) {
 /** Keyboard shortcuts of the formatting tools, for the editors' keymaps. */
 export const formattingKeys = [
   { key: "Mod-m", preventDefault: true, run: (v) => (wrap(v, "$", "$", "x"), true) },
-  { key: "Mod-b", preventDefault: true, run: (v) => (wrap(v, "*", "*", "texte"), true) },
-  { key: "Mod-i", preventDefault: true, run: (v) => (wrap(v, "_", "_", "texte"), true) },
+  { key: "Mod-b", preventDefault: true, run: (v) => (wrap(v, "**", "**", "texte"), true) },
+  { key: "Mod-i", preventDefault: true, run: (v) => (wrap(v, "*", "*", "texte"), true) },
 ];
 
-// Text sizes are relative (em) so that they follow the base size of _gabarit.typ and stay
-// coherent inside boxes. #text is built into Typst: no import needed, in notes and entries alike.
-const CUSTOM_SIZE = "custom";
-const CUSTOM_SIZE_DEFAULT = "12pt";
-const SIZE_CHOICES = [
-  { label: "Petit", value: "0.85em" },
-  { label: "Grand", value: "1.25em" },
-  { label: "Très grand", value: "1.5em" },
-  { label: "Autre…", value: CUSTOM_SIZE },
-];
-
-/** Wraps the selection in #text(size: …)[…]. "Autre…" leaves the size itself selected, so that
- *  typing a value (14pt, 1.1em) replaces it. */
-function applySize(view, size) {
-  if (size !== CUSTOM_SIZE) return wrap(view, `#text(size: ${size})[`, "]", "texte");
+/** A callout, as Obsidian writes it: "> [!kind] Title" then the content, each line quoted. */
+function callout(view, kind, title) {
   view.dispatch(
     view.state.changeByRange((range) => {
-      const inner = range.empty ? "texte" : view.state.sliceDoc(range.from, range.to);
-      const before = "#text(size: ";
+      const inner = range.empty ? "…" : view.state.sliceDoc(range.from, range.to);
+      const line = view.state.doc.lineAt(range.from);
+      const before = `${line.text.trim() && range.from === line.from ? "" : line.text.trim() ? "\n\n" : ""}> [!${kind}] ${title}\n> `;
+      const body = inner.split("\n").join("\n> ");
       const start = range.from + before.length;
       return {
-        changes: { from: range.from, to: range.to, insert: `${before}${CUSTOM_SIZE_DEFAULT})[${inner}]` },
-        range: EditorSelection.range(start, start + CUSTOM_SIZE_DEFAULT.length),
+        changes: { from: range.from, to: range.to, insert: `${before}${body}\n` },
+        range: EditorSelection.range(start, start + body.length),
       };
     })
   );
@@ -105,44 +94,42 @@ function applySize(view, size) {
 }
 
 export const TEXT_TOOLS = [
-  { label: "Titre", title: "Titre de section (=)", run: (v) => prefixLines(v, "= ") },
-  { label: "Gras", title: "Gras (Ctrl+B)", run: (v) => wrap(v, "*", "*", "texte") },
-  { label: "Italique", title: "Italique (Ctrl+I)", run: (v) => wrap(v, "_", "_", "texte") },
-  { label: "Taille", title: "Taille du texte sélectionné : #text(size: …)[…]", choices: SIZE_CHOICES, run: applySize },
+  { label: "Titre", title: "Titre de section (##)", run: (v) => prefixLines(v, "## ") },
+  { label: "Gras", title: "Gras : **…** (Ctrl+B)", run: (v) => wrap(v, "**", "**", "texte") },
+  { label: "Italique", title: "Italique : *…* (Ctrl+I)", run: (v) => wrap(v, "*", "*", "texte") },
   { label: "Liste", title: "Élément de liste (-)", run: (v) => prefixLines(v, "- ") },
   { label: "∑ Maths", title: "Maths dans le texte : $…$ (Ctrl+M)", primary: true, run: (v) => wrap(v, "$", "$", "x") },
-  { label: "Équation", title: "Équation centrée : $ … $ sur sa ligne", run: (v) => wrap(v, "\n$ ", " $\n", "x") },
-  // The boxes come from _gabarit.typ, imported by notes only.
-  { label: "À retenir", title: "Encadré vert", notesOnly: true, run: (v) => wrap(v, "#retenir[", "]", "…") },
-  { label: "Piège", title: "Encadré orange", notesOnly: true, run: (v) => wrap(v, "#piege[", "]", "…") },
-  { label: "Définition", title: "Encadré bleu, avec un terme", notesOnly: true, run: (v) => wrap(v, '#definition("Terme")[', "]", "…") },
+  { label: "Équation", title: "Équation centrée : $$…$$ sur sa ligne", run: (v) => wrap(v, "\n$$", "$$\n", "x") },
+  // Callouts, as in Obsidian ("> [!tip] …"); notes only (an entry is already in its own box).
+  { label: "À retenir", title: "Encadré vert : > [!tip]", notesOnly: true, run: (v) => callout(v, "tip", "À retenir") },
+  { label: "Piège", title: "Encadré orange : > [!warning]", notesOnly: true, run: (v) => callout(v, "warning", "Piège") },
+  { label: "Définition", title: "Encadré bleu, avec un terme : > [!info]", notesOnly: true, run: (v) => callout(v, "info", "Terme") },
 ];
 
 /** Tools of a corpus entry: already inside its own box, so no boxes and no section titles. */
 export const ENTRY_TOOLS = TEXT_TOOLS.filter((tool) => !tool.notesOnly && tool.label !== "Titre");
 
-const symbol = (label, typst, title) => ({ label, title: title || typst, run: (v) => insert(v, ` ${typst} `) });
+const symbol = (label, latex, title) => ({ label, title: title || latex, run: (v) => insert(v, `${latex} `) });
 
 export const MATH_TOOLS = [
-  { label: "a⁄b", title: "Fraction : (a)/(b)", run: (v) => wrap(v, "(", ")/()", "a") },
-  { label: "√", title: "Racine : sqrt(x)", run: (v) => wrap(v, "sqrt(", ")", "x") },
-  { label: "xⁿ", title: "Exposant : x^(n)", run: (v) => wrap(v, "^(", ")", "n") },
-  { label: "xᵢ", title: "Indice : x_(i)", run: (v) => wrap(v, "_(", ")", "i") },
-  { label: "Σ", title: "Somme : sum_(i=1)^n", run: (v) => insert(v, " sum_(i=1)^n ") },
+  { label: "a⁄b", title: "Fraction : \\frac{a}{b}", run: (v) => wrap(v, "\\frac{", "}{}", "a") },
+  { label: "√", title: "Racine : \\sqrt{x}", run: (v) => wrap(v, "\\sqrt{", "}", "x") },
+  { label: "xⁿ", title: "Exposant : x^{n}", run: (v) => wrap(v, "^{", "}", "n") },
+  { label: "xᵢ", title: "Indice : x_{i}", run: (v) => wrap(v, "_{", "}", "i") },
+  { label: "Σ", title: "Somme : \\sum_{i=1}^{n}", run: (v) => insert(v, "\\sum_{i=1}^{n} ") },
   { label: "E[ ]", title: "Espérance : E[X]", run: (v) => wrap(v, "E[", "]", "X") },
-  // op(…): an upright operator with the spacing of ln or max (Typst has no built-in Var or Cov).
-  { label: "Var", title: 'Variance : op("Var")(X)', run: (v) => wrap(v, 'op("Var")(', ")", "X") },
-  { label: "Cov", title: 'Covariance : op("Cov")(X, Y)', run: (v) => wrap(v, 'op("Cov")(', ")", "X, Y") },
-  { label: "texte", title: 'Texte dans une formule : "…"', run: (v) => wrap(v, '"', '"', "texte") },
-  symbol("≈", "approx"),
-  symbol("≤", "<="),
-  symbol("≥", ">="),
-  symbol("σ", "sigma"),
-  symbol("μ", "mu"),
-  symbol("ρ", "rho"),
-  symbol("β", "beta"),
-  symbol("α", "alpha"),
-  symbol("Δ", "Delta"),
+  { label: "Var", title: "Variance : \\operatorname{Var}(X)", run: (v) => wrap(v, "\\operatorname{Var}(", ")", "X") },
+  { label: "Cov", title: "Covariance : \\operatorname{Cov}(X, Y)", run: (v) => wrap(v, "\\operatorname{Cov}(", ")", "X, Y") },
+  { label: "texte", title: "Texte dans une formule : \\text{…}", run: (v) => wrap(v, "\\text{", "}", "texte") },
+  symbol("≈", "\\approx"),
+  symbol("≤", "\\le"),
+  symbol("≥", "\\ge"),
+  symbol("σ", "\\sigma"),
+  symbol("μ", "\\mu"),
+  symbol("ρ", "\\rho"),
+  symbol("β", "\\beta"),
+  symbol("α", "\\alpha"),
+  symbol("Δ", "\\Delta"),
 ];
 
 // ---------------------------------------------------------------- rendering

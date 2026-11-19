@@ -95,7 +95,7 @@
       message.textContent = "Enregistrement…";
       try {
         const image = await saveFigure(name, dataUrl);
-        const line = `#image("${image.typstPath}", width: 70%)`;
+        const line = `![[${image.link}|500]]`;
         slot.innerHTML = `✓ Enregistrée sous « ${esc(image.name)} ». Dans l'éditeur de fiche : menu 🖼 Images, ou colle <code>${esc(line)}</code> <button type="button" class="link-btn" data-keep-copy>Copier</button>`;
         // Not data-copy: ui.js handles that one for code blocks.
         slot.querySelector("[data-keep-copy]").addEventListener("click", (event) => {

@@ -1,7 +1,7 @@
-/* Preview card of a corpus entry: the start of its rendering (the last one that compiled) and a link to it, shown when the pointer rests on an element naming the
+/* Preview card of a corpus entry: the start of its text (Markdown, in its box) and a link to it, shown when the pointer rests on an element naming the
  * entry. Slow to come (SHOW_DELAY), quick to go (HIDE_DELAY: just the time to reach the card);
  * placed above the element (below when the window has no room above), never over it, so the
- * element stays clickable. Fixed height (style.css), so the position holds before the image loads.
+ * element stays clickable. Fixed height (style.css), so the position holds whatever the text.
  * Used by the corpus graph (its boxes) and the corpus stats (names, data-entry-preview="<id>"). */
 (function (FRM, ui) {
   "use strict";
@@ -52,7 +52,7 @@
       if (!entry || !el.isConnected) return;
       card.innerHTML = `
 <div class="ep-head">${ui.typeTag(entry.type)}<strong>${esc(entry.titre)}</strong></div>
-${entry.pages.length ? `<div class="ep-render"><img src="${esc(`${entry.pages[0]}?v=${entry.updatedAt}`)}" alt="${esc(`Début de « ${entry.titre} »`)}"></div>` : `<div class="ep-render ep-empty muted small">Pas encore de rendu.</div>`}
+<div class="ep-md">${FRM.renderEntryBox ? FRM.renderEntryBox(entry, { depth: 1 }) : ""}</div>
 <div class="ep-foot"><span class="eauthors">${ui.contributorBadges(entry.journal)}</span><a class="btn" href="${ui.entryHref(entry)}">Ouvrir l'entrée →</a></div>`;
       if (!card.isConnected) host.appendChild(card); // the host's content may have been re-rendered
       card.hidden = false;

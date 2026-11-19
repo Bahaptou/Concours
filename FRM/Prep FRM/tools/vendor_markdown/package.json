@@ -1,0 +1,13 @@
+{
+  "name": "prep-frm-vendor-markdown",
+  "private": true,
+  "type": "module",
+  "description": "Copies markdown-it and KaTeX into assets/vendor/ (maintenance tool, not needed to run the site).",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "katex": "0.16.11",
+    "markdown-it": "14.1.0"
+  }
+}

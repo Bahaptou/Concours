@@ -26,10 +26,11 @@ sont dans `../CLAUDE.md`.
 - **Dashboard** : avancement, confiance et réussite, filtrables par livre.
 - **Sauvegarde** : tout l'état en un fichier JSON, exporté dans `save/` et
   rechargeable.
-- **Fiches (étape 4)** : une fiche Typst par reading, commune à tous,
+- **Fiches (étape 4)** : une fiche Markdown par reading, commune à tous,
   écrite dans `editeur.html` (CodeMirror 6, aperçu en direct, barre
-  « Mode maths », menus « 📚 Corpus » et « 🖼 Images »), compilée en SVG et PDF par le
-  serveur, affichée sur la page Reading.
+  « Mode maths » en LaTeX, menus « 📚 Corpus » et « 🖼 Images ») ou dans
+  Obsidian, affichée sur la page Reading (rendu markdown-it + KaTeX dans le
+  navigateur).
 - **Portail des fiches** (`fiches.html`, onglet « Fiches ») : les 62
   readings avec étapes, fiches et entrées utilisées ; filtres livre,
   contributeur et type (choix multiples), état de la fiche (dont « écrite
@@ -42,7 +43,7 @@ sont dans `../CLAUDE.md`.
   lisible, titre, type et texte communs, readings saisis à la main (un ou
   plusieurs, un par un ou en lot), tirés des fiches qui l'utilisent et des
   questions qui lui sont liées. Les entrées se
-  citent (`#voir`) ; les fiches citent ou insèrent (`#entree`). Simulations
+  citent (`[[id]]`) ; les fiches citent ou insèrent (`![[id]]`). Simulations
   et briques ont une section de code Python séparée de leur description.
   Une formule a de même deux champs, Hypothèses et Limites, affichés en blocs sous elle.
   Un produit financier déclare ses variables (nom et note, sans valeur) ; le
@@ -55,7 +56,12 @@ sont dans `../CLAUDE.md`.
   entrées du corpus, liens question ↔ entrée, images et boutons de maths
   sont communs (dans `notes/`, partagés par git) ; réponses, séries,
   marques, « traitée », confiance et étapes restent dans la sauvegarde de
-  chacun. Le profil ne sert qu'à dire qui crée et qui modifie (journal).
+  chacun. Qui crée et qui modifie vient de git (voir « Historique »), plus
+  du profil.
+- **Coffre Obsidian** (choix de Baptiste le 2026-11-19) : `notes/` est un
+  coffre Obsidian ; fiches et entrées y sont des `.md` qu'Obsidian lit et
+  modifie (liens, graphe, rétroliens), le site gardant ses éditeurs, les
+  QCM, le suivi et l'exécution Python.
 - **Python (étape 3)** : ▶ Exécuter via le serveur (`/api/run`), sortie,
   erreur et ligne, figures matplotlib ; limite de temps réglable (30 s,
   300 s max) ; étape ③ cochée après une exécution réussie, pour les
@@ -68,12 +74,15 @@ sont dans `../CLAUDE.md`.
   `reading`, `corpus`, `fiches`),
   rendues par des scripts classiques qui remplissent un objet global `FRM`,
   dans l'ordre des balises : `data/curriculum.js` → `store` → `core` →
-  `questions` → `ui` → `save` → `profile` → (`quiz-view`, `charts`) → script
-  de la page. La page Corpus charge aussi `charts` puis `corpus-stats`
+  `questions` → `ui` → (`markdown-it`, `katex`, `markdown`) → `save` →
+  `profile` → (`quiz-view`, `charts`) → script de la page. `markdown.js`
+  (`FRM.renderMarkdown`, `FRM.renderEntryBox`) n'est chargé que par les pages
+  qui affichent des textes : Reading, Corpus et les deux éditeurs. La page Corpus charge aussi `charts` puis `corpus-stats`
   (infobulles, barres et tableau partagés) ; `corpus-graph.js` (graphe des
   entrées, pages Reading et Corpus) dessine en SVG, disposition par forces
   écrite à la main, par groupes ; `entry-preview.js` (aperçu d'une entrée
-  au survol : graphe, noms des Stats) le précède. `corpus-search.js`
+  au survol : graphe, noms des Stats, rendu par `FRM.renderEntryBox`) le
+  précède. `corpus-search.js`
   (barre de recherche du corpus : filtres, entrées liées, recherche) sert
   au menu Corpus des éditeurs et au choix des entrées d'une série ; script
   classique, pour que la page Questions marche sans serveur.
@@ -92,10 +101,11 @@ sont dans `../CLAUDE.md`.
   bibliothèque.
 - **Serveur local** (`server.py` + `backend/`), calqué en plus léger sur
   WorldTradeFinance4 : `errors.py` (hiérarchie `AppError`, sans HTTP),
-  services `compiler.py`, `notes.py`, `corpus.py` (un verrou chacun,
-  jamais imbriqués ; écritures atomiques via `files.py`) et
-  `simulations.py` (sous-processus, au plus 2 en parallèle), `images.py`,
-  `math_tools.py` (boutons de maths ajoutés, `notes/_outils-maths.json`), puis
+  services `notes.py`, `corpus.py` (un verrou chacun, jamais imbriqués ;
+  écritures atomiques via `files.py`), `frontmatter.py` (en-tête YAML et
+  sections), `history.py` (historique git) et `simulations.py`
+  (sous-processus, au plus 2 en parallèle), `images.py`, `math_tools.py`
+  (boutons de maths ajoutés, `notes/_outils-maths.json`), puis
   `http/` : `guard.py` (seul le site servi passe), `payload.py`
   (validation), `routes.py` (une fonction par route), `context.py`,
   `presenter.py` (enveloppe `{data, links}`), `problem.py` (RFC 9457,
@@ -104,29 +114,40 @@ sont dans `../CLAUDE.md`.
 - **Éditeurs** : `editeur.html` (fiche) et `entree.html` (entrée du
   corpus) chargent les scripts classiques puis un module ES
   (`assets/js/pages/editeur.js`, `entree.js`, et `assets/js/editor/` :
-  `setup.js` commun, `toolbar.js`, `corpus-picker.js`, `api.js`), donc
-  uniquement via le serveur. CodeMirror est regroupé dans
-  `assets/vendor/codemirror/` par `tools/vendor_codemirror/`.
-- **Fiches** : `notes/r<N>/fiche.typ`, rendus `fiche-<page>.svg` et
-  `fiche.pdf`, journal `journal.jsonl` ; `notes/_gabarit.typ` est
-  importé en `/_gabarit.typ` (`notes/` = racine Typst) ; `notes/index.js`
-  (généré) donne chaque fiche (pages, journal) aux pages ouvertes en `file://`.
-- **Corpus** : `notes/corpus/<id>/entree.json` (type, titre, `valide`,
-  `readings` saisis : numéros, `questions` liées : identifiant et reading), `texte.typ`,
-  `hypotheses.typ` et `limites.typ` (formule), `variables.json` (produit
-  financier), `code.py` (simulation,
-  brique), `page-<n>.svg`, `journal.jsonl`, et `valide/` tant que le texte
-  ne compile pas. Régénérés à chaque écriture du corpus, à chaque
-  enregistrement de fiche et au démarrage :
-  `notes/_corpus-titres.typ` (titres + `voir`), `notes/_corpus.typ`
-  (textes qui compilent + `entree`), `notes/corpus/index.js` (pour
-  `file://`, avec `citedBy`, `usedBy`, `directReadings`, `noteReadings` et `questionReadings`).
-- **Journal** (`backend/journal.py`) : une ligne JSON par séance (même
-  personne, enregistrements à moins de 30 min d'écart) : auteur, nom,
-  initiales, début, fin, nombre d'enregistrements, `creation` sur la
-  première. `notes/.gitattributes` le fusionne en `merge=union` ; doublons
-  et lignes abîmées sont ignorés à la lecture. Les recompilations et les
-  liens aux questions n'y entrent pas.
+  `setup.js` commun, `markdown-language.js`, `toolbar.js`,
+  `corpus-picker.js`, `api.js`), donc uniquement via le serveur. L'aperçu
+  est rendu dans le navigateur, sans appel au serveur. CodeMirror (avec
+  `@codemirror/lang-markdown`) est regroupé dans
+  `assets/vendor/codemirror/` par `tools/vendor_codemirror/` ;
+  markdown-it et KaTeX (polices comprises) sont copiés dans
+  `assets/vendor/markdown-it/` et `assets/vendor/katex/` par
+  `tools/vendor_markdown/`.
+- **Fiches** : `notes/fiches/r<N>.md`, en-tête YAML `reading` et `titre`.
+  `notes/index.js` (généré) donne chaque fiche (source, historique) aux
+  pages ouvertes en `file://`.
+- **Corpus** : `notes/corpus/<id>.md`. En-tête YAML : `type`, `titre`,
+  `readings` (saisis à la main), `questions` (`[{id, reading}]`),
+  `variables` (produit financier, `[{nom, note}]`). Corps : le texte, puis
+  `## Hypothèses` et `## Limites` (formule) ou `## Code` (un bloc
+  ```` ```python ````, simulation et brique). Ces sections ne sont
+  reconnues qu'en fin de fichier et pour les types qui les portent : ailleurs,
+  un tel titre reste du texte. `notes/corpus/index.js` (généré, pour
+  `file://`) porte les textes et `citedBy`, `usedBy`, `directReadings`,
+  `noteReadings`, `questionReadings`.
+- **Manifestes régénérés à la demande** : le serveur réécrit
+  `notes/index.js` ou `notes/corpus/index.js` chaque fois qu'une page le
+  charge (`handler.py`), en plus d'après chaque écriture et au démarrage :
+  Obsidian ou un commit ont pu changer les fichiers.
+- **Historique** (`backend/history.py`) : un seul `git log` sur `notes/`
+  par manifeste ; un commit = une « séance » de l'ancien journal (même
+  forme : auteur, nom, initiales, début, fin, `creation` sur le premier),
+  pour que les pages gardent leurs filtres « Contributeur ». Les anciens
+  chemins (`corpus/<id>/…`, `r<N>/…`) comptent pour le même texte. `git
+  status` signale ce qui est modifié et pas commité (`modified`). Sans git,
+  historique vide.
+- **Coffre Obsidian** : `notes/.obsidian/app.json` (liens `[[ ]]`,
+  pièces jointes dans `images/`) est versionné ; `notes/.gitignore`
+  exclut `workspace*.json`, le cache et `.trash/`.
 
 ## Décisions et raisons
 
@@ -167,8 +188,8 @@ sont dans `../CLAUDE.md`.
   le jaune foncé des briques ; le vert `#008300` des produits financiers
   (2026-10-08) ne passe le validateur qu'entre théorème et simulation,
   pastille à côté d'un texte encre (jamais du texte coloré). Une seule
-  source par support : `--etype-*` dans `style.css`, `types-entree` dans
-  `notes/_gabarit.typ` (même ordre, mêmes valeurs claires).
+  source : `--etype-*` dans `style.css` (les liens `[[id]]` du site en
+  prennent la couleur ; Obsidian garde les siennes).
 - **Couleurs des genres d'usage (stats du corpus)** validées le 2026-10-07 :
   une rampe ardoise à 4 crans (`--use-1` à `--use-4`, script dataviz en
   `--ordinal`, surfaces `#ffffff` et `#1b2238`), pour ne jamais se confondre
@@ -184,50 +205,49 @@ sont dans `../CLAUDE.md`.
 - **Projet uv indépendant** (`prep-frm`), convention fixée le 2026-10-01,
   voir la Règle n°6 de `.claude/CLAUDE.md`.
 - **Serveur local depuis le 2026-10-01** (`Lancer Prep FRM.bat`,
-  127.0.0.1:8765) pour l'éditeur de fiches et, plus tard, les
-  simulations. La lecture reste possible en double-clic, éditer non.
+  127.0.0.1:8765) pour les éditeurs et les simulations. La lecture reste
+  possible en double-clic, éditer non (sauf dans Obsidian).
 - **Conventions d'erreurs et d'API reprises de WorldTradeFinance4** à la
-  demande de Baptiste (relu par une session WTF4 le 2026-10-01). Un échec
-  de compilation Typst est une erreur métier : 422 `TYPST_COMPILE_ERROR`,
-  avec `line`, `hints`, `explanation`, `saved` en extensions, jamais 200.
+  demande de Baptiste (relu par une session WTF4 le 2026-10-01).
+- **Markdown et Obsidian à la place de Typst** (choix de Baptiste le
+  2026-11-19) : Obsidian fait déjà ce que le corpus réimplémentait (liens,
+  graphe, rétroliens, aperçu) ; KaTeX rend les formules aussi bien. Fiches
+  et corpus migrés le 2026-11-19 (1 fiche, 70 entrées ; formules traduites
+  à la main). Typst n'était meilleur que pour la mise en page imprimable,
+  abandonnée.
+- **Le site ne touche qu'aux clés YAML qu'il connaît** (choix de Baptiste
+  le 2026-11-19) : `frontmatter.py` (ruamel.yaml en aller-retour) garde
+  les autres clés, leur ordre, leurs commentaires et leurs guillemets ;
+  sans changement, l'en-tête n'est pas réécrit. Listes écrites comme
+  Obsidian (`  - …`), `readings` en ligne.
 - **Le front construit les URL `/api/notes/<reading>`,
   `/api/corpus`, `/api/corpus/<id>`, `/api/corpus/<id>/texte`,
   `/api/corpus/<id>/questions/<q>`, `/api/corpus/readings`, `/api/images` et `/api/math-tools`** (le
   reste vient des `links`) : si une route change, changer aussi
-  `assets/js/editor/api.js`, qui joint le profil (`author`, `name`,
-  `initials`) à chaque écriture ; le serveur la refuse sans lui (422).
-- **Fiches et entrées communes, journal des modifications** (choix de
-  Baptiste le 2026-10-07) : un texte par fiche et par entrée, que chacun
-  modifie ; git garde les textes, le journal garde qui a créé et modifié
-  quoi, quand, pour étudier les interactions entre profils. Affiché sur
-  chaque fiche et entrée (« Créée par … · modifiée par … ») et en
-  initiales (le créateur d'abord) ; filtres « Contributeur ». Fichiers par
-  personne migrés le 2026-10-07 (tout était à Baptiste).
-- **Enregistrer n'échoue jamais sur le texte** : la source est écrite
-  avant la compilation ; en cas d'erreur, l'ancien rendu reste.
-- **Aucune boucle d'import possible dans le corpus, par construction.**
-  Une entrée n'importe que `_corpus-titres.typ` (titres seuls) ; le
-  serveur refuse `_corpus.typ` ou `#entree(` dans une entrée (422
-  `CORPUS_IMPORT_FORBIDDEN`). `_corpus.typ` cache chaque texte derrière
-  une closure et n'est importé que par les fiches.
-- **Un texte d'entrée qui ne compile pas est enregistré, et les fiches
-  gardent le dernier qui compilait** (choix de Baptiste le 2026-10-07) :
-  copie dans `corpus/<id>/valide/` (texte et sections), vers laquelle
-  pointe `_corpus.typ`, supprimée dès que l'entrée recompile. Une entrée
-  qui n'a jamais compilé est absente de `_corpus.typ`. 422
-  `TYPST_COMPILE_ERROR` avec `saved: true`, comme les fiches.
-- **Changer une entrée recompile ses dépendants dans la requête**, hors
-  du verrou du corpus, plafonné à `MAX_SYNC_REBUILDS` (20). Leurs échecs
-  sont rapportés dans `rebuild` (aussi dans le 422 d'un texte cassé),
-  jamais levés. Rétroliens trouvés par regex : affichage seulement.
-  Relu par la session WTF4 le 2026-10-01.
+  `assets/js/editor/api.js`. Les écritures ne portent plus de profil.
+- **Fiches et entrées communes, historique par git** : un texte par fiche
+  et par entrée, que chacun modifie (choix de Baptiste le 2026-10-07).
+  Qui a créé et modifié quoi venait d'un journal par profil
+  (`journal.jsonl`) ; remplacé par git le 2026-11-19 (choix de Baptiste) :
+  une modification faite dans Obsidian n'y serait jamais entrée. Les 144
+  lignes de journal étaient toutes de Baptiste (BD). Affiché sur chaque
+  fiche et entrée (« Créée par … · modifiée par … », « modifiée depuis le
+  dernier commit ») et en initiales (le créateur d'abord) ; filtres
+  « Contributeur ». Initiales = premières lettres du premier et du dernier
+  mot du nom git.
+- **Plus de compilation, donc plus de texte invalide** : un Markdown
+  s'affiche toujours. Ont disparu avec Typst : `valide/`, `valid`, le
+  rapport `rebuild`, la recompilation des dépendants, l'interdiction
+  d'insérer dans une entrée (`CORPUS_IMPORT_FORBIDDEN`) et le 422
+  `TYPST_COMPILE_ERROR`. Une boucle d'insertions est coupée au rendu
+  (`markdown.js` : une entrée insérée n'en insère pas d'autre).
+  Rétroliens trouvés par regex : affichage seulement.
 - **Entrées enregistrées à la demande** (bouton, Ctrl+S, alerte avant de
   quitter), pas pendant la frappe comme les fiches : un texte enregistré
-  remplace celui de tous et recompile les fiches qui
-  l'insèrent (choisi le 2026-10-01).
+  remplace celui de tous (choisi le 2026-10-01).
 - **Identifiant d'entrée fixé à la création** (proposé depuis le titre) ;
-  titre, type et texte modifiables par tous. Initiales (journal) =
-  premières lettres du prénom et du nom du profil.
+  c'est le nom du fichier (`corpus/<id>.md`), donc `[[id]]` marche aussi
+  dans Obsidian. Titre, type et texte modifiables par tous.
 - **Readings d'une entrée = ceux saisis à la main, ceux des fiches qui la
   citent ou l'insèrent, et ceux des questions qui lui sont liées.** Fiches
   (choix de Baptiste le 2026-10-01) et questions (2026-10-07) rattachaient
@@ -246,8 +266,7 @@ sont dans `../CLAUDE.md`.
 - **Rattacher à plusieurs endroits** : page Corpus (cases à cocher, barre
   d'action, maj + clic), page d'une entrée, page Reading (menu Corpus : « Rattacher
   ici »), éditeur d'entrée (pastilles + sélecteur ; reading de l'URL présélectionné
-  en création). Écriture en lot sous un seul verrou, tout ou rien ; rien au journal
-  (comme les liens aux questions).
+  en création). Écriture en lot sous un seul verrou, tout ou rien.
   Le service des fiches prévient le corpus après chaque enregistrement,
   même raté (`NotesService.on_saved`, câblé dans `server.py`) : relu par
   la session WTF4 le 2026-10-01.
@@ -275,36 +294,35 @@ sont dans `../CLAUDE.md`.
   ses 6 formules sont des entrées créées par BD, sans reading tant
   qu'aucune fiche ni question ne les rattache.
 - **Hypothèses et limites : formules seulement, dans l'encadré partout.**
-  Choix de Baptiste le 2026-10-02. Deux fichiers Typst par entrée, deux champs
-  sous le texte dans `entree.html`, rendus par `bloc-entree` sur la page du corpus
-  et dans les fiches (`_corpus.typ` les inclut). Un champ vide supprime son fichier,
-  un champ non envoyé n'est pas touché. Ils comptent comme le texte pour les
-  citations, l'interdiction d'insérer et la validité de l'entrée.
+  Choix de Baptiste le 2026-10-02. Deux sections `## Hypothèses` et
+  `## Limites` en fin de fichier, deux champs sous le texte dans
+  `entree.html`, rendues par `FRM.renderEntryBox` sur la page du corpus et
+  dans les fiches qui insèrent l'entrée. Un champ vide retire sa section, un
+  champ non envoyé n'est pas touché. Elles comptent comme le texte pour les
+  citations.
 - **Produits financiers : des variables déclarées, remplies dans le code**
   (choix de Baptiste le 2026-10-08). Ni valeurs ni unités sur la page, ni
   familles imposées, ni scénario de marché : courbes et valeurs se font en
-  code. `variables.json` : `[{nom, note}]`, nom = identifiant Python, 60 au
+  code. Clé YAML `variables` : `[{nom, note}]`, nom = identifiant Python, 60 au
   plus. Éditeur : tableau dans la carte du haut, avec l'exemple de code ;
   l'aperçu ignore les noms invalides. Encadré : les noms, et un tableau
   quand une note est écrite. Chaque exécution reçoit `produits.py` :
   `produit("id")` rend un objet neuf, variables à `None`, `a_remplir()`,
   `notes()` ; affecter un nom non déclaré lève une erreur (fautes de frappe).
-- **Une erreur dit quel texte la porte.** Trois textes, une seule boîte : en cas
-  d'échec, le serveur compile chaque texte seul ; `part` et `line` (dans ce texte)
-  vont dans le 422, et l'éditeur marque le bon champ.
 - **Images : dossier commun `notes/images/`, jamais remplacées.** Choix de
-  Baptiste le 2026-10-02 (« ça force à bien nommer »). Chemin depuis la racine
-  Typst (`/images/…`) : marche dans une fiche, une entrée, une entrée insérée.
+  Baptiste le 2026-10-02 (« ça force à bien nommer »). Citées par leur nom de
+  fichier, `![[courbe.png|500]]` (largeur en pixels), comme dans Obsidian ;
+  le site les cherche dans `notes/images/`. Une image n'est jamais prise pour
+  une entrée : les identifiants n'ont pas de point.
   Compressées dans le navigateur (1600 px, PNG ou JPEG), envoyées en base64
   dans du JSON (la garde n'est pas touchée) ; requêtes portées à 6 Mo.
 - **Supprimer une entrée retire ses références** (choix de Baptiste le
-  2026-10-06) : `#voir` devient le titre échappé, `#entree` disparaît
-  (`strip_references`). Fiches puis entrées réécrites et recompilées, sans
-  plafond, avant l'effacement du dossier (copies `valide/` comprises) ;
-  ces réécritures entrent au journal au nom de qui supprime (le DELETE
-  porte le profil). Une brique importée est refusée
-  (409 `BRICK_IN_USE`). Le gestionnaire lit le corps des DELETE (JSON exigé).
-- **Questions liées au corpus, dans `entree.json`** (choix de Baptiste le
+  2026-10-06) : `[[id]]` devient le titre échappé (ou le texte affiché de
+  `[[id|…]]`), `![[id]]` disparaît, avec sa ligne s'il est seul
+  (`strip_references`). Fiches puis entrées réécrites avant l'effacement du
+  fichier. Une brique importée est refusée (409 `BRICK_IN_USE`). Le
+  gestionnaire lit le corps des DELETE (JSON exigé).
+- **Questions liées au corpus, dans l'en-tête de l'entrée** (choix de Baptiste le
   2026-10-06) : partagées, écrites par PUT/DELETE
   `/api/corpus/<id>/questions/<q>`, lues par le manifeste. Distinctes de
   « Traitée ». Elles donnent leur reading à l'entrée. La page Questions
@@ -334,12 +352,12 @@ sont dans `../CLAUDE.md`.
   `--use-3` : le vert, essayé, échoue au validateur contre l'aqua du type
   Propriété (ΔE 11,9 < 15).
 - **Aperçu d'une entrée au survol** (`entry-preview.js`, choix de Baptiste
-  le 2026-10-07) : bulles du graphe, noms des Stats. Début du rendu (le
-  dernier qui a compilé), initiales des contributeurs et bouton « Ouvrir l'entrée ». Vient
+  le 2026-10-07) : bulles du graphe, noms des Stats. Début de l'entrée dans
+  son encadré, initiales des contributeurs et bouton « Ouvrir l'entrée ». Vient
   après 0,6 s, part 0,15 s après la sortie (le temps de l'atteindre),
   au-dessus de l'élément sans le couvrir ; un clic le ferme jusqu'à la
-  sortie de l'élément. Hauteur fixe : la position tient avant le
-  chargement de l'image.
+  sortie de l'élément. Hauteur fixe : la position tient quelle que soit
+  la longueur du texte.
 - **En-tête du site qui se cache au défilement** (choix de Baptiste le
   2026-10-07) : collé en haut (`position: sticky`), il glisse hors de
   l'écran quand on descend et revient dès qu'on remonte (`ui.js`,
@@ -347,9 +365,10 @@ sont dans `../CLAUDE.md`.
   atteint au clavier). Sous les infobulles, menus et messages (z-index
   30 à 40), au-dessus du contenu ; l'aperçu au survol se place sous lui.
 - **Boutons de maths ajoutés depuis les éditeurs, partagés** (choix de
-  Baptiste le 2026-10-07) : `notes/_outils-maths.json`, sans notion
-  d'auteur, tout le monde ajoute et retire. Les boutons de base restent dans
-  `toolbar.js` ; `Var` et `Cov` y insèrent `op("…")` (Typst n'en a pas).
+  Baptiste le 2026-10-07) : `notes/_outils-maths.json` (`{label, latex,
+  select}`), sans notion d'auteur, tout le monde ajoute et retire. Les
+  boutons de base restent dans `toolbar.js` ; `Var` et `Cov` y insèrent
+  `\operatorname{…}`.
 
 ## Pièges rencontrés
 
@@ -366,12 +385,6 @@ rampe a été décalée d'un cran (constaté le 2026-09-30).
 `--screenshot` n'écrit rien (chemins réécrits par Git Bash) : lancer Chrome
 depuis PowerShell. Un téléchargement bloque aussi Chrome headless :
 intercepter le clic dans les tests (constaté le 2026-09-30).
-
-**La bibliothèque Python `typst` ne donne pas la position des erreurs.**
-`TypstError` n'a que `message`, `hints` et `trace` vide, même avec
-`pretty=True` (version 0.15, constaté le 2026-10-01). Le serveur
-retrouve la ligne : le nom inconnu dans la source, sinon le plus court
-début de texte qui échoue avec le même message.
 
 **La progression change d'un mode d'ouverture à l'autre.** Le
 `localStorage` est propre à chaque origine : `file://` et
@@ -399,17 +412,6 @@ recevait des arguments mélangés et ne trouvait pas `server.py`. Le
 lanceur fait d'abord `cd /d "%~dp0"`, puis `uv run python server.py`
 (constaté le 2026-10-01).
 
-**Citer avec le curseur avant les imports cassait la compilation.**
-`#voir("…")` atterrissait au-dessus de la ligne `#import` ajoutée
-automatiquement, et Typst refuse un nom utilisé avant son import. Le menu
-Corpus replace désormais le curseur sous les imports (trouvé en test le
-2026-10-01).
-
-**Le rapport de recompilation se perdait quand la version échouait.**
-`save_version` recompilait les dépendants puis relevait l'erreur sans le
-rapport ; le 422 porte désormais `rebuild` (trouvé par la revue WTF4 le
-2026-10-01).
-
 **CodeMirror lit la saisie de façon asynchrone.** Dans un test CDP,
 `execCommand("insertText")` suivi aussitôt d'un clic ailleurs laisse le
 curseur de CodeMirror à son ancienne place : attendre ~300 ms avant de
@@ -419,11 +421,6 @@ cliquer (constaté le 2026-10-01).
 `#2a78d6` et Définition `#1c5cab` étaient indiscernables (ΔE 9,8 en
 vision normale) et Propriété `#3f7a5c` trop grise ; remplacée par une
 palette validée (constaté le 2026-10-01).
-
-**Changer `_gabarit.typ` ne recompile rien.** Les SVG des entrées et des
-fiches gardent l'ancien rendu jusqu'à leur prochain enregistrement ; le
-changement de palette a demandé de tout recompiler à la main par un
-script ponctuel (constaté le 2026-10-01).
 
 **Un lien `#notes-card` ne descendait pas jusqu'à la fiche.** La page
 Reading est construite par script, après que le navigateur a cherché
@@ -444,10 +441,6 @@ Les pages cherchent `document.querySelector("[data-preview]")` ; le menu Images,
 placé avant dans la page, en avait un : l'aperçu de la fiche s'y écrivait, caché.
 Les attributs des menus sont préfixés (`data-img-…`) (trouvé en test le 2026-10-02).
 
-**Insérer avec le curseur en tête de fiche sortait du gabarit.** Le contenu placé
-avant `#show: fiche.with(…)` échappe à la mise en page. Les menus Corpus et
-Images placent le curseur sous tout l'en-tête (trouvé en test le 2026-10-02).
-
 **Une écriture échouait par moments avec « [Errno 22] Invalid argument ».**
 Sous Windows, un fichier qu'un autre programme garde mappé en mémoire (git,
 lancé par l'éditeur après chaque changement) ne peut pas être réécrit à cet
@@ -466,6 +459,23 @@ appelle `FRM.corpusSearch` : une page qui l'importe doit charger ce script
 (`reading.html` ne le faisait pas ; erreur avalée par le message « Menu du
 corpus indisponible », trouvée en test le 2026-11-19).
 
+**Les liens `[[ ]]` d'une fiche s'affichaient en rouge, « entrée inconnue ».**
+La page Reading rendait la fiche dès `notes/index.js` chargé, avant
+`notes/corpus/index.js` : le rendu ne trouvait aucune entrée. Elle attend
+désormais les deux manifestes (trouvé en test le 2026-11-19).
+
+**ruamel.yaml réécrivait les listes d'Obsidian autrement.** Réglé par
+défaut, il écrit `- revoir` sous `tags:` là où Obsidian écrit `  - revoir`
+(deux espaces) : chaque enregistrement du site aurait changé des lignes
+qu'il ne touchait pas. `indent(mapping=2, sequence=4, offset=2)`
+(constaté le 2026-11-19).
+
+**git n'aide pas à suivre un fichier migré de Typst à Markdown.** Le
+contenu change trop pour que git reconnaisse un renommage
+(`corpus/<id>/texte.typ` → `corpus/<id>.md`) : `history.py` relit donc
+aussi les anciens chemins pour garder le créateur d'origine (constaté le
+2026-11-19).
+
 ## Ce qui n'est pas en place
 
 - **Bac à sable.** Le code exécuté peut lire les fichiers et accéder au
@@ -473,37 +483,44 @@ corpus indisponible », trouvée en test le 2026-11-19).
   corpus écrivent du code, à revoir pour un produit multi-utilisateur.
 - **Exécution sans serveur.** Pas de Pyodide : en double-clic, le bouton
   est remplacé par l'invitation à lancer le `.bat`.
-- **Renommage d'une entrée.** L'identifiant est fixé à la création : la
-  supprimer puis la recréer (les citations deviennent du texte simple).
-- **Fiche ouverte pendant une suppression.** Sa sauvegarde automatique remet
-  la référence retirée ; la fiche ne compile plus jusqu'à correction.
-- **Recompilation des fiches au démarrage.** Le serveur régénère les
-  fichiers du corpus mais ne recompile pas les fiches : un dépendant
-  `skipped` attend son prochain enregistrement.
+- **Renommage d'une entrée depuis le site.** L'identifiant est fixé à la
+  création. Renommer le fichier dans Obsidian met à jour les `[[liens]]`,
+  mais pas le module d'une brique (`briques.x`) ni les imports qui le citent.
+- **Fiche ouverte pendant une suppression.** Sa sauvegarde automatique (ou
+  Obsidian) remet la référence retirée, qui s'affiche alors en lien rouge.
 - **Coloration du code Python.** L'éditeur de code n'a pas de mode
   Python (absent du CodeMirror regroupé).
 - **Tests du front.** Seul le serveur a des tests automatisés ; les pages
   et les éditeurs ont été vérifiés à la main (Node, Chrome headless
   piloté par le protocole DevTools, scripts hors dépôt).
-- **Autocomplétion Typst** (`sig` → `sigma`). Prévue comme possible, pas
-  faite : la barre « Mode maths » couvre le besoin pour l'instant.
+- **Autocomplétion LaTeX** (`sig` → `\sigma`). Pas faite : la barre
+  « Mode maths » couvre le besoin pour l'instant.
 - **Questions sans réponse en examen.** Non enregistrées : elles comptent
   dans le score de la série mais n'apparaissent pas quand on la revoit.
-- **Mode sombre des fiches Typst.** Abandonné par Baptiste le 2026-10-01.
+- **PDF imprimable des fiches.** Perdu avec Typst le 2026-11-19 ; Obsidian
+  sait exporter une note en PDF.
+- **Rendu identique à Obsidian.** Le site reconnaît `[[ ]]`, `![[ ]]`, les
+  callouts, `%% %%` et les maths ; pas les blocs Dataview, les embeds de
+  titre (`![[id#section]]`) ni les tags cliquables.
+- **Historique de ce qui n'est pas commité.** Une modification n'a d'auteur
+  qu'une fois commitée ; avant, seule la mention « modifiée depuis le
+  dernier commit » apparaît. Deux personnes sur une même machine sont
+  attribuées au compte git de la machine.
 - **Hypothèses et limites hors formules.** Propriété et théorème n'en ont pas
   (écarté par Baptiste le 2026-10-02).
 - **Repérage des formules sans hypothèses ni limites.** Aucun indicateur ni
   statistique dans le corpus : seul le rendu montre l'absence.
 - **Suppression ou renommage d'une image.** Aucune route : à la main dans
-  `notes/images/`, puis corriger les `#image` qui la citent.
+  `notes/images/` (Obsidian met à jour les `![[…]]` s'il fait le
+  renommage).
 - **Suivi des usages d'une image.** Rien n'indique quelles fiches l'utilisent.
 - **Aperçu qui évite les bulles voisines.** Large de 500 px, il peut
   couvrir une bulle ; il reste ouvert tant que la souris est dessus (pour
   atteindre son bouton) : en sortir le ferme en 0,15 s.
-- **Deux personnes sur le même texte en même temps.** Sur un même
-  serveur, le dernier enregistrement l'emporte, sans alerte ; sur deux
-  machines, git signale un conflit sur le texte et ses rendus (le journal
-  se fusionne seul). Récupérer les changements de l'autre avant d'écrire.
+- **Deux personnes (ou le site et Obsidian) sur le même texte en même
+  temps.** Le dernier enregistrement l'emporte, sans alerte (accepté par
+  Baptiste le 2026-11-19) ; sur deux machines, git signale un conflit sur le
+  fichier. Récupérer les changements de l'autre avant d'écrire.
 - **Pincement tactile dans le graphe.** Un doigt déplace la vue ; le zoom
   passe par la molette ou les boutons.
 - **Bouton « Valoriser » sur un produit.** La valorisation s'écrit dans
@@ -511,7 +528,6 @@ corpus indisponible », trouvée en test le 2026-11-19).
 - **Rattachement depuis le graphe, l'aperçu au survol ou le portail Fiches.**
   Seuls la page Corpus, la page d'une entrée, la page Reading et l'éditeur le proposent.
 - **Rattachement en lot depuis la page Reading.** Le menu y agit entrée par entrée.
-- **Rattachements au journal.** Comme les liens aux questions, ils n'y entrent pas.
-- **Vue d'ensemble des interactions.** Le journal est enregistré mais
-  affiché seulement fiche par fiche et entrée par entrée (choix de
-  Baptiste le 2026-10-07 : la vue d'ensemble viendra plus tard).
+- **Vue d'ensemble des interactions.** L'historique n'est affiché que
+  fiche par fiche et entrée par entrée (choix de Baptiste le 2026-10-07 :
+  la vue d'ensemble viendra plus tard).

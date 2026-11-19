@@ -6,25 +6,19 @@ saisie à la main. Pas de valeurs ici : on les donne dans le code. Un même prod
 `fixed_rate` et `variable_rate`, la fonction de valorisation choisit celle qu'elle utilise.
 Dans le code, `produit("id")` rend un objet dont ces variables sont des attributs vides (None).
 
-On vérifie :
-1. le stockage (variables.json), la relecture et le manifeste ;
-2. l'affichage : les noms (et les notes) dans l'encadré, sur la page du corpus et dans les fiches ;
-3. la validation (noms utilisables en Python, doublons) ;
-4. l'objet à remplir dans le code exécuté (simulations et briques).
-"""
-import json
-import re
+Depuis le 2026-11-19, les variables vivent dans l'en-tête YAML du fichier de l'entrée
+(notes/corpus/<id>.md, clé `variables`), qu'Obsidian affiche comme une propriété.
 
+On vérifie :
+1. le stockage (en-tête YAML), la relecture et le manifeste ;
+2. la validation (noms utilisables en Python, doublons) ;
+3. l'objet à remplir dans le code exécuté (simulations et briques).
+"""
 import pytest
 
 from backend.corpus import EntryMeta
 from backend.errors import InvalidRequestError
-from backend.journal import Contributor
-
-BAPTISTE = Contributor("baptiste", "Baptiste Durand", "BD")
-MARIE = Contributor("marie", "Marie Martin", "MM")
-QUI = {"author": "baptiste", "name": "Baptiste Durand", "initials": "BD"}
-FICHE = '#import "/_corpus.typ": voir, entree\n'
+from backend.frontmatter import Document
 
 # Une obligation, avec les deux sortes de taux : la valorisation choisira.
 OBLIGATION = [
@@ -35,16 +29,16 @@ OBLIGATION = [
 ]
 
 
-def produit(corpus, entry_id="obligation-5-ans", variables=OBLIGATION, texte="Obligation, taux fixe ou variable.", who=BAPTISTE):
+def produit(corpus, entry_id="obligation-5-ans", variables=OBLIGATION, texte="Obligation, taux fixe ou variable."):
     """Raccourci : crée le produit (s'il n'existe pas) et enregistre son texte et ses variables."""
     if not corpus.exists(entry_id):
-        corpus.create(entry_id, EntryMeta("produit", "Obligation 5 ans"), BAPTISTE)
-    return corpus.save_text(entry_id, who, texte, None, variables=variables)
+        corpus.create(entry_id, EntryMeta("produit", "Obligation 5 ans"))
+    return corpus.save_text(entry_id, texte, None, variables=variables)
 
 
-def hauteur(svg):
-    """Hauteur d'une page SVG : un bloc de plus rend la page plus haute (le texte, lui, est en tracés)."""
-    return float(re.search(r'<svg[^>]*\sheight="([\d.]+)', svg).group(1))
+def en_tete(site, entry_id="obligation-5-ans"):
+    """L'en-tête YAML du fichier de l'entrée, relu comme le ferait Obsidian."""
+    return Document.parse((site / "notes" / "corpus" / f"{entry_id}.md").read_text(encoding="utf-8")).data
 
 
 # ---------------------------------------------------------------- stockage et relecture
@@ -52,10 +46,9 @@ def hauteur(svg):
 
 def test_les_variables_sont_ecrites_relues_et_dans_le_manifeste(services, site):
     corpus = services.corpus
-    entree, _ = produit(corpus)
-    # Elles vivent dans un fichier à part, à côté du texte, comme les hypothèses d'une formule.
-    fichier = site / "notes" / "corpus" / "obligation-5-ans" / "variables.json"
-    assert json.loads(fichier.read_text(encoding="utf-8")) == OBLIGATION
+    entree = produit(corpus)
+    # Elles vivent dans l'en-tête YAML, à côté du type et du titre.
+    assert [dict(v) for v in en_tete(site)["variables"]] == OBLIGATION
     # L'éditeur les relit (load_texts), l'entrée les porte, le manifeste aussi (pages sans serveur).
     assert corpus.load_texts("obligation-5-ans").variables == OBLIGATION
     assert list(entree.variables) == OBLIGATION
@@ -65,67 +58,34 @@ def test_les_variables_sont_ecrites_relues_et_dans_le_manifeste(services, site):
 def test_ne_pas_envoyer_les_variables_les_laisse_et_une_liste_vide_les_retire(services, site):
     corpus = services.corpus
     produit(corpus)
-    fichier = site / "notes" / "corpus" / "obligation-5-ans" / "variables.json"
-    # Marie ne modifie que le texte (variables non envoyées : None) : rien ne bouge.
-    corpus.save_text("obligation-5-ans", MARIE, "Texte repris.", None)
-    assert json.loads(fichier.read_text(encoding="utf-8")) == OBLIGATION
-    # Une liste vide, elle, retire les variables.
+    # On ne modifie que le texte (variables non envoyées : None) : rien ne bouge.
+    corpus.save_text("obligation-5-ans", "Texte repris.", None)
+    assert [dict(v) for v in en_tete(site)["variables"]] == OBLIGATION
+    # Une liste vide, elle, retire la clé de l'en-tête.
     produit(corpus, variables=[])
-    assert not fichier.exists()
+    assert "variables" not in en_tete(site)
     assert corpus.get("obligation-5-ans").variables == ()
-
-
-def test_changer_les_variables_est_une_modification_au_journal(services):
-    corpus = services.corpus
-    produit(corpus, who=BAPTISTE)
-    produit(corpus, variables=OBLIGATION[:2], who=MARIE)
-    assert [s.author for s in corpus.get("obligation-5-ans").journal] == ["baptiste", "marie"]
 
 
 def test_les_variables_sont_reservees_aux_produits(services, site):
     corpus = services.corpus
-    corpus.create("variance", EntryMeta("definition", "Variance"), BAPTISTE)
+    corpus.create("variance", EntryMeta("definition", "Variance"))
     with pytest.raises(InvalidRequestError) as raised:
-        corpus.save_text("variance", BAPTISTE, "Texte.", None, variables=OBLIGATION)
+        corpus.save_text("variance", "Texte.", None, variables=OBLIGATION)
     assert raised.value.field == "variables"
-    assert not (site / "notes" / "corpus" / "variance" / "texte.typ").exists()
+    assert corpus.get("variance").source == ""  # rien n'a été écrit
     # Une liste vide n'est pas un contenu : un client qui envoie toujours le champ passe.
-    corpus.save_text("variance", BAPTISTE, "Texte.", None, variables=[])
+    corpus.save_text("variance", "Texte.", None, variables=[])
 
 
-# ---------------------------------------------------------------- affichage
-
-
-def test_les_variables_s_affichent_dans_l_encadre(services, site):
+def test_des_caracteres_speciaux_dans_une_note_restent_tels_quels(services, site):
+    # Les notes sont du texte affiché tel quel : un « # », des crochets, des guillemets ou des
+    # deux-points ne doivent ni casser l'en-tête YAML ni changer à la relecture.
     corpus = services.corpus
-    produit(corpus, "sans-variables", variables=[])
-    produit(corpus, "noms-seuls", variables=[{"nom": "nominal", "note": ""}, {"nom": "maturite", "note": ""}])
-    produit(corpus, "avec-notes")
-    rendu = lambda eid: hauteur((site / "notes" / "corpus" / eid / "page-1.svg").read_text(encoding="utf-8"))
-    # Sans note, les noms tiennent sur une ligne ; avec des notes, un tableau d'une ligne par variable.
-    assert rendu("sans-variables") + 10 < rendu("noms-seuls") < rendu("avec-notes")
-
-
-def test_une_fiche_qui_insere_le_produit_montre_ses_variables(services, site):
-    corpus = services.corpus
-    produit(corpus, "sans-variables", variables=[])
-    produit(corpus, "avec-variables")
-    generated = (site / "notes" / "_corpus.typ").read_text(encoding="utf-8")
-    assert '(nom: "fixed_rate", note: "taux fixe annuel")' in generated
-    page = FICHE + "#set page(height: auto)\n"
-    sans = hauteur(services.compiler.svg_pages(page + '#entree("sans-variables")')[0])
-    avec = hauteur(services.compiler.svg_pages(page + '#entree("avec-variables")')[0])
-    assert avec > sans + 30
-
-
-def test_des_caracteres_typst_dans_une_note_ne_cassent_rien(services):
-    # Les notes sont du texte affiché tel quel : un « # », des crochets ou des guillemets ne doivent
-    # ni casser la compilation ni être interprétés.
-    corpus = services.corpus
-    piege = [{"nom": "indice", "note": 'SOFR + 0,5 % "flat" [#voir] *pas du gras* $x$'}]
-    entree, _ = produit(corpus, variables=piege)
-    assert entree.valid
-    services.compiler.svg_pages(FICHE + '#entree("obligation-5-ans")')
+    piege = [{"nom": "indice", "note": 'SOFR + 0,5 % "flat" [[voir]] : *pas du gras* $x$ # pas un commentaire'}]
+    entree = produit(corpus, variables=piege)
+    assert list(entree.variables) == piege
+    assert [dict(v) for v in en_tete(site)["variables"]] == piege
 
 
 # ---------------------------------------------------------------- validation (API)
@@ -141,24 +101,22 @@ def test_des_caracteres_typst_dans_une_note_ne_cassent_rien(services):
     ([{"nom": f"v{i}"} for i in range(61)], "liste"),              # 60 au plus
 ])
 def test_des_variables_mal_formees_sont_refusees(api, variables, message):
-    api("POST", "/api/corpus", {"id": "obligation", "type": "produit", "titre": "Obligation", **QUI})
-    status, _, body = api("PUT", "/api/corpus/obligation/texte", {"source": "Texte.", "variables": variables, **QUI})
+    api("POST", "/api/corpus", {"id": "obligation", "type": "produit", "titre": "Obligation"})
+    status, _, body = api("PUT", "/api/corpus/obligation/texte", {"source": "Texte.", "variables": variables})
     assert (status, body["field"]) == (422, "variables")
     assert message in body["detail"]
 
 
 def test_le_parcours_par_l_api(api):
-    status, _, _ = api("POST", "/api/corpus", {"id": "obligation", "type": "produit", "titre": "Obligation", **QUI})
+    status, _, _ = api("POST", "/api/corpus", {"id": "obligation", "type": "produit", "titre": "Obligation"})
     assert status == 201
-    # Aperçu avec les variables, puis enregistrement, puis relecture.
-    status, _, body = api("POST", "/api/compile/entry", {"type": "produit", "titre": "Obligation", "source": "Texte.", "variables": OBLIGATION})
-    assert status == 200 and body["data"]["pages"][0].startswith("<svg")
-    status, _, body = api("PUT", "/api/corpus/obligation/texte", {"source": "Texte.", "variables": OBLIGATION, **QUI})
+    # Enregistrement, puis relecture.
+    status, _, body = api("PUT", "/api/corpus/obligation/texte", {"source": "Texte.", "variables": OBLIGATION})
     assert status == 200 and body["data"]["variables"] == OBLIGATION
     _, _, body = api("GET", "/api/corpus/obligation/texte")
     assert body["data"]["variables"] == OBLIGATION
     # La note est facultative, ses espaces retirés ; une valeur envoyée par un ancien client est ignorée.
-    _, _, body = api("PUT", "/api/corpus/obligation/texte", {"source": "Texte.", "variables": [{"nom": "nominal", "valeur": 100, "note": " pair "}], **QUI})
+    _, _, body = api("PUT", "/api/corpus/obligation/texte", {"source": "Texte.", "variables": [{"nom": "nominal", "valeur": 100, "note": " pair "}]})
     assert body["data"]["variables"] == [{"nom": "nominal", "note": "pair"}]
 
 
@@ -209,8 +167,8 @@ def test_une_brique_de_valorisation_recoit_le_produit_rempli(services):
     # La brique ne connaît que le produit qu'on lui passe : c'est elle qui choisit fixed_rate.
     corpus = services.corpus
     produit(corpus)
-    corpus.create("coupons", EntryMeta("brique", "Coupons"), BAPTISTE)
-    corpus.save_text("coupons", BAPTISTE, "Brique.", "def coupon_annuel(p):\n    return p.nominal * p.fixed_rate\n")
+    corpus.create("coupons", EntryMeta("brique", "Coupons"))
+    corpus.save_text("coupons", "Brique.", "def coupon_annuel(p):\n    return p.nominal * p.fixed_rate\n")
     code = "from produits import produit\nfrom briques.coupons import coupon_annuel\np = produit('obligation-5-ans')\np.nominal, p.fixed_rate = 100, 0.04\nprint(coupon_annuel(p))\n"
     result = services.simulations.run(code)
     assert result.ok, result.error
