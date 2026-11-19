@@ -1,5 +1,8 @@
 {
   "type": "definition",
   "titre": "Exposure at Default (EAD)",
-  "valide": true
+  "valide": true,
+  "readings": [
+    1
+  ]
 }

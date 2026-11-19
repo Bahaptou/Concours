@@ -1,5 +1,8 @@
 {
   "type": "definition",
   "titre": "Probability of Default (PD)",
-  "valide": true
+  "valide": true,
+  "readings": [
+    1
+  ]
 }

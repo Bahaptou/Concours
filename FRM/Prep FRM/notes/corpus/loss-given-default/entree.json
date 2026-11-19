@@ -1,5 +1,8 @@
 {
   "type": "definition",
   "titre": "Loss Given Default (LGD)",
-  "valide": true
+  "valide": true,
+  "readings": [
+    1
+  ]
 }
