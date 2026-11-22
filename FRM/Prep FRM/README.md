@@ -31,7 +31,9 @@ Pour passer de l'un à l'autre : 💾 Sauvegarder d'un côté, 📂 Charger de l
   par livre ou par reading. Chaque graphique a sa vue tableau.
 - **Questions** (`quiz.html`) : séries de questions AnalystPrep, en entraînement (correction après chaque
   question) ou en examen (correction à la fin, compte à rebours possible), examen blanc réparti selon les
-  poids d'examen, bilan et reprise des erreurs, historique des séries.
+  poids d'examen, bilan et reprise des erreurs, historique des séries. Le périmètre d'une série : tout le
+  programme, un livre, un reading, **des readings cochés** (« Readings choisis… », par livre ou un à un) ou
+  les questions liées à des entrées du corpus.
 - **Question** (`question.html?reading=N&q=ID`) : une question hors de toute série : essai libre non
   enregistré, correction, marques, liens au corpus, historique (chaque essai et sa série). « S'entraîner »
   en fait une série d'une question, enregistrée.

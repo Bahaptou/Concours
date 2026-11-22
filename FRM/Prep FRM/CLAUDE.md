@@ -19,7 +19,8 @@ sont dans `../CLAUDE.md`.
   objective, profil (prénom, nom).
 - **Questions** : les 1 293 QCM AnalystPrep, en entraînement (correction
   immédiate) ou en examen (correction à la fin, compte à rebours), examen
-  blanc réparti 20/20/30/30, historique des séries consultable. L'étape 2
+  blanc réparti 20/20/30/30, historique des séries consultable. Périmètre :
+  tout, un livre, un reading, des readings cochés un à un, ou des entrées du corpus. L'étape 2
   se coche seule quand toutes les questions d'un reading ont été tentées.
   Une question peut être « traitée » (exploitée dans les fiches) : état à
   part des marques, avec son reading pour compter sans charger les questions.
@@ -330,6 +331,9 @@ sont dans `../CLAUDE.md`.
   Séries : portée « entries », « Au moins une » (union) ou « Toutes » (croisement) ;
   entrées choisies par la barre `corpus-search.js`, affichées en blocs qui
   portent les champs cachés du formulaire (une entrée filtrée reste choisie).
+  Portée « readings » (demande de Baptiste le 2026-11-22) : readings cochés par
+  livre (case de livre à trois états), dans l'ordre officiel ; adresse
+  `quiz.html?readings=1,3,12`. La répartition selon les poids reste réservée à « tout ».
 - **« À surveiller » des stats du corpus** (choix de Baptiste le 2026-10-07) :
   ce qui flotte, pas l'absence de reading. Isolées : aucun lien avec une
   autre entrée. Non rattachées : groupes (liens de proche en proche) dont

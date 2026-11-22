@@ -686,6 +686,14 @@ svg.corpus-graph.is-panning{cursor:grabbing;}
 .q-link-chip{display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--ink); text-decoration:none; padding:2px 8px 2px 2px; border:1px solid var(--line); border-radius:999px; background:var(--surface);}
 .q-link-chip:hover{border-color:var(--primary-soft);}
 .entries-field{grid-column:1 / -1;}
+/* Scope "readings" of a new series: readings ticked by book */
+.readings-field{grid-column:1 / -1;}
+.readings-actions{margin-bottom:6px;}
+.readings-books{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px 18px; max-height:360px; overflow:auto; padding:6px 8px; border:1px solid var(--line); border-radius:8px;}
+@media (max-width:640px){.readings-books{grid-template-columns:1fr;}}
+.readings-book-head{font-size:13px; padding-bottom:2px; border-bottom:1px solid var(--line);}
+.readings-book-list{display:flex; flex-direction:column; padding-left:18px;}
+.reading-pick{font-size:13px;}
 .entries-match{display:flex; flex-wrap:wrap; gap:4px 18px;}
 .entries-list{max-height:220px; overflow:auto; margin-top:6px; padding:4px 8px; border:1px solid var(--line); border-radius:8px;}
 .entry-choice[hidden]{display:none;}

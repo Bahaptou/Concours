@@ -5,7 +5,7 @@
  * compte à rebours possible au rythme de l'examen). La série en cours est
  * sauvegardée à chaque action et se reprend après un rechargement.
  *
- * Adresse : ?reading=12 ou ?book=2 (périmètre pré-rempli), &select=unseen|wrong|flagged|untreated,
+ * Adresse : ?reading=12, ?book=2 ou ?readings=1,3,12 (périmètre pré-rempli), &select=unseen|wrong|flagged|untreated,
  *           &q=315 (s'entraîner sur cette seule question, tout de suite), ?exam=1 (réglages d'examen
  *           blanc), ?session=s… (revoir le bilan d'une série terminée), ?vue=catalogue (onglet
  *           Catalogue, question-catalogue.js ; &reading=12 ou &book=2 pour son périmètre).
@@ -52,8 +52,14 @@
     return new Map(kept);
   }
 
+  // Scope "readings": the readings ticked one by one (any number, from any book).
+  const READINGS_SCOPE = "readings";
+  const chosenReadings = (scopeOptions) =>
+    FRM.readings.filter((r) => (scopeOptions.readings || []).includes(r.id)); // official order
+
   function scopeReadings(scope, scopeOptions = options) {
     const [kind, id] = scope.split(":");
+    if (kind === READINGS_SCOPE) return chosenReadings(scopeOptions);
     if (kind === "book") return FRM.findBook(id).readings;
     if (kind === "reading") return [FRM.findReading(id)];
     if (kind === ENTRIES_SCOPE) return [...new Set(entryQuestions(scopeOptions).values())].map(FRM.findReading).filter(Boolean);
@@ -72,6 +78,11 @@
     const [kind, id] = scope.split(":");
     if (kind === "book") return `Livre ${id} · ${FRM.findBook(id).title}`;
     if (kind === "reading") return `${FRM.findReading(id).tag} · ${FRM.findReading(id).title}`;
+    if (kind === READINGS_SCOPE) {
+      const tags = chosenReadings(scopeOptions).map((r) => r.tag);
+      const more = tags.length - 6;
+      return `Readings · ${tags.slice(0, more > 0 ? 5 : 6).join(", ")}${more > 0 ? ` et ${more + 1} autres` : ""}`;
+    }
     if (kind === ENTRIES_SCOPE) {
       const titles = (scopeOptions.entries || []).map(FRM.findEntry).filter(Boolean).map((entry) => entry.titre);
       return `Corpus · ${titles.join(scopeOptions.match === "all" ? " ∩ " : " ∪ ")}`;
@@ -90,10 +101,11 @@
     const reading = FRM.findReading(params.get("reading"));
     const book = FRM.findBook(params.get("book"));
     const entries = (params.get("entries") || "").split(",").filter((id) => FRM.findEntry(id));
-    const scope = entries.length ? ENTRIES_SCOPE : reading ? `reading:${reading.id}` : book ? `book:${book.id}` : "all";
+    const readings = (params.get("readings") || "").split(",").map(FRM.findReading).filter(Boolean).map((r) => r.id);
+    const scope = entries.length ? ENTRIES_SCOPE : readings.length ? READINGS_SCOPE : reading ? `reading:${reading.id}` : book ? `book:${book.id}` : "all";
     const selection = bank.SELECTIONS.some((s) => s.id === params.get("select")) ? params.get("select") : "all";
     const match = params.get("match") === "all" ? "all" : "any";
-    return { scope, entries, match, selection, count: null, order: "pdf", mode: "training", countdown: false, weighted: false };
+    return { scope, entries, readings, match, selection, count: null, order: "pdf", mode: "training", countdown: false, weighted: false };
   }
 
   let options = initialOptions();
@@ -107,7 +119,48 @@
       .map((b) => `<optgroup label="${esc(`Livre ${b.id} · ${b.title}`)}">${b.readings.map((r) => option(`reading:${r.id}`, `${r.tag} · ${r.title}`)).join("")}</optgroup>`)
       .join("");
     const corpus = linkedEntries().length ? `<optgroup label="Corpus">${option(ENTRIES_SCOPE, "Questions liées à des entrées du corpus…")}</optgroup>` : "";
-    return `<select name="scope">${option("all", "Tout le programme")}${corpus}<optgroup label="Livres entiers">${books}</optgroup>${readings}</select>`;
+    const several = `<optgroup label="Plusieurs readings">${option(READINGS_SCOPE, "Readings choisis…")}</optgroup>`;
+    return `<select name="scope">${option("all", "Tout le programme")}${several}${corpus}<optgroup label="Livres entiers">${books}</optgroup>${readings}</select>`;
+  }
+
+  /** The readings to tick, by book; shown when the scope is "readings". A book's own box ticks or
+   *  clears all its readings (half-ticked when only some are). */
+  function readingsFieldset() {
+    const chosen = new Set(options.readings || []);
+    const books = FRM.books
+      .map((book) => {
+        const items = book.readings
+          .map(
+            (r) => `<label class="choice reading-pick"><input type="checkbox" name="readings" value="${r.id}"${chosen.has(r.id) ? " checked" : ""}>
+          <span><strong>${esc(r.tag)}</strong> ${esc(r.title)} <span class="muted small">(${r.questions.count})</span></span></label>`
+          )
+          .join("");
+        return `<div class="readings-book">
+        <label class="choice readings-book-head"><input type="checkbox" data-book-toggle="${book.id}"><span><strong>Livre ${book.id}</strong> · ${esc(book.title)}</span></label>
+        <div class="readings-book-list">${items}</div>
+      </div>`;
+      })
+      .join("");
+    return `
+    <fieldset class="field readings-field" data-when="readings"><legend>Readings</legend>
+      <div class="readings-actions"><button type="button" class="link-btn" data-readings-all>Tout cocher</button> · <button type="button" class="link-btn" data-readings-none>Tout décocher</button> <span class="small muted" data-readings-status></span></div>
+      <div class="readings-books">${books}</div>
+    </fieldset>`;
+  }
+
+  /** Each book's box follows its readings: ticked, cleared or half-ticked; and the count. */
+  function refreshBookToggles(form) {
+    for (const toggle of form.querySelectorAll("[data-book-toggle]")) {
+      const boxes = [...toggle.closest(".readings-book").querySelectorAll("input[name='readings']")];
+      const ticked = boxes.filter((box) => box.checked).length;
+      toggle.checked = ticked === boxes.length;
+      toggle.indeterminate = ticked > 0 && ticked < boxes.length;
+    }
+    const status = form.querySelector("[data-readings-status]");
+    if (status) {
+      const n = form.querySelectorAll("input[name='readings']:checked").length;
+      status.textContent = n ? `${ui.plural(n, "reading")} coché${n > 1 ? "s" : ""}` : "aucun reading coché";
+    }
   }
 
   /** Entries with linked questions, to choose; shown when the scope is "entries". The corpus search
@@ -192,6 +245,7 @@
   <div class="setup-grid">
     <label class="field">Périmètre ${scopeSelect()}</label>
     <label class="field">Nombre de questions <select name="count">${counts}</select></label>
+    ${readingsFieldset()}
     ${entriesFieldset()}
     <fieldset class="field"><legend>Questions</legend>${selections}</fieldset>
     <fieldset class="field"><legend>Mode</legend>
@@ -253,6 +307,7 @@
     return {
       scope: data.get("scope"),
       entries: data.getAll("entries"),
+      readings: data.getAll("readings").map(Number),
       match: data.get("match") || "any",
       selection: data.get("selection"),
       count: Number(data.get("count")) || null,
@@ -270,6 +325,8 @@
     options = readForm(form);
     const entriesField = form.querySelector("[data-when='entries']");
     if (entriesField) entriesField.hidden = options.scope !== ENTRIES_SCOPE;
+    form.querySelector("[data-when='readings']").hidden = options.scope !== READINGS_SCOPE;
+    refreshBookToggles(form);
     const pool = await scopePool(options);
     for (const s of bank.SELECTIONS) form.querySelector(`[data-pool="${s.id}"]`).textContent = `(${bank.filterPool(pool, s.id).length})`;
     const available = bank.filterPool(pool, options.selection).length;
@@ -730,7 +787,20 @@ ${shown.length ? `<div class="card"><h2>Par reading</h2>${byReadingTable(shown)}
     refreshSetup();
   });
 
+  // Readings ticked by book, or all at once (scope "readings").
+  document.addEventListener("click", (event) => {
+    const all = event.target.closest("[data-readings-all], [data-readings-none]");
+    if (!all || !root().contains(all)) return;
+    const form = all.closest("[data-setup]");
+    form.querySelectorAll("input[name='readings']").forEach((box) => (box.checked = "readingsAll" in all.dataset));
+    refreshSetup();
+  });
+
   document.addEventListener("change", (event) => {
+    if (event.target.matches("[data-book-toggle]")) {
+      const list = event.target.closest(".readings-book").querySelectorAll("input[name='readings']");
+      list.forEach((box) => (box.checked = event.target.checked)); // before reading the form
+    }
     if (event.target.matches("[data-entry-pick]")) pickEntry(event.target.value, event.target.checked); // before reading the form
     if (event.target.closest("[data-setup]")) refreshSetup();
     if (event.target.matches("[data-hide-treated]")) {
