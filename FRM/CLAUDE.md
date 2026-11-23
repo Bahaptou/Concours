@@ -71,6 +71,13 @@ E(Y²)), fractions aplaties (« 1x00 » pour x/100), petits tableaux fusionnés.
 En gardant l'indentation d'origine, les calculs mis en page restent
 lisibles ; le PDF fait foi (constaté le 2026-09-30).
 
+**Les barres de fraction et les traits de tableau ne sont pas du texte.** Ce
+sont de fins rectangles dessinés (hauteur ≤ 1,6 pt) : pdftotext les ignore,
+d'où « 4 25 » pour 4/25 et des tableaux aux valeurs décalées d'une ligne
+(Q.447, Q.5315). Les banques de questions sont donc mises en page depuis
+les mots et les rectangles du PDF (PyMuPDF), plus par pdftotext (constaté
+le 2026-11-23).
+
 **Les « Things to Remember » ne contiennent presque pas de formules.**
 14 points sur 3 414 ; les formules sont dans les blocs de calcul des
 corrigés (521 questions). Les puces disparaissent à l'extraction, les points

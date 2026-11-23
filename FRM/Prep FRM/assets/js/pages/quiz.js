@@ -579,8 +579,11 @@ ${training ? "" : palette()}
     const answered = rows.filter((r) => r.choice).length;
     const correct = rows.filter((r) => r.choice === r.question.answer).length;
     const ms = rows.reduce((sum, r) => sum + r.ms, 0);
-    if (answered) {
-      store.sessions.add({ id: s.id, mode: s.mode, label: s.label, startedAt: s.startedAt, finishedAt: Date.now(), total: s.ids.length, answered, correct, ms, timeLimit: s.timeLimit });
+    // An exam keeps all its questions, in order: those left unanswered (no time left) stay in the
+    // series, shown when it is reviewed and offered by "Refaire les erreurs".
+    const questions = s.mode === "exam" ? rows.map((r) => ({ q: r.question.id, reading: r.question.reading })) : undefined;
+    if (answered || questions) {
+      store.sessions.add({ id: s.id, mode: s.mode, label: s.label, startedAt: s.startedAt, finishedAt: Date.now(), total: s.ids.length, answered, correct, ms, timeLimit: s.timeLimit, ...(questions ? { questions } : {}) });
     }
     store.activeSession.clear();
     session = null;
@@ -651,7 +654,7 @@ ${training ? "" : palette()}
 <div class="card">
   <div class="kicker">${exam ? "Examen" : "Entraînement"} · ${esc(s.label)}${s.reason === "time" ? " · temps écoulé" : ""}</div>
   <h2>Bilan${s.reviewedAt ? ` du ${ui.dateTime(s.reviewedAt)}` : ""}</h2>
-  ${s.reviewedAt && s.total > s.answered ? `<p class="small muted">${ui.plural(s.total - s.answered, "question")} laissée(s) sans réponse : non enregistrée(s), elles comptent comme fausses dans le score.</p>` : ""}
+  ${s.reviewedAt && s.total > s.answered && s.rows.length < s.total ? `<p class="small muted">${ui.plural(s.total - s.answered, "question")} laissée(s) sans réponse : série d'avant le 2026-11-23, elles n'ont pas été gardées ; elles comptent comme fausses dans le score.</p>` : ""}
   <div class="stat-row">
     ${tile(ui.percent(base ? s.correct / base : 0), exam ? "Score" : "Réussite", `${s.correct} / ${base} ${exam ? "questions" : "réponses"}`)}
     ${tile(`${s.answered} / ${s.total}`, "Répondues", exam ? "sans réponse = faux" : "validées")}
@@ -711,19 +714,24 @@ ${shown.length ? `<div class="card"><h2>Par reading</h2>${byReadingTable(shown)}
 
   document.addEventListener("frm:treated", () => screen === "summary" && refreshTreated());
 
-  /** Bilan d'une série terminée, reconstruit depuis ses réponses enregistrées. */
+  /** Bilan d'une série terminée, reconstruit depuis ses réponses enregistrées. Un examen garde aussi
+   *  ses questions sans réponse (meta.questions, depuis le 2026-11-23), à leur place dans la série. */
   async function review(sessionId) {
     const meta = store.sessions.all().find((s) => s.id === sessionId);
     const attempts = store.attempts.all().filter((a) => a.session === sessionId).sort((a, b) => a.at - b.at);
-    if (!attempts.length) {
+    const order = meta && meta.questions ? meta.questions : null;
+    if (!attempts.length && !order) {
       ui.flash("Aucune réponse enregistrée pour cette série.");
       return renderSetup();
     }
-    const pool = await bank.load([...new Set(attempts.map((a) => a.reading))]);
+    const pool = await bank.load([...new Set([...attempts, ...(order || []).map((item) => ({ reading: item.reading }))].map((a) => a.reading))]);
     const byQuestion = new Map(pool.map((q) => [q.id, q]));
-    const rows = attempts
-      .map((a) => ({ question: byQuestion.get(a.q), choice: a.choice, ms: a.ms || 0 }))
-      .filter((r) => r.question);
+    const answeredRows = attempts.map((a) => ({ question: byQuestion.get(a.q), choice: a.choice, ms: a.ms || 0 }));
+    const byAnswer = new Map(answeredRows.map((r) => [r.question?.id, r]));
+    const rows = (order
+      ? order.map((item) => byAnswer.get(item.q) || { question: byQuestion.get(item.q), choice: null, ms: 0 })
+      : answeredRows
+    ).filter((r) => r.question);
     const mode = meta ? meta.mode : "training";
     summary = {
       mode,
@@ -731,7 +739,7 @@ ${shown.length ? `<div class="card"><h2>Par reading</h2>${byReadingTable(shown)}
       options: { scope: "all", selection: "all", mode, countdown: false },
       ids: rows.map((r) => r.question.id),
       rows,
-      answered: rows.length,
+      answered: rows.filter((r) => r.choice).length,
       correct: rows.filter((r) => r.choice === r.question.answer).length,
       ms: rows.reduce((sum, r) => sum + r.ms, 0),
       total: meta && mode === "exam" ? meta.total : rows.length,

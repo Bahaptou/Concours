@@ -1,7 +1,7 @@
 {
   "app": "prep-frm",
   "version": 1,
-  "exportedAt": "2026-11-23T16:59:03.221Z",
+  "exportedAt": "2026-11-23T19:50:03.205Z",
   "profile": {
     "firstName": "Baptiste",
     "lastName": "Durand"
@@ -18,8 +18,7 @@
       "questions": true
     },
     "12": {
-      "objectives": true,
-      "questions": true
+      "objectives": true
     }
   },
   "confidence": {
@@ -47,7 +46,21 @@
       "5": 3
     },
     "12": {
-      "0": 3
+      "0": 3,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3,
+      "6": 3
+    },
+    "13": {
+      "0": 3,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3
     }
   },
   "attempts": [
@@ -482,9 +495,52 @@
       "ms": 29953,
       "at": 1790804640818,
       "session": "smuomfgns"
+    },
+    {
+      "q": "5302",
+      "reading": 12,
+      "choice": "B",
+      "correct": true,
+      "ms": 313118,
+      "at": 1795461326366,
+      "session": "smwtmgi16"
+    },
+    {
+      "q": "317",
+      "reading": 12,
+      "choice": "B",
+      "correct": true,
+      "ms": 115209,
+      "at": 1795461326366,
+      "session": "smwtmgi16"
+    },
+    {
+      "q": "3625",
+      "reading": 12,
+      "choice": "C",
+      "correct": true,
+      "ms": 80649,
+      "at": 1795461326366,
+      "session": "smwtmgi16"
+    },
+    {
+      "q": "334",
+      "reading": 13,
+      "choice": "A",
+      "correct": false,
+      "ms": 36564,
+      "at": 1795461326366,
+      "session": "smwtmgi16"
     }
   ],
-  "flags": {},
+  "flags": {
+    "314": {
+      "unreadable": true
+    },
+    "3625": {
+      "review": true
+    }
+  },
   "treated": {
     "3": {
       "at": 1791321773778,
@@ -579,6 +635,18 @@
       "correct": 6,
       "ms": 699413,
       "timeLimit": null
+    },
+    {
+      "id": "smwtmgi16",
+      "mode": "exam",
+      "label": "Readings · QA-1, QA-2",
+      "startedAt": 1795459885386,
+      "finishedAt": 1795461326367,
+      "total": 10,
+      "answered": 4,
+      "correct": 3,
+      "ms": 1440978,
+      "timeLimit": 1440000
     }
   ]
 }

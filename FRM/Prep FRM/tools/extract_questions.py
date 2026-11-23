@@ -2,10 +2,15 @@
 
 Un fichier par reading (N = numéro global du reading, comme reading.html?id=N),
 chargé à la demande par le site. Chaque question garde sa page d'origine pour
-renvoyer au PDF : le texte extrait perd les exposants et aplatit certaines
-fractions ou petits tableaux, le PDF reste la référence.
+renvoyer au PDF, qui reste la référence.
 
-    python tools/extract_questions.py
+Le texte de chaque page est mis en page ici, depuis la position des mots dans le PDF
+(PyMuPDF), et non par pdftotext : les barres de fraction et les traits de tableau sont
+des rectangles dessinés, que pdftotext ignore. On les redessine en « ─ », à leur place
+entre numérateur et dénominateur ; une fraction simple (un mot court de chaque côté)
+s'écrit en ligne, 1/3. Les tableaux gardent ainsi leurs lignes alignées.
+
+    uv run python tools/extract_questions.py
 
 Structure d'une question :
     { "id": "315", "page": 3,
@@ -22,7 +27,8 @@ import sys
 from pathlib import Path
 
 sys.dont_write_bytecode = True  # pas de __pycache__ dans tools/ pour l'import ci-dessous
-from extract_curriculum import BOOKS, PREP_DIR, read_pages  # noqa: E402
+import pymupdf  # noqa: E402
+from extract_curriculum import BOOKS, PDF_DIR, PREP_DIR  # noqa: E402
 
 OUTPUT_DIR = PREP_DIR / "data" / "questions"
 CURRICULUM = PREP_DIR / "data" / "curriculum.js"
@@ -34,6 +40,107 @@ ANSWER = re.compile(r"^The correct answer is ([A-D])\b")
 REMEMBER = "Things to Remember"
 TERMINAL_PUNCTUATION = (".", ":", "?", "!")
 LAYOUT_INDENT = 6  # au-delà, ligne de calcul ou de tableau à garder telle quelle
+
+
+# ---------------------------------------------------------------- mise en page depuis le PDF
+
+BAR = "─"
+CHAR_W = 4.6  # points per text column, close to pdftotext's grid for this 11 pt text
+ROW_TOL = 3.0  # words whose vertical centres are this close share a row
+PARAGRAPH_GAP = 18  # points between rows: lines are 13-14 apart, paragraphs 21 or more
+SIMPLE = 8  # a numerator and a denominator this short (one word each) are written inline: 1/3
+
+
+def bars_of(page) -> list[tuple[float, float, float]]:
+    """(x0, x1, y) of the thin filled rectangles: fraction bars and table rules."""
+    found = []
+    for drawing in page.get_drawings():
+        r = drawing["rect"]
+        if drawing.get("fill") is not None and r.height <= 1.6 and 3 <= r.width <= 300:
+            found.append((r.x0, r.x1, (r.y0 + r.y1) / 2))
+    return found
+
+
+def inline_simple_fractions(items: list[tuple]) -> list[tuple]:
+    """A bar with one short word just above and one just below, about as wide as them, becomes
+    "num/den" on the text line: an option such as 1/3 stays on its line. A table rule is far
+    wider than a cell, so it is left alone. A compound term gets parentheses: (Rm−Rf)/σm."""
+    words = [it for it in items if it[0] == "w"]
+    gone, added = set(), []
+
+    def term(text: str) -> str:
+        return f"({text})" if re.search(r"[^\s(]\s*[-+−∗×*/]", text) else text
+
+    for bar in (it for it in items if it[0] == "b"):
+        _, x0, x1, y, _ = bar
+        over = lambda w: w[2] > x0 - 1 and w[1] < x1 + 1  # noqa: E731
+        fits = lambda w: x1 - x0 <= (w[2] - w[1]) + 8  # noqa: E731
+        num = [w for w in words if over(w) and y - 13 < w[3] < y - 1]
+        den = [w for w in words if over(w) and y + 1 < w[3] < y + 13]
+        if (
+            len(num) == 1 and len(den) == 1
+            and len(num[0][4]) <= SIMPLE and len(den[0][4]) <= SIMPLE
+            and (fits(num[0]) or fits(den[0]))
+            and not ({id(num[0]), id(den[0])} & gone)
+        ):
+            gone |= {id(bar), id(num[0]), id(den[0])}
+            added.append(("w", x0, x1, y + 2, f"{term(num[0][4])}/{term(den[0][4])}"))
+    return [it for it in items if id(it) not in gone] + added
+
+
+def page_text(page) -> str:
+    """The page as text laid out like pdftotext -layout, plus the bars drawn in the PDF."""
+    words = page.get_text("words", flags=pymupdf.TEXTFLAGS_WORDS & ~pymupdf.TEXT_MEDIABOX_CLIP)
+    if not words:
+        return ""
+    left = min(w[0] for w in words)  # the text's left margin is column 0
+    # Overline marks (adjusted R², a mean) are drawn as rows of "¯" above the letter: left out,
+    # they would make a line of their own in the middle of a sentence.
+    items = [("w", w[0] - left, w[2] - left, (w[1] + w[3]) / 2, w[4]) for w in words if w[4].strip("¯")]
+    items += [("b", x0 - left, x1 - left, y, None) for x0, x1, y in bars_of(page)]
+    items = inline_simple_fractions(items)
+    items.sort(key=lambda it: it[3])
+    rows: list[list[tuple]] = []
+    for item in items:
+        if rows and abs(rows[-1][0][3] - item[3]) <= ROW_TOL:
+            rows[-1].append(item)
+        else:
+            rows.append([item])
+    out, last_y = [], None
+    for row in rows:
+        y = sum(it[3] for it in row) / len(row)
+        if last_y is not None and y - last_y > PARAGRAPH_GAP:
+            out.append("")
+        last_y = y
+        line: list[str] = []
+        bars = [it for it in row if it[0] == "b"]
+        for _, x0, x1, _, _ in bars:
+            col, end = round(x0 / CHAR_W), max(round(x1 / CHAR_W), round(x0 / CHAR_W) + 1)
+            line.extend(" " * (end - len(line)))
+            line[col:end] = BAR * (end - col)
+        ordered = sorted((it for it in row if it[0] == "w"), key=lambda it: it[1])
+        gaps = [b[1] - a[2] for a, b in zip(ordered, ordered[1:])]
+        # A justified line of prose: its wide spaces are not table columns.
+        prose = not bars and len(ordered) >= 6 and max(gaps) < 18 and ordered[-1][2] - ordered[0][1] > 300
+        cursor, prev_x1 = 0, None
+        for _, x0, x1, _, text in ordered:
+            if prev_x1 is not None and (prose or x0 - prev_x1 < 2 * CHAR_W):
+                glued = not prose and x0 - prev_x1 < 0.8 and text[0] in ",.;:)]%"
+                col = cursor if glued else cursor + 1  # one space between words, none before a comma
+            else:
+                col = max(round(x0 / CHAR_W), cursor + 1 if cursor else 0)
+            prev_x1 = x1
+            line.extend(" " * (col + len(text) - len(line)))
+            line[col:col + len(text)] = text
+            cursor = col + len(text)
+        out.append("".join(line).rstrip())
+    return "\n".join(out)
+
+
+def bank_pages(filename: str) -> list[str]:
+    """Text of each page of a question bank; index i is page i + 1."""
+    with pymupdf.open(PDF_DIR / filename) as document:
+        return [page_text(page) for page in document]
 
 
 # ---------------------------------------------------------------- flux de lignes
@@ -180,7 +287,7 @@ def parse_bank(filename: str) -> dict[int, list[dict]]:
         question["options"] = {k: option_blocks(v) for k, v in sorted(question["options"].items())}
         by_reading.setdefault(reading, []).append(question)
 
-    for page_no, line in line_stream(read_pages(filename)):
+    for page_no, line in line_stream(bank_pages(filename)):
         stripped = line.strip()
         header = READING.match(stripped)
         if header:

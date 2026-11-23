@@ -94,6 +94,10 @@ sont dans `../CLAUDE.md`.
   (`tools/extract_curriculum.py`), `data/questions/rN.js`
   (`tools/extract_questions.py`), `save/exemple-demo.json`
   (`tools/make_demo_save.py`, données fictives).
+  Les questions sont mises en page depuis la position des mots dans le PDF
+  (PyMuPDF, dépendance de dev), pas par pdftotext : barres de fraction et
+  traits de tableau redessinés en `─`, fraction simple en ligne (`1/3`)
+  (2026-11-23).
 - **État utilisateur** dans `localStorage` : `frm-part1.state.v1` (tout ce
   qui est sauvegardé, format décrit en tête de `store.js`),
   `frm-part1.session.v1` (série en cours, hors sauvegarde),
@@ -199,8 +203,12 @@ sont dans `../CLAUDE.md`.
 - **Profil = simple repère**, pas de comptes. Pour regarder la sauvegarde
   de quelqu'un d'autre : fenêtre de navigation privée.
 - **Sauvegarde restée en version 1** malgré les champs ajoutés (profil,
-  réponses, marques, séries, questions traitées) : les champs absents sont tolérés au
+  réponses, marques, séries, questions traitées, questions d'un examen) : les champs absents sont tolérés au
   chargement, un fichier sans profil garde le profil courant.
+- **Un examen garde toutes ses questions** (demande de Baptiste le
+  2026-11-23) : `sessions[].questions` (`[{q, reading}]`, dans l'ordre, sans
+  réponse comprises). « Revoir » les remet à leur place et « Refaire les
+  erreurs » les reprend. Les séries plus anciennes n'ont que leurs réponses.
 - **Jamais publié en ligne** (droits AnalystPrep), à l'exception du dépôt
   GitHub privé (décision de Baptiste le 2026-10-02, « pour l'instant »).
 - **Projet uv indépendant** (`prep-frm`), convention fixée le 2026-10-01,
@@ -499,8 +507,8 @@ aussi les anciens chemins pour garder le créateur d'origine (constaté le
   piloté par le protocole DevTools, scripts hors dépôt).
 - **Autocomplétion LaTeX** (`sig` → `\sigma`). Pas faite : la barre
   « Mode maths » couvre le besoin pour l'instant.
-- **Questions sans réponse en examen.** Non enregistrées : elles comptent
-  dans le score de la série mais n'apparaissent pas quand on la revoit.
+- **Exposants des questions.** Un exposant reste sur la ligne du dessus
+  (le « 3 » de (7/10)³) ; les tableaux bordés ont un trait entre chaque ligne.
 - **PDF imprimable des fiches.** Perdu avec Typst le 2026-11-19 ; Obsidian
   sait exporter une note en PDF.
 - **Rendu identique à Obsidian.** Le site reconnaît `[[ ]]`, `![[ ]]`, les

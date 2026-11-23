@@ -14,7 +14,9 @@
  *     "flags":      { "<questionId>": { "review": true, "unreadable": true } },
  *     "treated":    { "<questionId>": { "at": 1759240000000, "reading": 12 } },   (facultatif)
  *     "sessions":   [ { "id", "mode": "training" | "exam", "label", "startedAt", "finishedAt",
- *                       "total", "answered", "correct", "ms", "timeLimit" } ]
+ *                       "total", "answered", "correct", "ms", "timeLimit",
+ *                       "questions": [ { "q": "315", "reading": 12 } ] } ]   (questions : facultatif,
+ *                       toutes celles d'un examen dans l'ordre, sans réponse comprises)
  *   }
  *
  * Le profil n'est qu'un repère (à qui est cette progression) : pas de comptes.
@@ -116,7 +118,16 @@
       correct: s.correct,
       ms: isCount(s.ms) ? s.ms : null,
       timeLimit: isCount(s.timeLimit) ? s.timeLimit : null,
+      ...(Array.isArray(s.questions) ? { questions: cleanSessionQuestions(s.questions) } : {}),
     };
+  }
+
+  /** The questions of an exam, in order (unanswered ones included): { q, reading }. */
+  function cleanSessionQuestions(list) {
+    return list
+      .filter((item) => item && typeof item.q === "string" && /^\d+$/.test(item.q) && Number.isInteger(item.reading))
+      .slice(0, 2000)
+      .map((item) => ({ q: item.q, reading: item.reading }));
   }
 
   function cleanFlags(flags) {

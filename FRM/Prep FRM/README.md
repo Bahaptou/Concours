@@ -225,8 +225,8 @@ tools/vendor_markdown/        copie de markdown-it et KaTeX (npm, maintenance un
 
 - **Programme = PDFs uniquement.** Titres, poids, résumés, learning objectives, pages, questions et
   corrigés viennent des générateurs de `tools/`, qui lisent les PDFs de `FRM/`. Chaque texte affiché
-  cite son document et sa page. Le texte extrait perd les exposants et aplatit certaines fractions :
-  chaque question renvoie à sa page du PDF, qui fait foi.
+  cite son document et sa page. Dans les questions, fractions et tableaux sont remis en forme depuis le
+  PDF, mais les exposants restent approximatifs : chaque question renvoie à sa page du PDF, qui fait foi.
 - **Nos ajouts sont séparés** : fiches et corpus dans `notes/` (simulations comprises : entrées de type
   simulation). N est le numéro global du reading (1 à 62), celui de `reading.html?id=N`.
 - **Les pages restent lisibles en double-clic** : scripts classiques qui remplissent l'objet global
@@ -286,7 +286,7 @@ comprises) pour voir les graphiques remplis : la charger dans une fenêtre priv�
 ```
 uv run pytest                             # tests du serveur
 uv run python tools/extract_curriculum.py # régénérer le programme (demande pdftotext, fourni avec Git for Windows)
-uv run python tools/extract_questions.py  # régénérer les questions (idem)
+uv run python tools/extract_questions.py  # régénérer les questions (PyMuPDF, installé avec les dépendances de dev)
 uv run python tools/make_demo_save.py     # régénérer la sauvegarde de démonstration
 ```
 

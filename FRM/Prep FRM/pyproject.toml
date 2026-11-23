@@ -16,6 +16,7 @@ package = false
 
 [dependency-groups]
 dev = [
+    "pymupdf>=2.1",
     "pytest>=9.1.1",
 ]
 
