@@ -1,0 +1,781 @@
+{
+  "app": "prep-frm",
+  "version": 1,
+  "exportedAt": "2026-11-26T14:07:00.499Z",
+  "profile": {
+    "firstName": "Baptiste",
+    "lastName": "Durand"
+  },
+  "progress": {
+    "1": {
+      "questions": true,
+      "simulation": true
+    },
+    "2": {
+      "questions": true
+    },
+    "3": {
+      "questions": true
+    },
+    "12": {
+      "objectives": true
+    }
+  },
+  "confidence": {
+    "1": {
+      "0": 2,
+      "1": 2,
+      "2": 1,
+      "3": 3,
+      "4": 3,
+      "5": 2
+    },
+    "2": {
+      "0": 4,
+      "1": 4,
+      "2": 4,
+      "3": 4,
+      "4": 4
+    },
+    "3": {
+      "0": 2,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3
+    },
+    "12": {
+      "0": 3,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3,
+      "6": 3
+    },
+    "13": {
+      "0": 3,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3
+    }
+  },
+  "attempts": [
+    {
+      "q": "9",
+      "reading": 1,
+      "choice": "C",
+      "correct": true,
+      "ms": 33093,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "3",
+      "reading": 1,
+      "choice": "B",
+      "correct": true,
+      "ms": 27995,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "33",
+      "reading": 1,
+      "choice": "A",
+      "correct": false,
+      "ms": 39383,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "5300",
+      "reading": 1,
+      "choice": "B",
+      "correct": true,
+      "ms": 31289,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "7",
+      "reading": 1,
+      "choice": "C",
+      "correct": false,
+      "ms": 56940,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "10",
+      "reading": 1,
+      "choice": "D",
+      "correct": true,
+      "ms": 13954,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "5298",
+      "reading": 1,
+      "choice": "C",
+      "correct": true,
+      "ms": 28563,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "4",
+      "reading": 1,
+      "choice": "D",
+      "correct": true,
+      "ms": 39888,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "5",
+      "reading": 1,
+      "choice": "B",
+      "correct": false,
+      "ms": 50946,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "8",
+      "reading": 1,
+      "choice": "A",
+      "correct": true,
+      "ms": 65636,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "36",
+      "reading": 1,
+      "choice": "D",
+      "correct": false,
+      "ms": 67140,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "35",
+      "reading": 1,
+      "choice": "A",
+      "correct": true,
+      "ms": 55134,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "5299",
+      "reading": 1,
+      "choice": "A",
+      "correct": false,
+      "ms": 57393,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "5303",
+      "reading": 1,
+      "choice": "A",
+      "correct": false,
+      "ms": 49014,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "11",
+      "reading": 1,
+      "choice": "C",
+      "correct": true,
+      "ms": 42503,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "14",
+      "reading": 1,
+      "choice": "A",
+      "correct": true,
+      "ms": 42033,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "5304",
+      "reading": 1,
+      "choice": "C",
+      "correct": true,
+      "ms": 33969,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "5306",
+      "reading": 1,
+      "choice": "C",
+      "correct": true,
+      "ms": 37826,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "15",
+      "reading": 1,
+      "choice": "B",
+      "correct": true,
+      "ms": 33693,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "13",
+      "reading": 1,
+      "choice": "C",
+      "correct": false,
+      "ms": 41926,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "6",
+      "reading": 1,
+      "choice": "D",
+      "correct": false,
+      "ms": 59373,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "1",
+      "reading": 1,
+      "choice": "A",
+      "correct": false,
+      "ms": 64721,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "37",
+      "reading": 1,
+      "choice": "D",
+      "correct": false,
+      "ms": 28952,
+      "at": 1790796631272,
+      "session": "smuohhbgz"
+    },
+    {
+      "q": "25",
+      "reading": 2,
+      "choice": "B",
+      "correct": true,
+      "ms": 24139,
+      "at": 1790801234580,
+      "session": "smuoksxfr"
+    },
+    {
+      "q": "25",
+      "reading": 2,
+      "choice": "B",
+      "correct": true,
+      "ms": 17489,
+      "at": 1790801626916,
+      "session": "smuoktp36"
+    },
+    {
+      "q": "17",
+      "reading": 2,
+      "choice": "B",
+      "correct": true,
+      "ms": 43209,
+      "at": 1790801626916,
+      "session": "smuoktp36"
+    },
+    {
+      "q": "41",
+      "reading": 2,
+      "choice": "D",
+      "correct": true,
+      "ms": 47207,
+      "at": 1790801626916,
+      "session": "smuoktp36"
+    },
+    {
+      "q": "42",
+      "reading": 2,
+      "choice": "B",
+      "correct": true,
+      "ms": 27536,
+      "at": 1790801626916,
+      "session": "smuoktp36"
+    },
+    {
+      "q": "23",
+      "reading": 2,
+      "choice": "A",
+      "correct": true,
+      "ms": 21396,
+      "at": 1790801626916,
+      "session": "smuoktp36"
+    },
+    {
+      "q": "5036",
+      "reading": 2,
+      "choice": "B",
+      "correct": true,
+      "ms": 49655,
+      "at": 1790801626916,
+      "session": "smuoktp36"
+    },
+    {
+      "q": "20",
+      "reading": 2,
+      "choice": "C",
+      "correct": false,
+      "ms": 46580,
+      "at": 1790801626916,
+      "session": "smuoktp36"
+    },
+    {
+      "q": "5307",
+      "reading": 2,
+      "choice": "C",
+      "correct": true,
+      "ms": 33632,
+      "at": 1790801626916,
+      "session": "smuoktp36"
+    },
+    {
+      "q": "19",
+      "reading": 2,
+      "choice": "C",
+      "correct": true,
+      "ms": 47118,
+      "at": 1790801626916,
+      "session": "smuoktp36"
+    },
+    {
+      "q": "18",
+      "reading": 2,
+      "choice": "B",
+      "correct": false,
+      "ms": 46818,
+      "at": 1790801626916,
+      "session": "smuoktp36"
+    },
+    {
+      "q": "18",
+      "reading": 2,
+      "choice": "D",
+      "correct": true,
+      "ms": 20875,
+      "at": 1790803722105,
+      "session": "smuomabcd"
+    },
+    {
+      "q": "20",
+      "reading": 2,
+      "choice": "D",
+      "correct": true,
+      "ms": 4300,
+      "at": 1790803729038,
+      "session": "smuomabcd"
+    },
+    {
+      "q": "5309",
+      "reading": 3,
+      "choice": "D",
+      "correct": true,
+      "ms": 42035,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "45",
+      "reading": 3,
+      "choice": "A",
+      "correct": false,
+      "ms": 65596,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "5308",
+      "reading": 3,
+      "choice": "B",
+      "correct": false,
+      "ms": 46041,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "60",
+      "reading": 3,
+      "choice": "D",
+      "correct": true,
+      "ms": 93093,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "57",
+      "reading": 3,
+      "choice": "D",
+      "correct": false,
+      "ms": 25274,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "21",
+      "reading": 3,
+      "choice": "C",
+      "correct": false,
+      "ms": 98857,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "55",
+      "reading": 3,
+      "choice": "C",
+      "correct": true,
+      "ms": 44867,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "52",
+      "reading": 3,
+      "choice": "C",
+      "correct": true,
+      "ms": 32825,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "61",
+      "reading": 3,
+      "choice": "A",
+      "correct": false,
+      "ms": 49622,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "64",
+      "reading": 3,
+      "choice": "D",
+      "correct": true,
+      "ms": 89939,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "48",
+      "reading": 3,
+      "choice": "B",
+      "correct": true,
+      "ms": 81311,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "59",
+      "reading": 3,
+      "choice": "D",
+      "correct": false,
+      "ms": 29953,
+      "at": 1790804640818,
+      "session": "smuomfgns"
+    },
+    {
+      "q": "5302",
+      "reading": 12,
+      "choice": "B",
+      "correct": true,
+      "ms": 313118,
+      "at": 1795461326366,
+      "session": "smwtmgi16"
+    },
+    {
+      "q": "317",
+      "reading": 12,
+      "choice": "B",
+      "correct": true,
+      "ms": 115209,
+      "at": 1795461326366,
+      "session": "smwtmgi16"
+    },
+    {
+      "q": "3625",
+      "reading": 12,
+      "choice": "C",
+      "correct": true,
+      "ms": 80649,
+      "at": 1795461326366,
+      "session": "smwtmgi16"
+    },
+    {
+      "q": "334",
+      "reading": 13,
+      "choice": "A",
+      "correct": false,
+      "ms": 36564,
+      "at": 1795461326366,
+      "session": "smwtmgi16"
+    },
+    {
+      "q": "3836",
+      "reading": 13,
+      "choice": "A",
+      "correct": true,
+      "ms": 58170,
+      "at": 1795701505621,
+      "session": "smwxjrrsm"
+    },
+    {
+      "q": "3624",
+      "reading": 12,
+      "choice": "D",
+      "correct": true,
+      "ms": 677828,
+      "at": 1795701505621,
+      "session": "smwxjrrsm"
+    },
+    {
+      "q": "3838",
+      "reading": 13,
+      "choice": "A",
+      "correct": false,
+      "ms": 40170,
+      "at": 1795701505621,
+      "session": "smwxjrrsm"
+    },
+    {
+      "q": "3611",
+      "reading": 12,
+      "choice": "B",
+      "correct": false,
+      "ms": 1166544,
+      "at": 1795701505621,
+      "session": "smwxjrrsm"
+    },
+    {
+      "q": "3739",
+      "reading": 13,
+      "choice": "D",
+      "correct": true,
+      "ms": 207178,
+      "at": 1795701505621,
+      "session": "smwxjrrsm"
+    },
+    {
+      "q": "3615",
+      "reading": 12,
+      "choice": "D",
+      "correct": true,
+      "ms": 208432,
+      "at": 1795701505621,
+      "session": "smwxjrrsm"
+    },
+    {
+      "q": "3262",
+      "reading": 13,
+      "choice": "A",
+      "correct": true,
+      "ms": 311351,
+      "at": 1795701505621,
+      "session": "smwxjrrsm"
+    },
+    {
+      "q": "3618",
+      "reading": 12,
+      "choice": "D",
+      "correct": true,
+      "ms": 87210,
+      "at": 1795701505621,
+      "session": "smwxjrrsm"
+    }
+  ],
+  "flags": {
+    "314": {
+      "unreadable": true
+    },
+    "3611": {
+      "review": true
+    },
+    "3625": {
+      "review": true
+    }
+  },
+  "treated": {
+    "3": {
+      "at": 1791321773778,
+      "reading": 1
+    },
+    "4": {
+      "at": 1791323213786,
+      "reading": 1
+    },
+    "5": {
+      "at": 1791324482947,
+      "reading": 1
+    },
+    "7": {
+      "at": 1791321998209,
+      "reading": 1
+    },
+    "8": {
+      "at": 1791328190223,
+      "reading": 1
+    },
+    "9": {
+      "at": 1791321422446,
+      "reading": 1
+    },
+    "10": {
+      "at": 1791322043340,
+      "reading": 1
+    },
+    "33": {
+      "at": 1791321843036,
+      "reading": 1
+    },
+    "36": {
+      "at": 1791330952680,
+      "reading": 1
+    },
+    "5298": {
+      "at": 1791322260628,
+      "reading": 1
+    },
+    "5300": {
+      "at": 1791321919156,
+      "reading": 1
+    }
+  },
+  "sessions": [
+    {
+      "id": "smuohhbgz",
+      "mode": "exam",
+      "label": "FRM-1 · The Building Blocks of Risk Management",
+      "startedAt": 1790795629907,
+      "finishedAt": 1790796631273,
+      "total": 23,
+      "answered": 23,
+      "correct": 13,
+      "ms": 1001364,
+      "timeLimit": null
+    },
+    {
+      "id": "smuoktp36",
+      "mode": "exam",
+      "label": "FRM-2 · How Do Firms Manage Financial Risk?",
+      "startedAt": 1790801246274,
+      "finishedAt": 1790801626918,
+      "total": 10,
+      "answered": 10,
+      "correct": 8,
+      "ms": 380640,
+      "timeLimit": null
+    },
+    {
+      "id": "smuomabcd",
+      "mode": "training",
+      "label": "FRM-2 · How Do Firms Manage Financial Risk? · ratées au dernier essai",
+      "startedAt": 1790803701229,
+      "finishedAt": 1790803731347,
+      "total": 2,
+      "answered": 2,
+      "correct": 2,
+      "ms": 25175,
+      "timeLimit": null
+    },
+    {
+      "id": "smuomfgns",
+      "mode": "exam",
+      "label": "FRM-3 · The Governance of Risk Management",
+      "startedAt": 1790803941400,
+      "finishedAt": 1790804640819,
+      "total": 12,
+      "answered": 12,
+      "correct": 6,
+      "ms": 699413,
+      "timeLimit": null
+    },
+    {
+      "id": "smwtmgi16",
+      "mode": "exam",
+      "label": "Readings · QA-1, QA-2",
+      "startedAt": 1795459885386,
+      "finishedAt": 1795461326367,
+      "total": 10,
+      "answered": 4,
+      "correct": 3,
+      "ms": 1440978,
+      "timeLimit": 1440000
+    },
+    {
+      "id": "smwxjrrsm",
+      "mode": "exam",
+      "label": "Readings · QA-1, QA-2",
+      "startedAt": 1795697237110,
+      "finishedAt": 1795701505623,
+      "total": 10,
+      "answered": 8,
+      "correct": 6,
+      "ms": 4268503,
+      "timeLimit": null,
+      "questions": [
+        {
+          "q": "319",
+          "reading": 12
+        },
+        {
+          "q": "3836",
+          "reading": 13
+        },
+        {
+          "q": "366",
+          "reading": 12
+        },
+        {
+          "q": "3624",
+          "reading": 12
+        },
+        {
+          "q": "3838",
+          "reading": 13
+        },
+        {
+          "q": "3611",
+          "reading": 12
+        },
+        {
+          "q": "3739",
+          "reading": 13
+        },
+        {
+          "q": "3615",
+          "reading": 12
+        },
+        {
+          "q": "3262",
+          "reading": 13
+        },
+        {
+          "q": "3618",
+          "reading": 12
+        }
+      ]
+    }
+  ]
+}
